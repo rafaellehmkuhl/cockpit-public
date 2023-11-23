@@ -79,6 +79,7 @@ onBeforeMount(() => {
       headingStyle: headingOptions[0],
     }
   }
+  datalogger.registerUsage(DatalogVariable.heading)
 })
 
 // Calculates the smallest between the widget dimensions, so we can keep the inner content always inside it, without overlays
@@ -184,8 +185,6 @@ const renderCanvas = (): void => {
 setInterval(() => {
   const angleDegrees = degrees(store.attitude.yaw ?? 0)
   const fullRangeAngleDegrees = angleDegrees < 0 ? angleDegrees + 360 : angleDegrees
-
-  datalogger.updateVariable(DatalogVariable.heading, `${renderVariables.yawAngleDegrees.toFixed(0)}°`)
 
   const fromWestToEast = renderVariables.yawAngleDegrees > 270 && fullRangeAngleDegrees < 90
   const fromEastToWest = renderVariables.yawAngleDegrees < 90 && fullRangeAngleDegrees > 270

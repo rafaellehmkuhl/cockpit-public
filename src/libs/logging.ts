@@ -1,11 +1,14 @@
 /* eslint-disable vue/max-len */
 /* eslint-disable prettier/prettier */
 /* eslint-disable max-len */
-import { differenceInSeconds, format } from 'date-fns'
+import { useStorage } from '@vueuse/core'
+import { differenceInMilliseconds, differenceInSeconds, format } from 'date-fns'
 import localforage from 'localforage'
 import Swal from 'sweetalert2'
 
 import { useMainVehicleStore } from '@/stores/mainVehicle'
+
+import { degrees } from './utils'
 
 /**
  * Variables data can be datalogged
@@ -72,15 +75,8 @@ export type CockpitStandardLog = CockpitStandardLogPoint[]
 class DataLogger {
   currentLoggerInterval: ReturnType<typeof setInterval> | undefined = undefined
   currentCockpitLog: CockpitStandardLog = []
-  // @ts-ignore: Variable will be populated in the constructor
-  variablesData: VariablesData = {}
-
-  // eslint-disable-next-line jsdoc/require-jsdoc
-  constructor() {
-    Object.values(DatalogVariable).forEach((variableName) => {
-      this.variablesData[variableName] = { value: 'No data', lastChanged: 0 }
-    })
-  }
+  variablesBeingUsed: DatalogVariable[] = []
+  selectedVariablesToShow = useStorage<DatalogVariable[]>('cockpit-datalogger-overlay-variables', [])
 
   /**
    * Start an intervaled logging
@@ -109,20 +105,23 @@ class DataLogger {
       const timeNow = new Date()
       const secondsNow = differenceInSeconds(timeNow, initialTime)
 
-      // const sensorsData: Record<string, number | string> = {}
-      // sensorsData['roll'] = degrees(vehicleStore.attitude.roll)
-      // sensorsData['pitch'] = degrees(vehicleStore.attitude.pitch)
-      // sensorsData['heading'] = degrees(vehicleStore.attitude.yaw)
-      // sensorsData['depth'] = vehicleStore.altitude.msl || NaN
-      // sensorsData['mode'] = vehicleStore.mode || 'Unknown'
-      // sensorsData['batteryVoltage'] = vehicleStore.powerSupply.voltage || NaN
-      // sensorsData['batteryCurrent'] = vehicleStore.powerSupply.current || NaN
-      // sensorsData['gpsVisibleSatellites'] = vehicleStore.statusGPS.visibleSatellites || NaN
-      // sensorsData['gpsFixType'] = vehicleStore.statusGPS.fixType || 'Unknown'
-      // sensorsData['latitude'] = vehicleStore.coordinates.latitude || NaN
-      // sensorsData['longitude'] = vehicleStore.coordinates.longitude || NaN
+      const timeNowObj = { lastChanged: timeNow.getTime() }
 
-      this.currentCockpitLog.push({ epoch: timeNow.getTime(), seconds: secondsNow, data: structuredClone(this.variablesData) })
+      const variablesData = {
+        [DatalogVariable.roll]: { value: `${degrees(vehicleStore.attitude.roll).toFixed(1)} °`, ...timeNowObj },
+        [DatalogVariable.pitch]: { value: `${degrees(vehicleStore.attitude.pitch).toFixed(1)} °`, ...timeNowObj },
+        [DatalogVariable.heading]: { value: `${degrees(vehicleStore.attitude.yaw).toFixed(1)} °`, ...timeNowObj },
+        [DatalogVariable.depth]: { value: `${vehicleStore.altitude.msl.toPrecision(4)} m`, ...timeNowObj },
+        [DatalogVariable.mode]: { value: vehicleStore.mode || 'Unknown', ...timeNowObj },
+        [DatalogVariable.batteryVoltage]: { value: `${vehicleStore.powerSupply.voltage?.toFixed(2)} V` || 'Unknown', ...timeNowObj },
+        [DatalogVariable.batteryCurrent]: { value: `${vehicleStore.powerSupply.current?.toFixed(2)} A` || 'Unknown', ...timeNowObj },
+        [DatalogVariable.gpsVisibleSatellites]: { value: vehicleStore.statusGPS.visibleSatellites.toFixed(0) || 'Unknown', ...timeNowObj },
+        [DatalogVariable.gpsFixType]: { value: vehicleStore.statusGPS.fixType, ...timeNowObj },
+        [DatalogVariable.latitude]: { value: `${vehicleStore.coordinates.latitude.toFixed(6)} °` || 'Unknown', ...timeNowObj },
+        [DatalogVariable.longitude]: { value: `${vehicleStore.coordinates.longitude.toFixed(6)} °` || 'Unknown', ...timeNowObj },
+      }
+
+      this.currentCockpitLog.push({ epoch: timeNow.getTime(), seconds: secondsNow, data: structuredClone(variablesData) })
 
       await cockpitLogsDB.setItem(fileName, this.currentCockpitLog)
     }, interval)
@@ -151,12 +150,11 @@ class DataLogger {
   /**
    * Update state of a given variable
    * @param {DatalogVariable} variable - Name of the variable being updated
-   * @param {string} value - New value for the variable
    * @returns {void}
    */
-  updateVariable(variable: DatalogVariable, value: string): void {
-    this.variablesData[variable] = { value: value, lastChanged: new Date().getTime() }
-    console.log(Object.keys(this.variablesData))
+  registerUsage(variable: DatalogVariable): void {
+    if (this.variablesBeingUsed.includes(variable)) return
+    this.variablesBeingUsed.push(variable)
   }
 
   /**
@@ -171,10 +169,17 @@ class DataLogger {
       .filter((logPoint) => logPoint.epoch > initialTime.getTime() && logPoint.epoch < finalTime.getTime())
       .map((logPoint) => ({ ...logPoint, ...{ seconds: differenceInSeconds(new Date(logPoint.epoch), initialTime) } }))
   }
-}
 
-export const assFromClog = (log: CockpitStandardLog, videoWidth: number, videoHeight: number): string => {
-  let assFile = `[Script Info]
+  /**
+   * Convert Cockpit standard log files to Advanced SubStation Alpha subtitle overlays
+   * @param {CockpitStandardLog} log
+   * @param {number} videoWidth
+   * @param {number} videoHeight
+   * @param {number} videoStartEpoch
+   * @returns {string} ASS file string for video overlaying
+   */
+  toAssOverlay(log: CockpitStandardLog, videoWidth: number, videoHeight: number, videoStartEpoch: number): string {
+    let assFile = `[Script Info]
 Title: Cockpit Subtitle Telemetry file
 ScriptType: v4.00+
 WrapStyle: 0
@@ -190,31 +195,50 @@ Style: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`
 
-  log.forEach((logPoint) => {
-    // const roll = Number(logPoint.data['roll']).toFixed(2)
-    // const pitch = Number(logPoint.data['pitch']).toFixed(2)
-    // const heading = Number(logPoint.data['heading']).toFixed(2)
-    // const depth = Number(logPoint.data['depth']).toFixed(2)
-    // const mode = logPoint.data['mode']
-    // const batteryVoltage = Number(logPoint.data['batteryVoltage']).toFixed(2)
-    // const batteryCurrent = Number(logPoint.data['batteryCurrent']).toFixed(2)
-    // const gpsVisibleSatellites = logPoint.data['gpsVisibleSatellites']
-    // const gpsFixType = logPoint.data['gpsFixType']
-    // const latitude = Number(logPoint.data['latitude']).toFixed(6)
-    // const longitude = Number(logPoint.data['longitude']).toFixed(6)
+    // Try to show, in order, variables the user has decided to show, or variables being used in the application, or all variables.
+    const hasUserSelected = !this.selectedVariablesToShow.value.isEmpty()
+    const areThereVariablesBeingUsed = !this.variablesBeingUsed.isEmpty()
+    const allAvailableVariables = Object.values(DatalogVariable)
+    const variablesToShow = hasUserSelected ? this.selectedVariablesToShow.value : areThereVariablesBeingUsed ? this.variablesBeingUsed : allAvailableVariables
 
-    const data = Object.entries(logPoint.data).map((v) => ({ name: v[0], value: v[1].value }))
+    log.forEach((logPoint) => {
+      const data = Object.entries(logPoint.data)
+        .filter((vData) => variablesToShow.includes(vData[0] as DatalogVariable))
+        .map((v) => ({ name: v[0], value: v[1].value }))
 
-    const secondsStart = logPoint.seconds.toFixed(0)
-    const secondsFinish = (logPoint.seconds + 1).toFixed(0)
-    assFile = assFile.concat(`\nDialogue: 0,0:0:${secondsStart}.00,0:0:${secondsFinish}.00,Default,,${0.1*videoWidth},0,${0.05*videoHeight},,${data[0].name}: ${data[0].value} \\N${data[1].name}: ${data[1].value} \\N`)
-    // assFile = assFile.concat(`\nDialogue: 0,0:0:${secondsStart}.00,0:0:${secondsFinish}.00,Default,,${0.1*videoWidth},0,${0.05*videoHeight},,Heading: ${heading} \\NPitch: ${pitch} \\NRoll: ${roll} \\NDepth: ${depth}`)
-    // assFile = assFile.concat(`\nDialogue: 0,0:0:${secondsStart}.00,0:0:${secondsFinish}.00,Default,,${0.4*videoWidth},0,${0.05*videoHeight},,Mode: ${mode} \\NVoltage: ${batteryVoltage}\\NCurrent: ${batteryCurrent}`)
-    // assFile = assFile.concat(`\nDialogue: 0,0:0:${secondsStart}.00,0:0:${secondsFinish}.00,Default,,${0.7*videoWidth},0,${0.05*videoHeight},,GPS status: ${gpsFixType}\\NSatellites: ${gpsVisibleSatellites}\\NLatitude: ${latitude}\\NLongitude: ${longitude}`)
-  })
-  assFile = assFile.concat('\n')
+      const secondsStart = Math.round(differenceInMilliseconds(new Date(logPoint.epoch), new Date(videoStartEpoch))/1000)
+      const secondsFinish = secondsStart + 1
 
-  return assFile
+      let subtitleDataString1 = ''
+      let subtitleDataString2 = ''
+      let subtitleDataString3 = ''
+      let binToUse = 1
+      data.forEach((d) => {
+        if (binToUse === 1) {
+          subtitleDataString1 = subtitleDataString1.concat(`${d.name}: ${d.value} \\N`)
+        } else if (binToUse === 2) {
+          subtitleDataString2 = subtitleDataString2.concat(`${d.name}: ${d.value} \\N`)
+        } else if (binToUse === 3) {
+          subtitleDataString3 = subtitleDataString3.concat(`${d.name}: ${d.value} \\N`)
+        }
+        binToUse +=1
+        if (binToUse > 3) {
+          binToUse = 1
+        }
+      })
+
+      console.log(videoWidth, videoHeight)
+      console.log(0.1*videoWidth, 0.05*videoHeight)
+
+      assFile = assFile.concat(`\nDialogue: 0,0:0:${secondsStart}.00,0:0:${secondsFinish}.00,Default,,${0.1*videoWidth},0,${0.05*videoHeight},,${subtitleDataString1}`)
+      assFile = assFile.concat(`\nDialogue: 0,0:0:${secondsStart}.00,0:0:${secondsFinish}.00,Default,,${0.4*videoWidth},0,${0.05*videoHeight},,${subtitleDataString2}`)
+      assFile = assFile.concat(`\nDialogue: 0,0:0:${secondsStart}.00,0:0:${secondsFinish}.00,Default,,${0.7*videoWidth},0,${0.05*videoHeight},,${subtitleDataString3}`)
+    })
+    assFile = assFile.concat('\n')
+
+    return assFile
+  }
 }
+
 
 export const datalogger = new DataLogger()
