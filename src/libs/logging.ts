@@ -7,24 +7,34 @@ import { useMainVehicleStore } from '@/stores/mainVehicle'
 import { degrees } from './utils'
 
 /**
+ * Format for a standalone cockpit log
+ */
+export interface CockpitStandardLogPoint {
+  /**
+   * Universal Linux epoch time (milliseconds since January 1st, 1970, UTC)
+   */
+  epoch: number
+  /**
+   * Seconds passed since the beggining of the logging
+   */
+  seconds: number
+  /**
+   * The actual vehicle data
+   */
+  data: Record<string, number | string>
+}
+
+/**
+ * Format for a standalone cockpit log
+ */
+export type CockpitStandardLog = CockpitStandardLogPoint[]
+
+/**
  * Manager logging vehicle data and others
  */
 class DataLogger {
   currentLoggerInterval: ReturnType<typeof setInterval> | undefined = undefined
-  currentCockpitLog: {
-    /**
-     * Universal Linux epoch time (milliseconds since January 1st, 1970, UTC)
-     */
-    epoch: number
-    /**
-     * Seconds passed since the beggining of the logging
-     */
-    seconds: number
-    /**
-     * The actual vehicle data
-     */
-    data: Record<string, number | string>
-  }[] = []
+  currentCockpitLog: CockpitStandardLog = []
 
   /**
    * Start an intervaled logging
@@ -90,6 +100,19 @@ class DataLogger {
    */
   logging(): boolean {
     return this.currentLoggerInterval !== undefined
+  }
+
+  /**
+   * Get desired part of a log based on timestamp
+   * @param {CockpitStandardLog} completeLog The log from which the slice should be taken from
+   * @param {Date} initialTime The timestamp from which the log should be started from
+   * @param {Date} finalTime The timestamp in which the log should be terminated
+   * @returns {CockpitStandardLog} The actual log
+   */
+  getSlice(completeLog: CockpitStandardLog, initialTime: Date, finalTime: Date): CockpitStandardLog {
+    return completeLog
+      .filter((logPoint) => logPoint.epoch > initialTime.getTime() && logPoint.epoch < finalTime.getTime())
+      .map((logPoint) => ({ ...logPoint, ...{ seconds: differenceInSeconds(new Date(logPoint.epoch), initialTime) } }))
   }
 }
 
