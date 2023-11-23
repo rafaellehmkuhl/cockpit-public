@@ -26,6 +26,7 @@ import { computed, onBeforeMount, ref, toRefs } from 'vue'
 
 import Dialog from '@/components/Dialog.vue'
 import Dropdown from '@/components/Dropdown.vue'
+import { datalogger, DatalogVariable } from '@/libs/logging'
 import { degrees, radians, resetCanvas, sequentialArray } from '@/libs/utils'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 import type { Widget } from '@/types/widgets'
@@ -183,6 +184,8 @@ const renderCanvas = (): void => {
 setInterval(() => {
   const angleDegrees = degrees(store.attitude.yaw ?? 0)
   const fullRangeAngleDegrees = angleDegrees < 0 ? angleDegrees + 360 : angleDegrees
+
+  datalogger.updateVariable(DatalogVariable.heading, `${renderVariables.yawAngleDegrees.toFixed(0)}°`)
 
   const fromWestToEast = renderVariables.yawAngleDegrees > 270 && fullRangeAngleDegrees < 90
   const fromEastToWest = renderVariables.yawAngleDegrees < 90 && fullRangeAngleDegrees > 270
