@@ -38,6 +38,17 @@
           <p>Could not stablish communication with the vehicle.</p>
           <p>Button functions will appear as numbers. If connection is restablished, function names will appear.</p>
         </div>
+        <div class="flex items-center px-5 py-3 m-5 font-bold border rounded-md">
+          <Button
+            v-for="key in availableModifierKeys"
+            :key="key.id"
+            class="m-2"
+            :class="{ 'bg-slate-700': currentModifierKey.id === key.id }"
+            @click="currentModifierKey = key"
+          >
+            {{ key.name }}
+          </Button>
+        </div>
       </div>
       <div
         v-for="[key, joystick] in controllerStore.joysticks"
@@ -219,8 +230,7 @@
                           class="m-1 hover:bg-slate-700"
                           :class="{
                             'bg-slate-700':
-                              currentButtonActions[input.id].action.protocol ==
-                                action.protocol &&
+                              currentButtonActions[input.id].action.protocol == action.protocol &&
                               currentButtonActions[input.id].action.id == action.id,
                           }"
                           @click="currentButtonActions[input.id].action = action"
@@ -286,6 +296,7 @@ const remappingInput = ref(false)
 const justRemappedInput = ref<boolean>()
 const inputClickedDialog = ref(false)
 const currentModifierKey = ref(modifierKeyActions.regular)
+const availableModifierKeys = Object.values(modifierKeyActions)
 
 watch(inputClickedDialog, () => (justRemappedInput.value = undefined))
 
