@@ -329,7 +329,7 @@ export class MavlinkControllerState extends ProtocolControllerState {
       const activeMavlinkManualControlActions = activeButtonActions.filter((a) => a.protocol === JoystickProtocol.MAVLinkManualControl)
       const vehicleButtonsToActivate = buttonActionIdTable.filter((entry) => activeMavlinkManualControlActions.map((action) => action.id).includes(entry.actionId as MAVLinkButtonFunction)).map((entry) => manualControlButtonFromParameterName(entry.button))
       const useShift = shiftActivatedButtons().filter((btn) => vehicleButtonsToActivate.includes(btn)).length > 0
-      console.log('use shift?', useShift)
+      // console.log('use shift?', useShift)
 
       for (let i = 0; i < MavlinkControllerState.BUTTONS_PER_BITFIELD; i++) {
         let buttonState = 0
@@ -359,11 +359,11 @@ export class MavlinkControllerState extends ProtocolControllerState {
       console.log('not enough information to create a mavlink manual control package')
     }
 
-    console.log('buttons', buttons_int)
-    console.log('x', this.x)
-    console.log('y', this.y)
-    console.log('z', this.z)
-    console.log('r', this.r)
+    // console.log('buttons', buttons_int)
+    // console.log('x', this.x)
+    // console.log('y', this.y)
+    // console.log('z', this.z)
+    // console.log('r', this.r)
 
     this.buttons = buttons_int
     this.target = round(target, 0)

@@ -171,14 +171,14 @@
                   hide-details
                 />
                 <v-select
-                  v-model="controllerStore.protocolMapping.axesCorrespondencies[input.id].action.name"
+                  v-model="controllerStore.protocolMapping.axesCorrespondencies[input.id].action"
                   :items="controllerStore.availableAxesActions"
-                  item-title="prettyName"
-                  item-value="input"
+                  item-title="name"
                   hide-details
                   density="compact"
                   variant="solo"
                   class="w-40 m-3"
+                  return-object
                 />
                 <v-text-field
                   v-model.number="controllerStore.protocolMapping.axesCorrespondencies[input.id].max"
