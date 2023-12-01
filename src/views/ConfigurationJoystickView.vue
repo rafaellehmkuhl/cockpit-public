@@ -71,7 +71,7 @@
             :b15="joystick.state.buttons[15]"
             :b16="joystick.state.buttons[16]"
             :b17="joystick.state.buttons[17]"
-            :buttons-actions-correspondency="controllerStore.protocolMapping.buttonsCorrespondencies"
+            :buttons-actions-correspondency="currentButtonActions"
             @click="(e) => setCurrentInputs(joystick, e)"
           />
           <div v-for="action in mavlinkButtonsActions" class="flex">{{ action.button }} - {{ action.actionId }}</div>
@@ -140,7 +140,7 @@
             :b15="currentJoystick.state.buttons[15]"
             :b16="currentJoystick.state.buttons[16]"
             :b17="currentJoystick.state.buttons[17]"
-            :buttons-actions-correspondency="controllerStore.protocolMapping.buttonsCorrespondencies"
+            :buttons-actions-correspondency="currentButtonActions"
           />
           <div>
             <div class="flex flex-col items-center justify-between">
@@ -219,11 +219,11 @@
                           class="m-1 hover:bg-slate-700"
                           :class="{
                             'bg-slate-700':
-                              controllerStore.protocolMapping.buttonsCorrespondencies[input.id].action.protocol ==
+                              currentButtonActions[input.id].action.protocol ==
                                 action.protocol &&
-                              controllerStore.protocolMapping.buttonsCorrespondencies[input.id].action.id == action.id,
+                              currentButtonActions[input.id].action.id == action.id,
                           }"
-                          @click="controllerStore.protocolMapping.buttonsCorrespondencies[input.id].action = action"
+                          @click="currentButtonActions[input.id].action = action"
                         >
                           {{ action.name }}
                         </Button>
@@ -246,9 +246,11 @@ import Swal from 'sweetalert2'
 import { ref, watch } from 'vue'
 import { onMounted } from 'vue'
 import { onUnmounted } from 'vue'
+import { computed } from 'vue'
 
 import Button from '@/components/Button.vue'
 import JoystickPS from '@/components/joysticks/JoystickPS.vue'
+import { modifierKeyActions } from '@/libs/joystick/protocols'
 import { useControllerStore } from '@/stores/controller'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 import {
@@ -265,7 +267,6 @@ import {
 } from '@/types/joystick'
 
 import BaseConfigurationView from './BaseConfigurationView.vue'
-import { computed } from 'vue'
 
 const controllerStore = useControllerStore()
 const vehicleStore = useMainVehicleStore()
@@ -284,6 +285,7 @@ const currentAxisInputs = ref<JoystickAxisInput[]>([])
 const remappingInput = ref(false)
 const justRemappedInput = ref<boolean>()
 const inputClickedDialog = ref(false)
+const currentModifierKey = ref(modifierKeyActions.regular)
 
 watch(inputClickedDialog, () => (justRemappedInput.value = undefined))
 
@@ -335,5 +337,29 @@ const remapInput = async (joystick: Joystick, input: JoystickInput): Promise<voi
   }
   // If remapping was unsuccessful, indicate it, so we can warn the user
   justRemappedInput.value = false
+}
+
+const currentButtonActions = computed(() => {
+  return controllerStore.protocolMapping.buttonsCorrespondencies[currentModifierKey.value.id]
+})
+
+const actionName = (button: JoystickButton) => {
+  const protocolAction = currentButtonActions.value[button].action
+  return protocolAction.protocol === JoystickProtocol.MAVLinkManualControl ? protocolAction.name : '--'
+}
+
+const mavlinkButtonsActions = computed(() => {
+  const buttonParametersNamedObject: { [key in number]: string } = {}
+  vehicleStore.buttonParameterTable.forEach((entry) => (buttonParametersNamedObject[entry.value] = entry.title))
+  const currentButtonParameters = Object.entries(vehicleStore.currentParameters).filter(([k]) => k.includes('BTN'))
+  const buttonActionIdTable = currentButtonParameters.map((btn) => ({
+    button: btn[0].replace('BTN', '').replace('FUNCTION', '').split('_').reverse().join(''),
+    actionId: buttonParametersNamedObject[btn[1]],
+  }))
+  return buttonActionIdTable
+})
+
+const mavlinkActionButton = (actionId) => {
+  return mavlinkButtonsActions.value.find((butAct) => butAct.actionId === actionId)?.button ?? '--'
 }
 </script>

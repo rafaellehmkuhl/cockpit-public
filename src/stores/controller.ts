@@ -2,22 +2,28 @@ import { useStorage } from '@vueuse/core'
 import { saveAs } from 'file-saver'
 import { defineStore } from 'pinia'
 import Swal from 'sweetalert2'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 import { availableGamepadToCockpitMaps, cockpitStandardToProtocols } from '@/assets/joystick-profiles'
 import { type JoystickEvent, EventType, joystickManager, JoystickModel } from '@/libs/joystick/manager'
-import { allAvailableAxes, allAvailableButtons } from '@/libs/joystick/protocols'
-import { type JoystickProtocolActionsMapping, type JoystickState, Joystick } from '@/types/joystick'
+import { allAvailableAxes, allAvailableButtons, modifierKeyActions } from '@/libs/joystick/protocols'
+import {
+  type JoystickProtocolActionsMapping,
+  type JoystickState,
+  type ProtocolAction,
+  Joystick,
+} from '@/types/joystick'
 
 export type controllerUpdateCallback = (
   state: JoystickState,
-  protocolActionsMapping: JoystickProtocolActionsMapping
+  protocolActionsMapping: JoystickProtocolActionsMapping,
+  activeButtonActions: ProtocolAction[]
 ) => void
 
 export const useControllerStore = defineStore('controller', () => {
   const joysticks = ref<Map<number, Joystick>>(new Map())
   const updateCallbacks = ref<controllerUpdateCallback[]>([])
-  const protocolMapping = useStorage('cockpit-protocol-mapping-v4', cockpitStandardToProtocols)
+  const protocolMapping = useStorage('cockpit-protocol-mapping-v5', cockpitStandardToProtocols)
   const cockpitStdMappings = useStorage('cockpit-standard-mappings', availableGamepadToCockpitMaps)
   const availableAxesActions = allAvailableAxes
   const availableButtonActions = allAvailableButtons
@@ -55,9 +61,30 @@ export const useControllerStore = defineStore('controller', () => {
     const joystickModel = joystick.model || JoystickModel.Unknown
     joystick.gamepadToCockpitMap = cockpitStdMappings.value[joystickModel]
 
+    // const actv = activeButtonActions(joystick.state, protocolMapping.value)
+    // console.log(actv.map((a) => a.name))
+
     for (const callback of updateCallbacks.value) {
-      callback(joystick.state, protocolMapping.value)
+      callback(joystick.state, protocolMapping.value, activeButtonActions(joystick.state, protocolMapping.value))
     }
+  }
+
+  const activeButtonActions = (joystickState: JoystickState, mapping: JoystickProtocolActionsMapping): ProtocolAction[] => {
+    let modifierKeyId = modifierKeyActions.regular.id
+
+    Object.entries(mapping.buttonsCorrespondencies.regular).forEach((e) => {
+      const buttonActive = joystickState.buttons[Number(e[0])] ?? 0 > 0.5
+      const isModifier = Object.values(modifierKeyActions)
+        .map((a) => JSON.stringify(a))
+        .includes(JSON.stringify(e[1].action))
+      if (buttonActive && isModifier) {
+        modifierKeyId = e[1].action.id
+      }
+    })
+    return joystickState.buttons
+      .map((btnState, idx) => ({ id: idx, value: btnState }))
+      .filter((btn) => btn.value ?? 0 > 0.5)
+      .map((btn) => mapping.buttonsCorrespondencies[modifierKeyId][btn.id as JoystickButton].action)
   }
 
   // If there's a mapping in our database that is not on the user storage, add it to the user

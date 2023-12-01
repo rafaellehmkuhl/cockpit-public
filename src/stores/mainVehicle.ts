@@ -1,6 +1,5 @@
 import { useStorage, useTimestamp } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import Swal from 'sweetalert2'
 import { capitalize, computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 
 import { defaultGlobalAddress } from '@/assets/defaults'
@@ -378,9 +377,15 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
   const controllerStore = useControllerStore()
   const currentControllerState = ref<JoystickState>()
   const currentProtocolMapping = ref<JoystickProtocolActionsMapping>()
-  const updateCurrentControllerState = (newState: JoystickState, newMapping: JoystickProtocolActionsMapping): void => {
+  const activeButtonActions = ref<ProtocolAction[]>()
+  const updateCurrentControllerState = (
+    newState: JoystickState,
+    newMapping: JoystickProtocolActionsMapping,
+    activeButtons: ProtocolAction[]
+  ): void => {
     currentControllerState.value = newState
     currentProtocolMapping.value = newMapping
+    activeButtonActions.value = activeButtons
   }
   controllerStore.registerControllerUpdateCallback(updateCurrentControllerState)
 
@@ -391,7 +396,8 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
       currentControllerState.value,
       currentProtocolMapping.value,
       buttonParameterTable,
-      currentParameters
+      currentParameters,
+      activeButtonActions.value ?? []
     )
     if (controllerStore.enableForwarding) {
       sendManualControl(newControllerState)
@@ -401,9 +407,8 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
 
   // Loop to send Cockpit Action messages
   setInterval(() => {
-    if (!currentControllerState.value || !currentProtocolMapping.value || controllerStore.joysticks.size === 0) return
     if (controllerStore.enableForwarding) {
-      sendCockpitActions(currentControllerState.value, currentProtocolMapping.value)
+      sendCockpitActions(activeButtonActions.value ?? [])
     }
   }, 10)
 
@@ -452,21 +457,23 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
       actionId: buttonParametersNamedObject[btn[1]],
     }))
 
-    const usedMavlinkActions = Object.entries(controllerStore.protocolMapping.buttonsCorrespondencies).map((corr) => corr[1].action.id)
-    console.log('usedMavlinkActions', usedMavlinkActions)
+    const usedMavlinkActions = Object.entries(controllerStore.protocolMapping.buttonsCorrespondencies.regular).map(
+      (corr) => corr[1].action.id
+    )
+    // console.log('usedMavlinkActions', usedMavlinkActions)
     const mappedAndNotUsedActions = buttonActionIdTable.filter((ba) => !usedMavlinkActions.includes(ba.actionId))
-    console.log('mappedAndNotUsedActions', mappedAndNotUsedActions)
+    // console.log('mappedAndNotUsedActions', mappedAndNotUsedActions)
 
     const disabledVehicleButtons = buttonActionIdTable.filter(
       (ba) => !ba.button.includes('S') && ba.actionId === 'Disabled'
     )
 
-    console.log('disabledVehicleButtons', disabledVehicleButtons)
+    // console.log('disabledVehicleButtons', disabledVehicleButtons)
 
     const availableButtons = [...disabledVehicleButtons, ...mappedAndNotUsedActions].map((ba) => ba.button)
 
     const indexButtonToUse = 0
-    Object.entries(controllerStore.protocolMapping.buttonsCorrespondencies).forEach((corr) => {
+    Object.entries(controllerStore.protocolMapping.buttonsCorrespondencies.regular).forEach((corr) => {
       // This routine is only for the MAVLink ManualControl buttons
       if (corr[1].action.protocol !== JoystickProtocol.MAVLinkManualControl) return
 

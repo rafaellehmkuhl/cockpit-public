@@ -3,7 +3,7 @@
 /* eslint-disable max-len */
 import { v4 as uuid4 } from 'uuid'
 
-import { type JoystickProtocolActionsMapping,type JoystickState, type ProtocolAction, JoystickButton,JoystickProtocol } from '@/types/joystick'
+import { type JoystickProtocolActionsMapping,type JoystickState, type ProtocolAction, CockpitModifierKeyOption,JoystickButton,JoystickProtocol } from '@/types/joystick'
 
 /**
  * Possible functions in the MAVLink `MANUAL_CONTROL` message protocol
@@ -70,16 +70,11 @@ export const unregisterActionCallback = (id: string): void => {
   delete actionsCallbacks[id]
 }
 
-export const sendCockpitActions = (joystickState: JoystickState, mapping: JoystickProtocolActionsMapping): void => {
-  const actionsToCallback: CockpitAction[] = []
-  joystickState.buttons.forEach((state) => {
-    const mappedButton = mapping.buttonsCorrespondencies[state as JoystickButton]
-    if (state && mappedButton?.action.protocol === JoystickProtocol.CockpitAction) {
-      actionsToCallback.push(mappedButton.action as CockpitAction)
-    }
-  })
+export const sendCockpitActions = (activeButtonActions: ProtocolAction[]): void => {
+  const actionsToCallback = activeButtonActions.filter((a) => a.protocol === JoystickProtocol.CockpitAction)
   Object.values(actionsCallbacks).forEach((entry) => {
-    if (actionsToCallback.includes(entry.action)) {
+    if (actionsToCallback.map((a) => a.id).includes(entry.action.id)) {
+      console.log(entry.action.name)
       entry.callback()
     }
   })

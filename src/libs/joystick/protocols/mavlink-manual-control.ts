@@ -3,7 +3,7 @@
 /* eslint-disable max-len */
 /* eslint-disable jsdoc/require-jsdoc */
 import { round, scale } from '@/libs/utils'
-import { type JoystickProtocolActionsMapping, type JoystickState, type ProtocolAction, InputType, JoystickAxis, JoystickProtocol, ProtocolControllerState, JoystickButton } from '@/types/joystick'
+import { type JoystickProtocolActionsMapping, type JoystickState, type ProtocolAction, JoystickAxis, JoystickButton, JoystickProtocol, ProtocolControllerState } from '@/types/joystick'
 
 /**
  * Possible axes in the MAVLink `MANUAL_CONTROL` message protocol
@@ -292,6 +292,7 @@ export class MavlinkControllerState extends ProtocolControllerState {
    * @param { JoystickProtocolActionsMapping } mapping - Gamepad API to Protocols joystick mapping, where assignments and limits are got from.
    * @param { { title: string, value: number } } buttonParameterTable - Gamepad API to Protocols joystick mapping, where assignments and limits are got from.
    * @param { { [key in string]: number } } currentParameters - Gamepad API to Protocols joystick mapping, where assignments and limits are got from.
+   * @param { ProtocolAction[] } activeButtonActions - Currently active button actions.
    * @param { number } target - Specify targeted vehicle ID.
    */
   constructor(
@@ -299,37 +300,20 @@ export class MavlinkControllerState extends ProtocolControllerState {
     mapping: JoystickProtocolActionsMapping,
     buttonParameterTable: { title: string, value: number }[],
     currentParameters: { [key in string]: number },
+    activeButtonActions: ProtocolAction[],
     target = 1
   ) {
     super()
 
-    const isMavlinkAction = (action: ProtocolAction): boolean => action.protocol === JoystickProtocol.MAVLinkManualControl
+    // const isMavlinkAction = (action: ProtocolAction): boolean => action.protocol === JoystickProtocol.MAVLinkManualControl
 
     let buttons_int = 0
 
     if (buttonParameterTable.length !== 0 && Object.entries(currentParameters).length !== 0) {
-      console.log('lets create a mavlink manual control package')
-
-      // Calculate buttons
-
-      // console.log(joystickState)
-      // console.log(mapping)
-      // console.log(buttonParameterTable)
-      // console.log(currentParameters)
-
       const buttonParametersNamedObject: { [key in number]: string } = {}
       buttonParameterTable.forEach((entry) => buttonParametersNamedObject[entry.value] = entry.title)
-
-      // console.log(buttonParametersNamedObject)
-
       const currentButtonParameters = Object.entries(currentParameters).filter(([k,]) => k.includes('BTN'))
-
-      // console.log(currentButtonParameters)
-
       const buttonActionIdTable = currentButtonParameters.map((btn) => ({ button: btn[0], actionId: buttonParametersNamedObject[btn[1]]}))
-
-      // console.log(buttonActionIdTable)
-
       const maybeShiftButton = buttonActionIdTable.find((entry) => entry.actionId as MAVLinkButtonFunction === mavlinkManualControlButtonFunctions['Shift'].id)
       let shiftButton = undefined
       if (maybeShiftButton !== undefined) {
@@ -342,15 +326,8 @@ export class MavlinkControllerState extends ProtocolControllerState {
         // we are fine
       }
 
-      const actionsBeingActivated = joystickState.buttons
-        .map((btnState, idx) => ({ id: idx, value: btnState}))
-        .filter((btn) => btn.value ?? 0 > 0.5)
-        .map((btn) => mapping.buttonsCorrespondencies[btn.id as JoystickButton].action)
-      console.log('shift button: ', shiftButton)
-      console.log('actions activated', actionsBeingActivated.map((action) => action.name))
-
-      const vehicleButtonsToActivate = buttonActionIdTable.filter((entry) => actionsBeingActivated.map((action) => action.id).includes(entry.actionId as MAVLinkButtonFunction)).map((entry) => manualControlButtonFromParameterName(entry.button))
-      console.log('buttons activated', vehicleButtonsToActivate)
+      const activeMavlinkManualControlActions = activeButtonActions.filter((a) => a.protocol === JoystickProtocol.MAVLinkManualControl)
+      const vehicleButtonsToActivate = buttonActionIdTable.filter((entry) => activeMavlinkManualControlActions.map((action) => action.id).includes(entry.actionId as MAVLinkButtonFunction)).map((entry) => manualControlButtonFromParameterName(entry.button))
       const useShift = shiftActivatedButtons().filter((btn) => vehicleButtonsToActivate.includes(btn)).length > 0
       console.log('use shift?', useShift)
 
