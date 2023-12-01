@@ -95,7 +95,7 @@ export class Session {
    * @returns {RTCPeerConnection} - A new instance of RTCPeerConnection
    */
   private createRTCPeerConnection(configuration: RTCConfiguration): RTCPeerConnection {
-    console.debug('[WebRTC] [Session] Creating RTCPeerConnection')
+    // console.debug('[WebRTC] [Session] Creating RTCPeerConnection')
 
     const peerConnection = new RTCPeerConnection(configuration)
     peerConnection.addTransceiver('video', {
@@ -123,7 +123,7 @@ export class Session {
     this.peerConnection
       .setRemoteDescription(description)
       .then(() => {
-        console.debug(`[WebRTC] [Session] Remote description set to ${JSON.stringify(description, null, 4)}`)
+        // console.debug(`[WebRTC] [Session] Remote description set to ${JSON.stringify(description, null, 4)}`)
         this.onRemoteDescriptionSet()
       })
       .catch((reason) =>
@@ -138,7 +138,7 @@ export class Session {
     this.peerConnection
       .createAnswer()
       .then((description: RTCSessionDescriptionInit) => {
-        console.debug(`[WebRTC] [Session] SDP Answer created as: ${JSON.stringify(description, null, 4)}`)
+        // console.debug(`[WebRTC] [Session] SDP Answer created as: ${JSON.stringify(description, null, 4)}`)
         this.onAnswerCreated(description)
       })
       .catch((reason) => console.error(`[WebRTC] [Session] Failed creating description answer. Reason: ${reason}`))
@@ -152,7 +152,7 @@ export class Session {
     this.peerConnection
       .setLocalDescription(description)
       .then(() => {
-        console.debug(`[WebRTC] [Session] Local description set as${JSON.stringify(description, null, 4)}`)
+        // console.debug(`[WebRTC] [Session] Local description set as${JSON.stringify(description, null, 4)}`)
         this.onLocalDescriptionSet()
       })
       .catch(function (reason) {
@@ -195,13 +195,12 @@ export class Session {
       !this.selectedICEIPs.isEmpty() &&
       !this.selectedICEIPs.some((address) => candidate.candidate!.includes(address))
     ) {
-      console.debug(`[WebRTC] [Session] ICE candidate ignored: ${JSON.stringify(candidate, null, 4)}`)
+      // console.debug(`[WebRTC] [Session] ICE candidate ignored: ${JSON.stringify(candidate, null, 4)}`)
       return
     }
 
     this.peerConnection
       .addIceCandidate(candidate)
-      .then(() => console.debug(`[WebRTC] [Session] ICE candidate added: ${JSON.stringify(candidate, null, 4)}`))
       .catch((reason) =>
         console.error(`[WebRTC] [Session] Failed adding ICE candidate ${candidate}. Reason: ${reason}`)
       )
@@ -225,7 +224,7 @@ export class Session {
    */
   private onIceCandidateError(event: Event): void {
     const ev = event as RTCPeerConnectionIceErrorEvent
-    console.debug(`[WebRTC] [Session] ICE Candidate "${ev.url}" negotiation failed`)
+    // console.debug(`[WebRTC] [Session] ICE Candidate "${ev.url}" negotiation failed`)
   }
 
   /**
@@ -242,7 +241,7 @@ export class Session {
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private onNegotiationNeeded(_event: Event): void {
-    console.debug('[WebRTC] [Session] Peer Connection is waiting for negotiation...')
+    // console.debug('[WebRTC] [Session] Peer Connection is waiting for negotiation...')
   }
 
   /**
@@ -250,7 +249,7 @@ export class Session {
    */
   private onIceConnectionStateChange(): void {
     const msg = `ICEConnection state changed to "${this.peerConnection.iceConnectionState}"`
-    console.debug('[WebRTC] [Session] ' + msg)
+    // console.debug('[WebRTC] [Session] ' + msg)
 
     if (this.peerConnection.iceConnectionState === 'failed') {
       this.peerConnection.restartIce()
@@ -262,7 +261,7 @@ export class Session {
    */
   private onConnectionStateChange(): void {
     const msg = `RTCPeerConnection state changed to "${this.peerConnection.connectionState}"`
-    console.debug('[WebRTC] [Session] ' + msg)
+    // console.debug('[WebRTC] [Session] ' + msg)
 
     if (this.peerConnection.connectionState === 'failed') {
       this.onClose?.(this.id, 'PeerConnection failed')
@@ -275,7 +274,7 @@ export class Session {
    */
   private onSignalingStateChange(): void {
     const msg = `Signalling state changed to "${this.peerConnection.iceConnectionState}"`
-    console.debug('[WebRTC] [Session] ' + msg)
+    // console.debug('[WebRTC] [Session] ' + msg)
   }
 
   /**
@@ -283,7 +282,7 @@ export class Session {
    */
   private onIceGatheringStateChange(): void {
     if (this.peerConnection.iceGatheringState === 'complete') {
-      console.debug(`[WebRTC] [Session] ICE gathering completed for session ${this.id}`)
+      // console.debug(`[WebRTC] [Session] ICE gathering completed for session ${this.id}`)
     }
   }
 
@@ -300,7 +299,7 @@ export class Session {
 
     this.ended = true
 
-    console.debug(`[WebRTC] [Session] Session ${this.id} ended.`)
+    // console.debug(`[WebRTC] [Session] Session ${this.id} ended.`)
   }
 
   /**

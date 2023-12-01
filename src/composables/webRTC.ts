@@ -59,7 +59,7 @@ export class WebRTCManager {
    * @param {RTCConfiguration} rtcConfiguration
    */
   constructor(webRTCSignallingURI: Connection.URI, rtcConfiguration: RTCConfiguration) {
-    console.debug('[WebRTC] Trying to connect to signalling server.')
+    // console.debug('[WebRTC] Trying to connect to signalling server.')
     this.rtcConfiguration = rtcConfiguration
     this.signaller = new Signaller(
       webRTCSignallingURI,
@@ -96,7 +96,7 @@ export class WebRTCManager {
       }
 
       const msg = `Selected stream changed from "${oldStream?.id}" to "${newStream?.id}".`
-      console.debug('[WebRTC] ' + msg)
+      // console.debug('[WebRTC] ' + msg)
       if (oldStream !== undefined) {
         this.stopSession(msg)
       }
@@ -112,7 +112,7 @@ export class WebRTCManager {
       }
 
       const msg = `Selected IPs changed from "${oldIps}" to "${newIps}".`
-      console.debug('[WebRTC] ' + msg)
+      // console.debug('[WebRTC] ' + msg)
 
       this.selectedICEIPs = newIps
 
@@ -139,7 +139,7 @@ export class WebRTCManager {
    * @param {string} newStatus
    */
   private updateStreamStatus(newStatus: string): void {
-    console.debug(`[WebRTC] Stream status updated from "${this.streamStatus.value}" to "${newStatus}"`)
+    // console.debug(`[WebRTC] Stream status updated from "${this.streamStatus.value}" to "${newStatus}"`)
     const time = new Date().toTimeString().split(' ').first()
     this.streamStatus.value = `${newStatus} (${time})`
   }
@@ -149,7 +149,7 @@ export class WebRTCManager {
    * @param {string} newStatus
    */
   private updateSignallerStatus(newStatus: string): void {
-    console.debug(`[WebRTC] Signaller status updated from "${this.signallerStatus.value}" to "${newStatus}"`)
+    // console.debug(`[WebRTC] Signaller status updated from "${this.signallerStatus.value}" to "${newStatus}"`)
     const time = new Date().toTimeString().split(' ').first()
     this.signallerStatus.value = `${newStatus} (${time})`
   }
@@ -228,10 +228,10 @@ export class WebRTCManager {
     })
 
     console.groupCollapsed('[WebRTC] Track added')
-    console.debug('Event:', event)
-    console.debug('Settings:', event.track.getSettings?.())
-    console.debug('Constraints:', event.track.getConstraints?.())
-    console.debug('Capabilities:', event.track.getCapabilities?.())
+    // console.debug('Event:', event)
+    // console.debug('Settings:', event.track.getSettings?.())
+    // console.debug('Constraints:', event.track.getConstraints?.())
+    // console.debug('Capabilities:', event.track.getCapabilities?.())
     console.groupEnd()
   }
 
@@ -241,7 +241,7 @@ export class WebRTCManager {
    * @param {string} consumerId
    */
   private requestSession(stream: Stream, consumerId: string): void {
-    console.debug(`[WebRTC] Requesting stream:`, stream)
+    // console.debug(`[WebRTC] Requesting stream:`, stream)
 
     // Requests a new Session ID
     this.signaller.requestSessionId(
@@ -285,7 +285,7 @@ export class WebRTCManager {
 
       const msg = `Starting session with producer "${stream.id}" ("${this.streamName}")`
       this.updateStreamStatus(msg)
-      console.debug('[WebRTC] ' + msg)
+      // console.debug('[WebRTC] ' + msg)
 
       if (this.consumerId === undefined) {
         const error =
@@ -342,7 +342,7 @@ export class WebRTCManager {
       producerId,
       this.session.id,
       (sessionId, reason) => {
-        console.debug(`[WebRTC] Session ${sessionId} ended. Reason: ${reason}`)
+        // console.debug(`[WebRTC] Session ${sessionId} ended. Reason: ${reason}`)
         this.session = undefined
         this.hasEnded = true
       },
@@ -360,7 +360,7 @@ export class WebRTCManager {
     )
 
     const msg = `Session ${this.session.id} successfully started`
-    console.debug('[WebRTC] ' + msg)
+    // console.debug('[WebRTC] ' + msg)
     this.updateStreamStatus(msg)
   }
 
@@ -370,12 +370,12 @@ export class WebRTCManager {
    */
   private stopSession(reason: string): void {
     if (this.session === undefined) {
-      console.debug('[WebRTC] Stopping an undefined session, probably it was already stopped?')
+      // console.debug('[WebRTC] Stopping an undefined session, probably it was already stopped?')
       return
     }
     const msg = `Stopping session ${this.session.id}. Reason: ${reason}`
     this.updateStreamStatus(msg)
-    console.debug('[WebRTC] ' + msg)
+    // console.debug('[WebRTC] ' + msg)
 
     this.session.end()
     this.session = undefined

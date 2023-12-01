@@ -39,7 +39,7 @@ export class Signaller {
     this.url = url
 
     const status = `Connecting to signalling server on ${url}`
-    console.debug('[WebRTC] [Signaller] ' + status)
+    // console.debug('[WebRTC] [Signaller] ' + status)
     this.onStatusChange?.(status)
 
     this.ws = this.connect()
@@ -139,7 +139,7 @@ export class Signaller {
           return
         }
 
-        console.debug('[WebRTC] [Signaller] Message accepted from requestConsumerId:', message)
+        // console.debug('[WebRTC] [Signaller] Message accepted from requestConsumerId:', message)
 
         signaller.removeEventListener('message', consumerIdListener)
 
@@ -162,7 +162,7 @@ export class Signaller {
 
     try {
       this.ws.send(JSON.stringify(message))
-      console.debug('[WebRTC] [Signaller] Message sent:', message)
+      // console.debug('[WebRTC] [Signaller] Message sent:', message)
       onStatusChanged?.('Consumer Id requested, waiting answer...')
     } catch (reason) {
       const error = `Failed requesting peer id. Reason: ${reason}`
@@ -196,7 +196,7 @@ export class Signaller {
         return
       }
       this.ws.send(JSON.stringify(message))
-      console.debug('[WebRTC] [Signaller] Message sent:', message)
+      // console.debug('[WebRTC] [Signaller] Message sent:', message)
       onStatusChanged?.('StreamsAvailable requested')
     } catch (error) {
       const errorMsg = `Failed requesting available streams. Reason: ${error}`
@@ -232,7 +232,7 @@ export class Signaller {
           return
         }
 
-        console.debug('[WebRTC] [Signaller] Message accepted from requestSessionId:', message)
+        // console.debug('[WebRTC] [Signaller] Message accepted from requestSessionId:', message)
 
         const sessionId = answer.content.session_id
         if (sessionId === undefined) {
@@ -265,7 +265,7 @@ export class Signaller {
 
     try {
       this.ws.send(JSON.stringify(message))
-      console.debug('[WebRTC] [Signaller] Message sent:', message)
+      // console.debug('[WebRTC] [Signaller] Message sent:', message)
       onStatusChanged?.('Session Id requested, waiting answer...')
     } catch (reason) {
       const error = `Failed requesting Session Id. Reason: ${reason}`
@@ -302,11 +302,11 @@ export class Signaller {
       },
     }
 
-    console.debug(`[WebRTC] [Signaller] Sending ICE answer: ${JSON.stringify(message, null, 4)}`)
+    // console.debug(`[WebRTC] [Signaller] Sending ICE answer: ${JSON.stringify(message, null, 4)}`)
 
     try {
       this.ws.send(JSON.stringify(message))
-      console.debug('[WebRTC] [Signaller] Message sent:', message)
+      // console.debug('[WebRTC] [Signaller] Message sent:', message)
       onStatusChanged?.('ICE Candidate sent')
     } catch (error) {
       const errorMsg = `Failed sending ICE Candidate. Reason: ${error}`
@@ -345,7 +345,7 @@ export class Signaller {
 
     try {
       this.ws.send(JSON.stringify(message))
-      console.debug('[WebRTC] [Signaller] Message sent:', message)
+      // console.debug('[WebRTC] [Signaller] Message sent:', message)
       onStatusChanged?.('ICE Candidate sent')
     } catch (error) {
       const errorMsg = `Failed sending SDP. Reason: ${error}`
@@ -388,15 +388,6 @@ export class Signaller {
     onSessionEnd: OnSessionEndCallback,
     onStatusChanged?: OnStatusChangeCallback
   ): void {
-    console.debug(
-      '[WebRTC] [Signaller] Registering parseEndSessionQuestion for ' +
-        `Consumer "${consumerId}", ` +
-        `Producer "${producerId}", ` +
-        `Session "${sessionId}", ` +
-        'with callbacks:',
-      onSessionEnd,
-      onStatusChanged
-    )
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     const signaller = this
     this.addEventListener('message', function endSessionListener(ev: MessageEvent): void {
@@ -411,7 +402,7 @@ export class Signaller {
           return
         }
 
-        console.debug('[WebRTC] [Signaller] Message accepted from parseEndSessionQuestion:', message)
+        // console.debug('[WebRTC] [Signaller] Message accepted from parseEndSessionQuestion:', message)
 
         const endSessionQuestion = question.content
         if (
@@ -453,16 +444,6 @@ export class Signaller {
     onMediaNegotiation?: OnMediaNegotiationCallback,
     onStatusChanged?: OnStatusChangeCallback
   ): void {
-    console.debug(
-      '[WebRTC] [Signaller] Registering parseNegotiation for ' +
-        `Consumer "${consumerId}", ` +
-        `Producer "${producerId}", ` +
-        `Session "${sessionId}", ` +
-        'with callbacks:',
-      onIceNegotiation,
-      onMediaNegotiation,
-      onStatusChanged
-    )
     this.addEventListener('message', (ev: MessageEvent): void => {
       try {
         const message: Message = JSON.parse(ev.data)
@@ -471,7 +452,7 @@ export class Signaller {
           return
         }
 
-        console.debug('[WebRTC] [Signaller] Message accepted from parseNegotiation:', message)
+        // console.debug('[WebRTC] [Signaller] Message accepted from parseNegotiation:', message)
 
         const negotiation: Negotiation = message.content
 
@@ -512,11 +493,6 @@ export class Signaller {
     onAvailableStreams: OnAvailableStreamsCallback,
     onStatusChanged?: OnStatusChangeCallback
   ): void {
-    console.debug(
-      `[WebRTC] [Signaller] Registering parseAvailableStreamsAnswer with callbacks:`,
-      onAvailableStreams,
-      onStatusChanged
-    )
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     const signaller = this
     this.addEventListener('message', function availableStreamListener(ev: MessageEvent): void {
@@ -531,7 +507,7 @@ export class Signaller {
           return
         }
 
-        console.debug('[WebRTC] [Signaller] Message accepted from parseAvailableStreamsAnswer:', message)
+        // console.debug('[WebRTC] [Signaller] Message accepted from parseAvailableStreamsAnswer:', message)
 
         signaller.removeEventListener('message', availableStreamListener)
 
@@ -566,7 +542,7 @@ export class Signaller {
     if (this.ws.readyState !== this.ws.OPEN) {
       return
     }
-    console.debug(`[WebRTC] [Signaller] Closing WebSocket. Reason: ${reason}`)
+    // console.debug(`[WebRTC] [Signaller] Closing WebSocket. Reason: ${reason}`)
     this.ws.close()
   }
 
@@ -597,7 +573,7 @@ export class Signaller {
    */
   private reconnect(): void {
     const status = `Reconnecting to signalling`
-    console.debug('[WebRTC] [Signaller] ' + status)
+    // console.debug('[WebRTC] [Signaller] ' + status)
     this.onStatusChange?.(status)
 
     this.end('reconnect')
@@ -618,7 +594,7 @@ export class Signaller {
    */
   private onOpenCallback(event: Event): void {
     const status = `Signaller Connected`
-    console.debug('[WebRTC] [Signaller] ' + status, event)
+    // console.debug('[WebRTC] [Signaller] ' + status, event)
     this.onStatusChange?.(status)
 
     this.onOpen?.(event)
@@ -630,7 +606,7 @@ export class Signaller {
    */
   private onCloseCallback(event: CloseEvent): void {
     const status = `Signaller connection closed`
-    console.debug('[WebRTC] [Signaller] ' + status, event)
+    // console.debug('[WebRTC] [Signaller] ' + status, event)
     this.onStatusChange?.(status)
 
     if (this.shouldReconnect) {
@@ -649,7 +625,7 @@ export class Signaller {
    */
   private onErrorCallback(event: Event): void {
     const status = `Signaller connection Error`
-    console.debug('[WebRTC] [Signaller] ' + status, event)
+    // console.debug('[WebRTC] [Signaller] ' + status, event)
     this.onStatusChange?.(status)
   }
 }
