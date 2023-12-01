@@ -20,7 +20,7 @@ import {
 } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { MavFrame } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { type Message } from '@/libs/connection/m2r/messages/mavlink2rest-message'
-import { MavlinkControllerState } from '@/libs/joystick/protocols'
+import { MavlinkControllerState } from '@/libs/joystick/protocols/mavlink-manual-control'
 import { SignalTyped } from '@/libs/signal'
 import { round } from '@/libs/utils'
 import {

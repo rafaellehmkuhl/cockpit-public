@@ -32,11 +32,7 @@
           </p>
         </div>
         <div
-          v-if="
-            controllerStore.availableProtocolButtonFunctions.every(
-              (b) => b.input.protocol === JoystickProtocol.CockpitAction
-            )
-          "
+          v-if="controllerStore.availableButtonActions.every((b) => b.protocol === JoystickProtocol.CockpitAction)"
           class="flex flex-col items-center px-5 py-3 m-5 font-bold border rounded-md text-blue-grey-darken-1 bg-blue-lighten-5 w-fit"
         >
           <p>Could not stablish communication with the vehicle.</p>
@@ -75,8 +71,7 @@
             :b15="joystick.state.buttons[15]"
             :b16="joystick.state.buttons[16]"
             :b17="joystick.state.buttons[17]"
-            :protocol-mapping="controllerStore.protocolMapping"
-            :button-label-correspondency="controllerStore.availableProtocolButtonFunctions"
+            :buttons-actions-correspondency="controllerStore.protocolMapping.buttonsCorrespondencies"
             @click="(e) => setCurrentInputs(joystick, e)"
           />
         </div>
@@ -130,21 +125,18 @@
             :b15="currentJoystick.state.buttons[15]"
             :b16="currentJoystick.state.buttons[16]"
             :b17="currentJoystick.state.buttons[17]"
-            :protocol-mapping="controllerStore.protocolMapping"
-            :button-label-correspondency="controllerStore.availableProtocolButtonFunctions"
+            :buttons-actions-correspondency="controllerStore.protocolMapping.buttonsCorrespondencies"
           />
           <div>
-            <div v-for="(input, i) in currentInputs" :key="i" class="flex flex-col items-center justify-between">
-              <div v-if="input.type === InputType.Axis" class="flex items-center justify-between ma-2">
-                <v-icon class="mr-3"
-                  >{{
-                    [JoystickAxis.A0, JoystickAxis.A2].includes(Number(input.value))
-                      ? 'mdi-pan-horizontal'
-                      : 'mdi-pan-vertical'
+            <div class="flex flex-col items-center justify-between">
+              <div v-for="input in currentAxisInputs" :key="input.id" class="flex items-center justify-between ma-2">
+                <v-icon class="mr-3">
+                  {{
+                    [JoystickAxis.A0, JoystickAxis.A2].includes(input.id) ? 'mdi-pan-horizontal' : 'mdi-pan-vertical'
                   }}
                 </v-icon>
                 <v-text-field
-                  v-model.number="controllerStore.protocolMapping.axesMins[input.value]"
+                  v-model.number="controllerStore.protocolMapping.axesCorrespondencies[input.id].min"
                   style="width: 10ch; margin: 5px"
                   label="Min"
                   type="number"
@@ -153,18 +145,17 @@
                   hide-details
                 />
                 <v-select
-                  :model-value="controllerStore.protocolMapping.axesCorrespondencies[input.value]"
-                  :items="controllerStore.availableProtocolAxesFunctions"
+                  v-model="controllerStore.protocolMapping.axesCorrespondencies[input.id].action.name"
+                  :items="controllerStore.availableAxesActions"
                   item-title="prettyName"
                   item-value="input"
                   hide-details
                   density="compact"
                   variant="solo"
                   class="w-40 m-3"
-                  @update:model-value="(newValue: ProtocolInput) => updateMapping(input.value, newValue, input.type)"
                 />
                 <v-text-field
-                  v-model.number="controllerStore.protocolMapping.axesMaxs[input.value]"
+                  v-model.number="controllerStore.protocolMapping.axesCorrespondencies[input.id].max"
                   style="width: 10ch; margin: 5px"
                   label="Max"
                   type="number"
@@ -173,7 +164,11 @@
                   hide-details
                 />
               </div>
-              <div v-if="input.type === InputType.Button" class="flex flex-col justify-between p-6 align-center">
+              <div
+                v-for="input in currentButtonInputs"
+                :key="input.id"
+                class="flex flex-col justify-between p-6 align-center"
+              >
                 <div class="flex flex-col items-center justify-between">
                   <span>Calibrate</span>
                   <p>
@@ -198,27 +193,24 @@
                 <div class="flex flex-col items-center justify-between">
                   <span>Assign</span>
                   <div class="flex flex-col flex-wrap">
-                    <div
-                      v-for="[protocol, buttons] in Object.entries(availableProtocolButtonFunctions)"
-                      :key="protocol"
-                      class="flex flex-col m-2"
-                    >
+                    <div v-for="protocol in JoystickProtocol" :key="protocol" class="flex flex-col m-2">
                       <span class="mb-2 text-xl font-bold">{{ protocol }}</span>
                       <div class="overflow-y-auto max-h-40 protocol-button-container">
                         <Button
-                          v-for="buttonFunction in buttons"
-                          :key="buttonFunction.prettyName"
+                          v-for="action in controllerStore.availableButtonActions.filter(
+                            (a) => a.protocol === protocol
+                          )"
+                          :key="action.name"
                           class="m-1 hover:bg-slate-700"
                           :class="{
                             'bg-slate-700':
-                              controllerStore.protocolMapping.buttonsCorrespondencies[input.value].protocol ==
-                                buttonFunction.input.protocol &&
-                              controllerStore.protocolMapping.buttonsCorrespondencies[input.value].value ==
-                                buttonFunction.input.value,
+                              controllerStore.protocolMapping.buttonsCorrespondencies[input.id].action.protocol ==
+                                action.protocol &&
+                              controllerStore.protocolMapping.buttonsCorrespondencies[input.id].action.id == action.id,
                           }"
-                          @click="updateMapping(input.value, buttonFunction.input, input.type)"
+                          @click="controllerStore.protocolMapping.buttonsCorrespondencies[input.id].action = action"
                         >
-                          {{ buttonFunction.prettyName }}
+                          {{ action.name }}
                         </Button>
                       </div>
                     </div>
@@ -234,25 +226,26 @@
 </template>
 
 <script setup lang="ts">
+import { toReactive } from '@vueuse/core'
 import Swal from 'sweetalert2'
-import { computed, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { onMounted } from 'vue'
 import { onUnmounted } from 'vue'
 
 import Button from '@/components/Button.vue'
 import JoystickPS from '@/components/joysticks/JoystickPS.vue'
-import { MavParamType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
-import { type InputWithPrettyName, mavlinkAvailableButtons, OtherProtocol } from '@/libs/joystick/protocols'
-import type { ArduPilotParameterSetData } from '@/libs/vehicle/ardupilot/types'
 import { useControllerStore } from '@/stores/controller'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 import {
   type CockpitButton,
   type Joystick,
   type JoystickInput,
-  type ProtocolInput,
+  type ProtocolAction,
   InputType,
   JoystickAxis,
+  JoystickAxisInput,
+  JoystickButton,
+  JoystickButtonInput,
   JoystickProtocol,
 } from '@/types/joystick'
 
@@ -270,34 +263,24 @@ onUnmounted(() => {
 })
 
 const currentJoystick = ref<Joystick>()
-const currentInputs = ref()
+const currentButtonInputs = ref<JoystickButtonInput[]>([])
+const currentAxisInputs = ref<JoystickAxisInput[]>([])
 const remappingInput = ref(false)
 const justRemappedInput = ref<boolean>()
 const inputClickedDialog = ref(false)
 
 watch(inputClickedDialog, () => (justRemappedInput.value = undefined))
 
-const availableProtocolButtonFunctions = computed(() => {
-  // eslint-disable-next-line jsdoc/require-jsdoc
-  const organizedButtons: { [key in JoystickProtocol]: InputWithPrettyName[] } = {
-    [JoystickProtocol.MAVLinkManualControl]: [],
-    [JoystickProtocol.CockpitAction]: [],
-    [JoystickProtocol.Other]: [],
-  }
-  controllerStore.availableProtocolButtonFunctions.forEach((btn) => organizedButtons[btn.input.protocol].push(btn))
-  vehicleStore.buttonParameterTable.forEach((btn) => {
-    if (organizedButtons[JoystickProtocol.MAVLinkManualControl].map((b) => b.prettyName).includes(btn.title)) return
-    organizedButtons[JoystickProtocol.MAVLinkManualControl].push({
-      input: { protocol: JoystickProtocol.MAVLinkManualControl, value: btn.title },
-      prettyName: btn.title,
-    })
-  })
-  return organizedButtons
-})
-
 const setCurrentInputs = (joystick: Joystick, inputs: JoystickInput[]): void => {
   currentJoystick.value = joystick
-  currentInputs.value = inputs
+
+  currentButtonInputs.value = inputs
+    .filter((i) => i.type === InputType.Button)
+    .map((i) => new JoystickButtonInput(i.id as JoystickButton))
+  currentAxisInputs.value = inputs
+    .filter((i) => i.type === InputType.Axis)
+    .map((i) => new JoystickAxisInput(i.id as JoystickAxis))
+
   inputClickedDialog.value = true
 }
 
@@ -331,101 +314,10 @@ const remapInput = async (joystick: Joystick, input: JoystickInput): Promise<voi
   // If a button was pressed, update the mapping of that joystick model in the controller store and return
   if (![undefined, -1].includes(pressedButtonIndex)) {
     justRemappedInput.value = true
-    controllerStore.cockpitStdMappings[joystick.model].buttons[input.value] = pressedButtonIndex as CockpitButton
+    controllerStore.cockpitStdMappings[joystick.model].buttons[input.id] = pressedButtonIndex as CockpitButton
     return
   }
   // If remapping was unsuccessful, indicate it, so we can warn the user
   justRemappedInput.value = false
-}
-
-/**
- * Updates which physical button or axis in the joystick maps to it's correspondent virtual input.
- * @param {number} index - The index of the input mapping to update.
- * @param {ProtocolInput} newValue - The new value for the input mapping.
- * @param {InputType} inputType - The type of input (either Axis or Button).
- */
-const updateMapping = (index: number, newValue: ProtocolInput, inputType: InputType): void => {
-  // Ensure the input type is either a Axis or a Button
-  if (![InputType.Axis, InputType.Button].includes(inputType)) {
-    console.error('Input type should be Axis or Button.')
-    return
-  }
-
-  // Get the current input mapping based on the input type
-  const oldInputMapping =
-    inputType === InputType.Axis
-      ? controllerStore.protocolMapping.axesCorrespondencies
-      : controllerStore.protocolMapping.buttonsCorrespondencies
-
-  if (inputType === InputType.Axis) {
-    // If the input type is an Axis, create a new input mapping, unassigning indexes use to held
-    // the selected value, so we don't have two axis sending data to the same channel
-    const undefinedInput = { protocol: JoystickProtocol.Other, value: OtherProtocol.NO_FUNCTION }
-    const newInputMapping = oldInputMapping.map((oldValue) => {
-      return oldValue.protocol === newValue.protocol && oldValue.value === newValue.value ? undefinedInput : oldValue
-    })
-    // Update the axes correspondences and current protocol mapping
-    newInputMapping[index] = newValue
-    controllerStore.protocolMapping.axesCorrespondencies = newInputMapping
-  } else {
-    // If the input type is a Button, simply update the value at the specified index
-    const newInputMapping = oldInputMapping
-
-    let newInput = newValue
-
-    // When we use an unmapped MAVLink function, we use the same mapping but we have te new function to that button
-    if (newValue.protocol === JoystickProtocol.MAVLinkManualControl && typeof newValue.value !== 'number') {
-      const buttonParameterValue = vehicleStore.buttonParameterTable.find((btn) => btn.title === newValue.value)?.value
-      if (buttonParameterValue === undefined) {
-        Swal.fire({ text: `Could not find MAVLink parameter ${newValue.value}.`, icon: 'error', timer: 5000 })
-        return
-      }
-
-      let mavlinkButton: undefined | number = undefined
-      const usedMavButtons = oldInputMapping
-        .filter((i) => i.protocol === JoystickProtocol.MAVLinkManualControl)
-        .map((i) => i.value)
-      const availableMavButtons = mavlinkAvailableButtons.filter((b) => !usedMavButtons.includes(b))
-      const oldButtonInput = oldInputMapping[index]
-
-      if (oldButtonInput.protocol !== JoystickProtocol.MAVLinkManualControl && !availableMavButtons.isEmpty()) {
-        mavlinkButton = availableMavButtons[0]
-      } else if (oldButtonInput.protocol === JoystickProtocol.MAVLinkManualControl) {
-        // Check if there's more than one Cockpit button assigned to this same MAVLink button
-        const doubleMapped = usedMavButtons.filter((b) => b === oldButtonInput.value).length > 1
-        if (doubleMapped && !availableMavButtons.isEmpty()) {
-          // In case there's a double mapping but there are MAVLink buttons still not used, pick one.
-          mavlinkButton = availableMavButtons[0]
-        } else if (!doubleMapped) {
-          // If there's onlyy one Cockpit button mapped to this MAVLink button, use it.
-          mavlinkButton = oldButtonInput.value as number
-        }
-      }
-
-      if (mavlinkButton === undefined) {
-        // If the variable is still undefined, it means we could not find an available MAVLink button to be used, thus we cannot proceed mapping.
-        const errorMessage = `None of the 16 MAVLink Manual Control buttons are available.
-            Please assign "No function" to one already used.`
-        console.error(errorMessage)
-        Swal.fire({ text: errorMessage, icon: 'error', timer: 5000 })
-        return
-      }
-      newInput = { protocol: JoystickProtocol.MAVLinkManualControl, value: mavlinkButton }
-      const configurationSettings: ArduPilotParameterSetData = {
-        id: `BTN${mavlinkButton}_FUNCTION`,
-        value: buttonParameterValue,
-        type: { type: MavParamType.MAV_PARAM_TYPE_INT8 },
-      }
-      vehicleStore.configure(configurationSettings)
-    }
-
-    newInputMapping[index] = newInput
-    controllerStore.protocolMapping.buttonsCorrespondencies = newInputMapping
-  }
-
-  const protocolButtonContainers = document.getElementsByClassName('protocol-button-container')
-  for (let container of protocolButtonContainers as unknown as HTMLElement[]) {
-    container.scrollTo({ top: 0, left: 0, behavior: 'smooth' })
-  }
 }
 </script>

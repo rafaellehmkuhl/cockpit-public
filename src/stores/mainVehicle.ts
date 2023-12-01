@@ -9,13 +9,12 @@ import type { Package } from '@/libs/connection/m2r/messages/mavlink2rest'
 import { MavAutopilot, MAVLinkType, MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import type { Message } from '@/libs/connection/m2r/messages/mavlink2rest-message'
 import {
-  type InputWithPrettyName,
-  CockpitAction,
-  MavlinkControllerState,
+  availableCockpitActions,
   registerActionCallback,
   sendCockpitActions,
   unregisterActionCallback,
-} from '@/libs/joystick/protocols'
+} from '@/libs/joystick/protocols/cockpit-actions'
+import { MavlinkControllerState } from '@/libs/joystick/protocols/mavlink-manual-control'
 import type { ArduPilot } from '@/libs/vehicle/ardupilot/ardupilot'
 import * as arducopter_metadata from '@/libs/vehicle/ardupilot/ParameterRepository/Copter-4.3/apm.pdef.json'
 import * as arduplane_metadata from '@/libs/vehicle/ardupilot/ParameterRepository/Plane-4.3/apm.pdef.json'
@@ -39,8 +38,9 @@ import * as Vehicle from '@/libs/vehicle/vehicle'
 import { VehicleFactory } from '@/libs/vehicle/vehicle-factory'
 import { type MetadataFile } from '@/types/ardupilot-metadata'
 import {
+  type JoystickProtocolActionsMapping,
   type JoystickState,
-  type ProtocolControllerMapping,
+  type ProtocolAction,
   JoystickProtocol,
   ProtocolControllerState,
 } from '@/types/joystick'
@@ -329,8 +329,8 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
       },
       setFlightMode: setFlightMode,
     }
-    const mavlinkArmId = registerActionCallback(CockpitAction.MAVLINK_ARM, arm)
-    const mavlinkDisarmId = registerActionCallback(CockpitAction.MAVLINK_DISARM, disarm)
+    const mavlinkArmId = registerActionCallback(availableCockpitActions.mavlink_arm, arm)
+    const mavlinkDisarmId = registerActionCallback(availableCockpitActions.mavlink_disarm, disarm)
     onBeforeUnmount(() => {
       unregisterActionCallback(mavlinkArmId)
       unregisterActionCallback(mavlinkDisarmId)
@@ -376,8 +376,8 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
 
   const controllerStore = useControllerStore()
   const currentControllerState = ref<JoystickState>()
-  const currentProtocolMapping = ref<ProtocolControllerMapping>()
-  const updateCurrentControllerState = (newState: JoystickState, newMapping: ProtocolControllerMapping): void => {
+  const currentProtocolMapping = ref<JoystickProtocolActionsMapping>()
+  const updateCurrentControllerState = (newState: JoystickState, newMapping: JoystickProtocolActionsMapping): void => {
     currentControllerState.value = newState
     currentProtocolMapping.value = newMapping
   }
@@ -386,7 +386,12 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
   // Loop to send MAVLink Manual Control messages
   setInterval(() => {
     if (!currentControllerState.value || !currentProtocolMapping.value || controllerStore.joysticks.size === 0) return
-    const newControllerState = new MavlinkControllerState(currentControllerState.value, currentProtocolMapping.value)
+    const newControllerState = new MavlinkControllerState(
+      currentControllerState.value,
+      currentProtocolMapping.value,
+      buttonParameterTable,
+      currentParameters
+    )
     if (controllerStore.enableForwarding) {
       sendManualControl(newControllerState)
     }
@@ -421,7 +426,6 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
 
   const updateMavlinkButtonsPrettyNames = (): void => {
     if (!currentParameters || !parametersTable) return
-    const newMavlinkButtonsNames: InputWithPrettyName[] = []
     buttonParameterTable.splice(0)
     // @ts-ignore: This type is huge. Needs refactoring typing here.
     if (parametersTable['BTN0_FUNCTION'] && parametersTable['BTN0_FUNCTION']['Values']) {
@@ -431,23 +435,7 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
         const formatedText = capitalize(rawText).replace(new RegExp('_', 'g'), ' ')
         buttonParameterTable.push({ title: formatedText as string, value: Number(param[0]) })
       })
-      Object.entries(currentParameters).forEach((param) => {
-        if (!param[0].startsWith('BTN') || !param[0].endsWith('_FUNCTION')) return
-        const buttonId = Number(param[0].replace('BTN', '').replace('_FUNCTION', ''))
-        const functionName = buttonParameterTable.find((p) => p.value === param[1])?.title
-        if (functionName === undefined) return
-        newMavlinkButtonsNames.push({
-          input: { protocol: JoystickProtocol.MAVLinkManualControl, value: buttonId },
-          prettyName: functionName,
-        })
-      })
     }
-    if (newMavlinkButtonsNames.isEmpty()) return
-    let newProtocolButtonsFunctions = controllerStore.availableProtocolButtonFunctions.filter((btn) => {
-      return btn.input.protocol !== JoystickProtocol.MAVLinkManualControl
-    })
-    newProtocolButtonsFunctions = newProtocolButtonsFunctions.concat(newMavlinkButtonsNames)
-    controllerStore.availableProtocolButtonFunctions = newProtocolButtonsFunctions
   }
 
   setInterval(() => updateMavlinkButtonsPrettyNames(), 1000)

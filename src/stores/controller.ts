@@ -7,17 +7,20 @@ import { ref } from 'vue'
 import { availableGamepadToCockpitMaps, cockpitStandardToProtocols } from '@/assets/joystick-profiles'
 import { type JoystickEvent, EventType, joystickManager, JoystickModel } from '@/libs/joystick/manager'
 import { allAvailableAxes, allAvailableButtons } from '@/libs/joystick/protocols'
-import { type JoystickState, type ProtocolControllerMapping, Joystick } from '@/types/joystick'
+import { type JoystickProtocolActionsMapping, type JoystickState, Joystick } from '@/types/joystick'
 
-export type controllerUpdateCallback = (state: JoystickState, protocolMapping: ProtocolControllerMapping) => void
+export type controllerUpdateCallback = (
+  state: JoystickState,
+  protocolActionsMapping: JoystickProtocolActionsMapping
+) => void
 
 export const useControllerStore = defineStore('controller', () => {
   const joysticks = ref<Map<number, Joystick>>(new Map())
   const updateCallbacks = ref<controllerUpdateCallback[]>([])
-  const protocolMapping = useStorage('cockpit-protocol-mapping-v3', cockpitStandardToProtocols)
+  const protocolMapping = useStorage('cockpit-protocol-mapping-v4', cockpitStandardToProtocols)
   const cockpitStdMappings = useStorage('cockpit-standard-mappings', availableGamepadToCockpitMaps)
-  const availableProtocolAxesFunctions = allAvailableAxes
-  const availableProtocolButtonFunctions = allAvailableButtons
+  const availableAxesActions = allAvailableAxes
+  const availableButtonActions = allAvailableButtons
   const enableForwarding = ref(true)
 
   const registerControllerUpdateCallback = (callback: controllerUpdateCallback): void => {
@@ -91,8 +94,8 @@ export const useControllerStore = defineStore('controller', () => {
     joysticks,
     protocolMapping,
     cockpitStdMappings,
-    availableProtocolAxesFunctions,
-    availableProtocolButtonFunctions,
+    availableAxesActions,
+    availableButtonActions,
     downloadJoystickProfile,
     loadJoystickProfile,
   }
