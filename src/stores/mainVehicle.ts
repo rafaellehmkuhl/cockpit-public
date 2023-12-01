@@ -440,6 +440,31 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
 
   setInterval(() => updateMavlinkButtonsPrettyNames(), 1000)
 
+  const updateMavlinkButtonParameters = (): void => {
+    if (!currentParameters || !parametersTable) return
+
+    const buttonParametersNamedObject: { [key in number]: string } = {}
+    buttonParameterTable.forEach((entry) => buttonParametersNamedObject[entry.value] = entry.title)
+    const currentButtonParameters = Object.entries(currentParameters).filter(([k,]) => k.includes('BTN'))
+    const buttonActionIdTable = currentButtonParameters.map((btn) => ({
+      button: btn[0],
+      actionId: buttonParametersNamedObject[btn[1]],
+    }))
+
+
+    Object.entries(controllerStore.protocolMapping.buttonsCorrespondencies).forEach((corr) => {
+      if (corr[1].action.protocol !== JoystickProtocol.MAVLinkManualControl) return
+      if (buttonActionIdTable.map((ba) => ba.actionId).includes(corr[1].action.id)) return
+      const firstAvailableButtonCorr = buttonActionIdTable.first((ba) => ba.actionId === 'Disabled')
+      if (firstAvailableButtonCorr === undefined) return
+      const mavlinkActionValue = buttonParameterTable.find((e) => e.title === corr[1].action.id)
+      if (mavlinkActionValue === undefined) return
+      configure({ id: firstAvailableButtonCorr.button, value: mavlinkActionValue.value })
+    })
+  }
+
+  setInterval(() => updateMavlinkButtonParameters(), 1000)
+
   return {
     arm,
     disarm,

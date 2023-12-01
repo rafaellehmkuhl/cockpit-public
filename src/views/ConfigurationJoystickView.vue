@@ -45,7 +45,7 @@
         class="w-[95%] p-4 shadow-md rounded-2xl flex-centered flex-column position-relative"
       >
         <p class="text-xl font-semibold text-grey-darken-3">{{ joystick.model }} controller</p>
-        <div class="flex items-center justify-center w-full">
+        <div class="flex flex-col items-center justify-center w-full">
           <JoystickPS
             class="w-[70%]"
             :model="joystick.model"
@@ -74,6 +74,22 @@
             :buttons-actions-correspondency="controllerStore.protocolMapping.buttonsCorrespondencies"
             @click="(e) => setCurrentInputs(joystick, e)"
           />
+          <!-- <div v-for="action in mavlinkButtonsActions" class="flex">{{ action.button }} - {{ action.actionId }}</div> -->
+          <!-- <div class="flex">{{ vehicleStore.currentParameters }}</div> -->
+          <table>
+            <tr>
+              <th>Joystick button</th>
+              <th>Button state</th>
+              <th>Button function</th>
+              <th>MAVLink button</th>
+            </tr>
+            <tr v-for="(button, i) in joystick.state.buttons" :key="i">
+              <td>{{ i }}</td>
+              <td>{{ button?.toFixed(0) }}</td>
+              <td>{{ actionName(i) }}</td>
+              <td>{{ mavlinkActionButton(actionName(i)) }}</td>
+            </tr>
+          </table>
         </div>
         <div class="flex">
           <button
@@ -250,6 +266,7 @@ import {
 } from '@/types/joystick'
 
 import BaseConfigurationView from './BaseConfigurationView.vue'
+import { computed } from 'vue'
 
 const controllerStore = useControllerStore()
 const vehicleStore = useMainVehicleStore()
@@ -319,5 +336,25 @@ const remapInput = async (joystick: Joystick, input: JoystickInput): Promise<voi
   }
   // If remapping was unsuccessful, indicate it, so we can warn the user
   justRemappedInput.value = false
+}
+
+const actionName = (button: JoystickButton) => {
+  const protocolAction = controllerStore.protocolMapping.buttonsCorrespondencies[button].action
+  return protocolAction.protocol === JoystickProtocol.MAVLinkManualControl ? protocolAction.name : '--'
+}
+
+const mavlinkButtonsActions = computed(() => {
+  const buttonParametersNamedObject: { [key in number]: string } = {}
+  vehicleStore.buttonParameterTable.forEach((entry) => buttonParametersNamedObject[entry.value] = entry.title)
+  const currentButtonParameters = Object.entries(vehicleStore.currentParameters).filter(([k,]) => k.includes('BTN'))
+  const buttonActionIdTable = currentButtonParameters.map((btn) => ({
+    button: btn[0].replace('BTN', '').replace('FUNCTION', '').split('_').reverse().join(''),
+    actionId: buttonParametersNamedObject[btn[1]],
+  }))
+  return buttonActionIdTable
+})
+
+const mavlinkActionButton = (actionId) => {
+  return mavlinkButtonsActions.value.find((butAct) => butAct.actionId === actionId)?.button ?? '--'
 }
 </script>
