@@ -1,5 +1,6 @@
 import { useStorage, useTimestamp } from '@vueuse/core'
 import { defineStore } from 'pinia'
+import Swal from 'sweetalert2'
 import { capitalize, computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 
 import { defaultGlobalAddress } from '@/assets/defaults'
@@ -444,22 +445,48 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     if (!currentParameters || !parametersTable) return
 
     const buttonParametersNamedObject: { [key in number]: string } = {}
-    buttonParameterTable.forEach((entry) => buttonParametersNamedObject[entry.value] = entry.title)
-    const currentButtonParameters = Object.entries(currentParameters).filter(([k,]) => k.includes('BTN'))
+    buttonParameterTable.forEach((entry) => (buttonParametersNamedObject[entry.value] = entry.title))
+    const currentButtonParameters = Object.entries(currentParameters).filter(([k]) => k.includes('BTN'))
     const buttonActionIdTable = currentButtonParameters.map((btn) => ({
       button: btn[0],
       actionId: buttonParametersNamedObject[btn[1]],
     }))
 
+    const usedMavlinkActions = Object.entries(controllerStore.protocolMapping.buttonsCorrespondencies).map((corr) => corr[1].action.id)
+    console.log('usedMavlinkActions', usedMavlinkActions)
+    const mappedAndNotUsedActions = buttonActionIdTable.filter((ba) => !usedMavlinkActions.includes(ba.actionId))
+    console.log('mappedAndNotUsedActions', mappedAndNotUsedActions)
 
+    const disabledVehicleButtons = buttonActionIdTable.filter(
+      (ba) => !ba.button.includes('S') && ba.actionId === 'Disabled'
+    )
+
+    console.log('disabledVehicleButtons', disabledVehicleButtons)
+
+    const availableButtons = [...disabledVehicleButtons, ...mappedAndNotUsedActions].map((ba) => ba.button)
+
+    const indexButtonToUse = 0
     Object.entries(controllerStore.protocolMapping.buttonsCorrespondencies).forEach((corr) => {
+      // This routine is only for the MAVLink ManualControl buttons
       if (corr[1].action.protocol !== JoystickProtocol.MAVLinkManualControl) return
+
+      // We are only interested in actions that are not yet mapped in the vehicle
       if (buttonActionIdTable.map((ba) => ba.actionId).includes(corr[1].action.id)) return
-      const firstAvailableButtonCorr = buttonActionIdTable.first((ba) => ba.actionId === 'Disabled')
-      if (firstAvailableButtonCorr === undefined) return
+
+      // We need at least one available button spot to map the action to
+      if (availableButtons[indexButtonToUse] === undefined) {
+        // Swal.fire({
+        //   text: `There are no spots left in the vehicle for new functions.
+        //   Consider mapping this function to a shift button.`,
+        //   icon: 'error',
+        // })
+        console.error('No spots left in the vehicle for new MAVLink ManualControl functions.')
+        return
+      }
+
       const mavlinkActionValue = buttonParameterTable.find((e) => e.title === corr[1].action.id)
       if (mavlinkActionValue === undefined) return
-      configure({ id: firstAvailableButtonCorr.button, value: mavlinkActionValue.value })
+      configure({ id: availableButtons[indexButtonToUse], value: mavlinkActionValue.value })
     })
   }
 

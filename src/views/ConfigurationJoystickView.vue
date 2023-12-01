@@ -74,8 +74,7 @@
             :buttons-actions-correspondency="controllerStore.protocolMapping.buttonsCorrespondencies"
             @click="(e) => setCurrentInputs(joystick, e)"
           />
-          <!-- <div v-for="action in mavlinkButtonsActions" class="flex">{{ action.button }} - {{ action.actionId }}</div> -->
-          <!-- <div class="flex">{{ vehicleStore.currentParameters }}</div> -->
+          <div v-for="action in mavlinkButtonsActions" class="flex">{{ action.button }} - {{ action.actionId }}</div>
           <table>
             <tr>
               <th>Joystick button</th>
