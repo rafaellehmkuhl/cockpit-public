@@ -336,24 +336,4 @@ const remapInput = async (joystick: Joystick, input: JoystickInput): Promise<voi
   // If remapping was unsuccessful, indicate it, so we can warn the user
   justRemappedInput.value = false
 }
-
-const actionName = (button: JoystickButton) => {
-  const protocolAction = controllerStore.protocolMapping.buttonsCorrespondencies[button].action
-  return protocolAction.protocol === JoystickProtocol.MAVLinkManualControl ? protocolAction.name : '--'
-}
-
-const mavlinkButtonsActions = computed(() => {
-  const buttonParametersNamedObject: { [key in number]: string } = {}
-  vehicleStore.buttonParameterTable.forEach((entry) => buttonParametersNamedObject[entry.value] = entry.title)
-  const currentButtonParameters = Object.entries(vehicleStore.currentParameters).filter(([k,]) => k.includes('BTN'))
-  const buttonActionIdTable = currentButtonParameters.map((btn) => ({
-    button: btn[0].replace('BTN', '').replace('FUNCTION', '').split('_').reverse().join(''),
-    actionId: buttonParametersNamedObject[btn[1]],
-  }))
-  return buttonActionIdTable
-})
-
-const mavlinkActionButton = (actionId) => {
-  return mavlinkButtonsActions.value.find((butAct) => butAct.actionId === actionId)?.button ?? '--'
-}
 </script>

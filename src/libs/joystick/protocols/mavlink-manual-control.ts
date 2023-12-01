@@ -308,7 +308,7 @@ export class MavlinkControllerState extends ProtocolControllerState {
     let buttons_int = 0
 
     if (buttonParameterTable.length !== 0 && Object.entries(currentParameters).length !== 0) {
-      // console.log('lets create a mavlink manual control package')
+      console.log('lets create a mavlink manual control package')
 
       // Calculate buttons
 
@@ -346,13 +346,13 @@ export class MavlinkControllerState extends ProtocolControllerState {
         .map((btnState, idx) => ({ id: idx, value: btnState}))
         .filter((btn) => btn.value ?? 0 > 0.5)
         .map((btn) => mapping.buttonsCorrespondencies[btn.id as JoystickButton].action)
-      // console.log('shift button: ', shiftButton)
-      // console.log('actions activated', actionsBeingActivated.map((action) => action.name))
+      console.log('shift button: ', shiftButton)
+      console.log('actions activated', actionsBeingActivated.map((action) => action.name))
 
       const vehicleButtonsToActivate = buttonActionIdTable.filter((entry) => actionsBeingActivated.map((action) => action.id).includes(entry.actionId as MAVLinkButtonFunction)).map((entry) => manualControlButtonFromParameterName(entry.button))
-      // console.log('buttons activated', vehicleButtonsToActivate)
+      console.log('buttons activated', vehicleButtonsToActivate)
       const useShift = shiftActivatedButtons().filter((btn) => vehicleButtonsToActivate.includes(btn)).length > 0
-      // console.log('use shift?', useShift)
+      console.log('use shift?', useShift)
 
       for (let i = 0; i < MavlinkControllerState.BUTTONS_PER_BITFIELD; i++) {
         let buttonState = 0
@@ -379,14 +379,14 @@ export class MavlinkControllerState extends ProtocolControllerState {
       this.z = zCorrespondency === undefined ? 0 : round(scale(joystickState.axes[zCorrespondency[0] as unknown as JoystickAxis] ?? 0, -1, 1, zCorrespondency[1].min, zCorrespondency[1].max), 0)
       this.r = rCorrespondency === undefined ? 0 : round(scale(joystickState.axes[rCorrespondency[0] as unknown as JoystickAxis] ?? 0, -1, 1, rCorrespondency[1].min, rCorrespondency[1].max), 0)
     } else {
-      // console.log('not enough information to create a mavlink manual control package')
+      console.log('not enough information to create a mavlink manual control package')
     }
 
-    // console.log('buttons', buttons_int)
-    // console.log('x', this.x)
-    // console.log('y', this.y)
-    // console.log('z', this.z)
-    // console.log('r', this.r)
+    console.log('buttons', buttons_int)
+    console.log('x', this.x)
+    console.log('y', this.y)
+    console.log('z', this.z)
+    console.log('r', this.r)
 
     this.buttons = buttons_int
     this.target = round(target, 0)
