@@ -350,8 +350,10 @@ const remapInput = async (joystick: Joystick, input: JoystickInput): Promise<voi
   justRemappedInput.value = false
 }
 
-const currentButtonActions = computed(() => {
-  return controllerStore.protocolMapping.buttonsCorrespondencies[currentModifierKey.value.id]
+const currentButtonActions = ref(controllerStore.protocolMapping.buttonsCorrespondencies[currentModifierKey.value.id])
+watch(controllerStore.protocolMapping, () => {
+  console.log('protocol mapping changed')
+  currentButtonActions.value = controllerStore.protocolMapping.buttonsCorrespondencies[currentModifierKey.value.id]
 })
 
 const actionName = (button: JoystickButton) => {

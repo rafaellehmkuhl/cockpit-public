@@ -1,6 +1,6 @@
 import { useStorage, useTimestamp } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { capitalize, computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 
 import { defaultGlobalAddress } from '@/assets/defaults'
 import * as Connection from '@/libs/connection/connection'
@@ -11,10 +11,9 @@ import type { Message } from '@/libs/connection/m2r/messages/mavlink2rest-messag
 import {
   availableCockpitActions,
   registerActionCallback,
-  sendCockpitActions,
   unregisterActionCallback,
 } from '@/libs/joystick/protocols/cockpit-actions'
-import { MavlinkControllerState } from '@/libs/joystick/protocols/mavlink-manual-control'
+import { MavlinkManualControlManager } from '@/libs/joystick/protocols/mavlink-manual-control'
 import type { ArduPilot } from '@/libs/vehicle/ardupilot/ardupilot'
 import * as arducopter_metadata from '@/libs/vehicle/ardupilot/ParameterRepository/Copter-4.3/apm.pdef.json'
 import * as arduplane_metadata from '@/libs/vehicle/ardupilot/ParameterRepository/Plane-4.3/apm.pdef.json'
@@ -27,7 +26,6 @@ import type {
   Attitude,
   Coordinates,
   PageDescription,
-  Parameter,
   PowerSupply,
   StatusGPS,
   StatusText,
@@ -37,13 +35,6 @@ import type {
 import * as Vehicle from '@/libs/vehicle/vehicle'
 import { VehicleFactory } from '@/libs/vehicle/vehicle-factory'
 import { type MetadataFile } from '@/types/ardupilot-metadata'
-import {
-  type JoystickProtocolActionsMapping,
-  type JoystickState,
-  type ProtocolAction,
-  JoystickProtocol,
-  ProtocolControllerState,
-} from '@/types/joystick'
 import type { MissionLoadingCallback, Waypoint } from '@/types/mission'
 
 import { useControllerStore } from './controller'
@@ -116,9 +107,6 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
   const powerSupply: PowerSupply = reactive({} as PowerSupply)
   const velocity: Velocity = reactive({} as Velocity)
   const parametersTable = reactive({})
-  // eslint-disable-next-line jsdoc/require-jsdoc
-  const buttonParameterTable = reactive<{ title: string; value: number }[]>([])
-  const currentParameters = reactive({})
   const mainVehicle = ref<ArduPilot | undefined>(undefined)
   const isArmed = ref<boolean | undefined>(undefined)
   const icon = ref<string | undefined>(undefined)
@@ -162,14 +150,6 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     if (mainVehicle.value?.firmware() === Vehicle.Firmware.ArduPilot) {
       mainVehicle.value?.setParameter(settings as ArduPilotParameterSetData)
     }
-  }
-
-  /**
-   * Send manual control message
-   * @param {ProtocolControllerState} controllerState Current state of the controller
-   */
-  function sendManualControl(controllerState: ProtocolControllerState): void {
-    mainVehicle.value?.sendManualControl(controllerState)
   }
 
   /**
@@ -281,10 +261,6 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     mainVehicle.value.onPowerSupply.add((newPowerSupply: PowerSupply) => {
       Object.assign(powerSupply, newPowerSupply)
     })
-    mainVehicle.value.onParameter.add((newParameter: Parameter) => {
-      const newCurrentParameters = { ...currentParameters, ...{ [newParameter.name]: newParameter.value } }
-      Object.assign(currentParameters, newCurrentParameters)
-    })
     mainVehicle.value.onStatusText.add((newStatusText: StatusText) => {
       Object.assign(statusText, newStatusText)
     })
@@ -375,42 +351,33 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
   })
 
   const controllerStore = useControllerStore()
-  const currentControllerState = ref<JoystickState>()
-  const currentProtocolMapping = ref<JoystickProtocolActionsMapping>()
-  const activeButtonActions = ref<ProtocolAction[]>()
-  const updateCurrentControllerState = (
-    newState: JoystickState,
-    newMapping: JoystickProtocolActionsMapping,
-    activeButtons: ProtocolAction[]
-  ): void => {
-    currentControllerState.value = newState
-    currentProtocolMapping.value = newMapping
-    activeButtonActions.value = activeButtons
-  }
-  controllerStore.registerControllerUpdateCallback(updateCurrentControllerState)
+  const mavlinkManualControlManager = new MavlinkManualControlManager()
+  // const cockpitActionsManager = new CockpitActionsManager()
+  controllerStore.registerControllerUpdateCallback(mavlinkManualControlManager.updateControllerData)
+  // controllerStore.registerControllerUpdateCallback(cockpitActionsManager.updateControllerData)
 
   // Loop to send MAVLink Manual Control messages
   setInterval(() => {
-    if (!currentControllerState.value || !currentProtocolMapping.value || controllerStore.joysticks.size === 0) return
-    const newControllerState = new MavlinkControllerState(
-      currentControllerState.value,
-      currentProtocolMapping.value,
-      buttonParameterTable,
-      currentParameters,
-      activeButtonActions.value ?? []
-    )
+    if (!mainVehicle.value) return
+
+    // Set the manager vehicle instance if yet undefined
+    if (mavlinkManualControlManager.vehicle === undefined) {
+      mavlinkManualControlManager.setVehicle(mainVehicle.value as ArduPilot)
+    }
+
+    // Send MAVLink Manual Control message
     if (controllerStore.enableForwarding) {
-      sendManualControl(newControllerState)
+      mavlinkManualControlManager.sendManualControl()
     }
   }, 40)
   setInterval(() => sendGcsHeartbeat(), 1000)
 
   // Loop to send Cockpit Action messages
-  setInterval(() => {
-    if (controllerStore.enableForwarding) {
-      sendCockpitActions(activeButtonActions.value ?? [])
-    }
-  }, 10)
+  // setInterval(() => {
+  //   if (controllerStore.enableForwarding) {
+  //     cockpitActionsManager.sendCockpitActions()
+  //   }
+  // }, 10)
 
   const rtcConfiguration = computed(
     () =>
@@ -429,75 +396,6 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
         // eslint-disable-next-line no-undef
       } as RTCConfiguration)
   )
-
-  const updateMavlinkButtonsPrettyNames = (): void => {
-    if (!currentParameters || !parametersTable) return
-    buttonParameterTable.splice(0)
-    // @ts-ignore: This type is huge. Needs refactoring typing here.
-    if (parametersTable['BTN0_FUNCTION'] && parametersTable['BTN0_FUNCTION']['Values']) {
-      // @ts-ignore: This type is huge. Needs refactoring typing here.
-      Object.entries(parametersTable['BTN0_FUNCTION']['Values']).forEach((param) => {
-        const rawText = param[1] as string
-        const formatedText = capitalize(rawText).replace(new RegExp('_', 'g'), ' ')
-        buttonParameterTable.push({ title: formatedText as string, value: Number(param[0]) })
-      })
-    }
-  }
-
-  setInterval(() => updateMavlinkButtonsPrettyNames(), 1000)
-
-  const updateMavlinkButtonParameters = (): void => {
-    if (!currentParameters || !parametersTable) return
-
-    const buttonParametersNamedObject: { [key in number]: string } = {}
-    buttonParameterTable.forEach((entry) => (buttonParametersNamedObject[entry.value] = entry.title))
-    const currentButtonParameters = Object.entries(currentParameters).filter(([k]) => k.includes('BTN'))
-    const buttonActionIdTable = currentButtonParameters.map((btn) => ({
-      button: btn[0],
-      actionId: buttonParametersNamedObject[btn[1]],
-    }))
-
-    const usedMavlinkActions = Object.entries(controllerStore.protocolMapping.buttonsCorrespondencies.regular).map(
-      (corr) => corr[1].action.id
-    )
-    // console.log('usedMavlinkActions', usedMavlinkActions)
-    const mappedAndNotUsedActions = buttonActionIdTable.filter((ba) => !usedMavlinkActions.includes(ba.actionId))
-    // console.log('mappedAndNotUsedActions', mappedAndNotUsedActions)
-
-    const disabledVehicleButtons = buttonActionIdTable.filter(
-      (ba) => !ba.button.includes('S') && ba.actionId === 'Disabled'
-    )
-
-    // console.log('disabledVehicleButtons', disabledVehicleButtons)
-
-    const availableButtons = [...disabledVehicleButtons, ...mappedAndNotUsedActions].map((ba) => ba.button)
-
-    const indexButtonToUse = 0
-    Object.entries(controllerStore.protocolMapping.buttonsCorrespondencies.regular).forEach((corr) => {
-      // This routine is only for the MAVLink ManualControl buttons
-      if (corr[1].action.protocol !== JoystickProtocol.MAVLinkManualControl) return
-
-      // We are only interested in actions that are not yet mapped in the vehicle
-      if (buttonActionIdTable.map((ba) => ba.actionId).includes(corr[1].action.id)) return
-
-      // We need at least one available button spot to map the action to
-      if (availableButtons[indexButtonToUse] === undefined) {
-        // Swal.fire({
-        //   text: `There are no spots left in the vehicle for new functions.
-        //   Consider mapping this function to a shift button.`,
-        //   icon: 'error',
-        // })
-        console.error('No spots left in the vehicle for new MAVLink ManualControl functions.')
-        return
-      }
-
-      const mavlinkActionValue = buttonParameterTable.find((e) => e.title === corr[1].action.id)
-      if (mavlinkActionValue === undefined) return
-      configure({ id: availableButtons[indexButtonToUse], value: mavlinkActionValue.value })
-    })
-  }
-
-  setInterval(() => updateMavlinkButtonParameters(), 1000)
 
   return {
     arm,
@@ -531,8 +429,6 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     isVehicleOnline,
     icon,
     parametersTable,
-    currentParameters,
-    buttonParameterTable,
     configurationPages,
     rtcConfiguration,
     genericVariables,

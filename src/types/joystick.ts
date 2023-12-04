@@ -34,11 +34,6 @@ export interface JoystickState {
 }
 
 /**
- * Current state of the controller in the protocol POV
- */
-export class ProtocolControllerState {}
-
-/**
  * Joystick abstraction for widget
  */
 export class Joystick {
