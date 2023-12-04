@@ -301,16 +301,16 @@ export class MavlinkManualControlManager {
   currentVehicleParameters: { [key in string]: number } = {}
   public vehicle: ArduPilot | undefined
 
-  constructor() {
-    setInterval(() => {
-      console.log('hey')
-      // console.log('x', this.manualControlState?.x)
-      // console.log('y', this.manualControlState?.y)
-      // console.log('z', this.manualControlState?.z)
-      // console.log('r', this.manualControlState?.r)
-      // console.log('buttons', this.manualControlState?.buttons)
-    }, 40)
-  }
+  // constructor() {
+  //   setInterval(() => {
+  //     console.log('hey')
+  //     console.log('x', this.manualControlState?.x)
+  //     console.log('y', this.manualControlState?.y)
+  //     console.log('z', this.manualControlState?.z)
+  //     console.log('r', this.manualControlState?.r)
+  //     console.log('buttons', this.manualControlState?.buttons)
+  //   }, 40)
+  // }
 
   setVehicle(vehicle: ArduPilot): void {
     // Set vehicle instance
