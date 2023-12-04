@@ -2,12 +2,12 @@
 /* eslint-disable vue/max-len */
 /* eslint-disable max-len */
 /* eslint-disable jsdoc/require-jsdoc */
+import { capitalize } from 'vue'
+
 import { round, scale } from '@/libs/utils'
 import type { ArduPilot } from '@/libs/vehicle/ardupilot/ardupilot'
-import type { ArduPilotParameterSetData } from '@/libs/vehicle/ardupilot/types'
 import { Parameter } from '@/libs/vehicle/types'
 import { type JoystickProtocolActionsMapping, type JoystickState, type ProtocolAction, JoystickAxis, JoystickButton, JoystickProtocol } from '@/types/joystick'
-import { capitalize } from 'vue'
 
 /**
  * Possible axes in the MAVLink `MANUAL_CONTROL` message protocol
@@ -296,19 +296,20 @@ export class MavlinkManualControlManager {
   currentActionsMapping: JoystickProtocolActionsMapping
   activeButtonsActions: ProtocolAction[]
   manualControlState: MavlinkManualControlState | undefined = undefined
+  parametersTable: { title: string; value: number }[] = []
   vehicleButtonParameterTable: { title: string; value: number }[] = []
   currentVehicleParameters: { [key in string]: number } = {}
   public vehicle: ArduPilot | undefined
 
   constructor() {
     setInterval(() => {
-      console.log('this.vehicle', this.vehicle)
-      console.log('this.currentVehicleParameters', this.currentVehicleParameters)
-      console.log('this.vehicleButtonParameterTable', this.vehicleButtonParameterTable)
-      console.log('this.joystickState', this.joystickState)
-      console.log('this.currentActionsMapping', this.currentActionsMapping)
-      console.log('this.activeButtonsActions', this.activeButtonsActions)
-    }, 1000)
+      console.log('hey')
+      // console.log('x', this.manualControlState?.x)
+      // console.log('y', this.manualControlState?.y)
+      // console.log('z', this.manualControlState?.z)
+      // console.log('r', this.manualControlState?.r)
+      // console.log('buttons', this.manualControlState?.buttons)
+    }, 40)
   }
 
   setVehicle(vehicle: ArduPilot): void {
@@ -320,6 +321,9 @@ export class MavlinkManualControlManager {
       const newVehicleParameters = { ...this.currentVehicleParameters, ...{ [newParameter.name]: newParameter.value } }
       this.currentVehicleParameters = newVehicleParameters
     })
+
+    this.vehicle.requestParametersList()
+    this.updateVehicleButtonsParameters()
   }
 
   sendManualControl(): void {
@@ -369,26 +373,41 @@ export class MavlinkManualControlManager {
       buttons_int += buttonState * 2 ** i
     }
 
-    this.manualControlState.buttons = buttons_int
-
     // Calculate axes values
     const xCorrespondency = Object.entries(this.currentActionsMapping.axesCorrespondencies).find((entry) => entry[1].action.protocol === JoystickProtocol.MAVLinkManualControl && entry[1].action.id === mavlinkManualControlAxes.axis_x.id)
     const yCorrespondency = Object.entries(this.currentActionsMapping.axesCorrespondencies).find((entry) => entry[1].action.protocol === JoystickProtocol.MAVLinkManualControl && entry[1].action.id === mavlinkManualControlAxes.axis_y.id)
     const zCorrespondency = Object.entries(this.currentActionsMapping.axesCorrespondencies).find((entry) => entry[1].action.protocol === JoystickProtocol.MAVLinkManualControl && entry[1].action.id === mavlinkManualControlAxes.axis_z.id)
     const rCorrespondency = Object.entries(this.currentActionsMapping.axesCorrespondencies).find((entry) => entry[1].action.protocol === JoystickProtocol.MAVLinkManualControl && entry[1].action.id === mavlinkManualControlAxes.axis_r.id)
 
+    // Populate MAVLink Manual Control state of axes and buttons
     this.manualControlState.x = xCorrespondency === undefined ? 0 : round(scale(this.joystickState.axes[xCorrespondency[0] as unknown as JoystickAxis] ?? 0, -1, 1, xCorrespondency[1].min, xCorrespondency[1].max), 0)
     this.manualControlState.y = yCorrespondency === undefined ? 0 : round(scale(this.joystickState.axes[yCorrespondency[0] as unknown as JoystickAxis] ?? 0, -1, 1, yCorrespondency[1].min, yCorrespondency[1].max), 0)
     this.manualControlState.z = zCorrespondency === undefined ? 0 : round(scale(this.joystickState.axes[zCorrespondency[0] as unknown as JoystickAxis] ?? 0, -1, 1, zCorrespondency[1].min, zCorrespondency[1].max), 0)
     this.manualControlState.r = rCorrespondency === undefined ? 0 : round(scale(this.joystickState.axes[rCorrespondency[0] as unknown as JoystickAxis] ?? 0, -1, 1, rCorrespondency[1].min, rCorrespondency[1].max), 0)
+    this.manualControlState.buttons = buttons_int
   }
 
   updateVehicleButtonsParameters = (): void => {
+    if (!this.vehicle) return
+
+    const updatedParameterTable = {}
+    for (const category of Object.values(this.vehicle.metadata())) {
+      for (const [name, parameter] of Object.entries(category)) {
+        if (!isNaN(Number(parameter))) {
+          continue
+        }
+        const newParameterTable = { ...this.parametersTable, ...{ [name]: parameter } }
+        Object.assign(updatedParameterTable, newParameterTable)
+      }
+    }
+    Object.assign(this.parametersTable, updatedParameterTable)
+
+
     this.vehicleButtonParameterTable.splice(0)
     // @ts-ignore: This type is huge. Needs refactoring typing here.
-    if (parametersTable['BTN0_FUNCTION'] && parametersTable['BTN0_FUNCTION']['Values']) {
+    if (this.parametersTable['BTN0_FUNCTION'] && this.parametersTable['BTN0_FUNCTION']['Values']) {
       // @ts-ignore: This type is huge. Needs refactoring typing here.
-      Object.entries(parametersTable['BTN0_FUNCTION']['Values']).forEach((param) => {
+      Object.entries(this.parametersTable['BTN0_FUNCTION']['Values']).forEach((param) => {
         const rawText = param[1] as string
         const formatedText = capitalize(rawText).replace(new RegExp('_', 'g'), ' ')
         this.vehicleButtonParameterTable.push({ title: formatedText as string, value: Number(param[0]) })

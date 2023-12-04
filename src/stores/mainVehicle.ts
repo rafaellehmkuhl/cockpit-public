@@ -15,10 +15,6 @@ import {
 } from '@/libs/joystick/protocols/cockpit-actions'
 import { MavlinkManualControlManager } from '@/libs/joystick/protocols/mavlink-manual-control'
 import type { ArduPilot } from '@/libs/vehicle/ardupilot/ardupilot'
-import * as arducopter_metadata from '@/libs/vehicle/ardupilot/ParameterRepository/Copter-4.3/apm.pdef.json'
-import * as arduplane_metadata from '@/libs/vehicle/ardupilot/ParameterRepository/Plane-4.3/apm.pdef.json'
-import * as ardurover_metadata from '@/libs/vehicle/ardupilot/ParameterRepository/Rover-4.2/apm.pdef.json'
-import * as ardusub_metadata from '@/libs/vehicle/ardupilot/ParameterRepository/Sub-4.1/apm.pdef.json'
 import type { ArduPilotParameterSetData } from '@/libs/vehicle/ardupilot/types'
 import * as Protocol from '@/libs/vehicle/protocol/protocol'
 import type {
@@ -34,7 +30,6 @@ import type {
 } from '@/libs/vehicle/types'
 import * as Vehicle from '@/libs/vehicle/vehicle'
 import { VehicleFactory } from '@/libs/vehicle/vehicle-factory'
-import { type MetadataFile } from '@/types/ardupilot-metadata'
 import type { MissionLoadingCallback, Waypoint } from '@/types/mission'
 
 import { useControllerStore } from './controller'
@@ -106,7 +101,6 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
   const coordinates: Coordinates = reactive({} as Coordinates)
   const powerSupply: PowerSupply = reactive({} as PowerSupply)
   const velocity: Velocity = reactive({} as Velocity)
-  const parametersTable = reactive({})
   const mainVehicle = ref<ArduPilot | undefined>(undefined)
   const isArmed = ref<boolean | undefined>(undefined)
   const icon = ref<string | undefined>(undefined)
@@ -157,13 +151,6 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
    */
   function sendGcsHeartbeat(): void {
     mainVehicle.value?.sendGcsHeartbeat()
-  }
-
-  /**
-   * Request current parameters from vehicle
-   */
-  function requestParametersList(): void {
-    mainVehicle.value?.requestParametersList()
   }
 
   /**
@@ -313,43 +300,6 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     })
   })
 
-  watch(vehicleType, (newType, oldType) => {
-    if (newType !== undefined && newType !== oldType) {
-      // Default to submarine metadata
-      let metadata: MetadataFile = ardusub_metadata
-      // This is to avoid importing a 40 lines enum from mavlink and adding a switch case with 40 cases
-      if (
-        vehicleType.value?.toString().toLowerCase().includes('vtol') ||
-        vehicleType.value?.toString().toLowerCase().includes('wing')
-      ) {
-        metadata = arduplane_metadata
-      } else if (
-        vehicleType.value?.toString().toLowerCase().includes('copter') ||
-        vehicleType.value?.toString().toLowerCase().includes('rotor')
-      ) {
-        metadata = arducopter_metadata
-      } else if (
-        vehicleType.value?.toString().toLowerCase().includes('rover') ||
-        vehicleType.value?.toString().toLowerCase().includes('boat')
-      ) {
-        metadata = ardurover_metadata
-      }
-
-      const updatedParameterTable = {}
-      for (const category of Object.values(metadata)) {
-        for (const [name, parameter] of Object.entries(category)) {
-          if (!isNaN(Number(parameter))) {
-            continue
-          }
-          const newParameterTable = { ...parametersTable, ...{ [name]: parameter } }
-          Object.assign(updatedParameterTable, newParameterTable)
-        }
-      }
-      Object.assign(parametersTable, updatedParameterTable)
-    }
-    requestParametersList()
-  })
-
   const controllerStore = useControllerStore()
   const mavlinkManualControlManager = new MavlinkManualControlManager()
   // const cockpitActionsManager = new CockpitActionsManager()
@@ -403,7 +353,6 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     modesAvailable,
     setFlightMode,
     sendGcsHeartbeat,
-    requestParametersList,
     configure,
     fetchMission,
     uploadMission,
@@ -428,7 +377,6 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     isArmed,
     isVehicleOnline,
     icon,
-    parametersTable,
     configurationPages,
     rtcConfiguration,
     genericVariables,

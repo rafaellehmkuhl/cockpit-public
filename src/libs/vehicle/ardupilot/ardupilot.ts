@@ -45,6 +45,7 @@ import {
 import { type MissionLoadingCallback, type Waypoint, defaultLoadingCallback } from '@/types/mission'
 
 import * as Vehicle from '../vehicle'
+import type { MetadataFile } from '@/types/ardupilot-metadata'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ArduPilot = ArduPilotVehicle<any>
@@ -73,6 +74,7 @@ export abstract class ArduPilotVehicle<Modes> extends Vehicle.AbstractVehicle<Mo
   _statusText = new StatusText()
   _statusGPS = new StatusGPS()
   _vehicleSpecificErrors = [0, 0, 0, 0]
+  _metadata: MetadataFile
 
   _messages: MAVLinkMessageDictionary = new Map()
 
@@ -436,6 +438,14 @@ export abstract class ArduPilotVehicle<Modes> extends Vehicle.AbstractVehicle<Mo
    */
   isArmed(): boolean {
     return this._isArmed
+  }
+
+  /**
+   * Return metadata from the vehicle
+   * @returns {MetadataFile}
+   */
+  metadata(): MetadataFile {
+    return this._metadata
   }
 
   /**
