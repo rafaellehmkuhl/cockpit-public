@@ -12,6 +12,7 @@ import {
   type JoystickProtocolActionsMapping,
   type JoystickState,
   type ProtocolAction,
+  CockpitModifierKeyOption,
   Joystick,
 } from '@/types/joystick'
 
@@ -62,15 +63,15 @@ export const useControllerStore = defineStore('controller', () => {
     const joystickModel = joystick.model || JoystickModel.Unknown
     joystick.gamepadToCockpitMap = cockpitStdMappings.value[joystickModel]
 
-    // const actv = activeButtonActions(joystick.state, protocolMapping.value)
-    // console.log(actv.map((a) => a.name))
-
     for (const callback of updateCallbacks.value) {
       callback(joystick.state, protocolMapping.value, activeButtonActions(joystick.state, protocolMapping.value))
     }
   }
 
-  const activeButtonActions = (joystickState: JoystickState, mapping: JoystickProtocolActionsMapping): ProtocolAction[] => {
+  const activeButtonActions = (
+    joystickState: JoystickState,
+    mapping: JoystickProtocolActionsMapping
+  ): ProtocolAction[] => {
     let modifierKeyId = modifierKeyActions.regular.id
 
     Object.entries(mapping.buttonsCorrespondencies.regular).forEach((e) => {
@@ -85,7 +86,7 @@ export const useControllerStore = defineStore('controller', () => {
     return joystickState.buttons
       .map((btnState, idx) => ({ id: idx, value: btnState }))
       .filter((btn) => btn.value ?? 0 > 0.5)
-      .map((btn) => mapping.buttonsCorrespondencies[modifierKeyId][btn.id as JoystickButton].action)
+      .map((btn) => mapping.buttonsCorrespondencies[modifierKeyId as CockpitModifierKeyOption][btn.id as JoystickButton].action)
   }
 
   // If there's a mapping in our database that is not on the user storage, add it to the user
