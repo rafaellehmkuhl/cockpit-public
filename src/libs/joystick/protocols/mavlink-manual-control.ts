@@ -418,11 +418,6 @@ export class MavlinkManualControlManager {
 
   updateMavlinkButtonParameters = (): void => {
     if (!this.vehicle || !this.currentActionsMapping || !this.currentVehicleParameters || !this.vehicleButtonParameterTable) return
-    // for (let i = 0; i<16; i++) {
-    //   this.vehicle.setParameter({ id: `BTN${i}_FUNCTION`, value: 0 })
-    //   this.vehicle.setParameter({ id: `BTN${i}_SFUNCTION`, value: 0 })
-    // }
-    // return
 
     const buttonParametersNamedObject: { [key in number]: string } = {}
     this.vehicleButtonParameterTable.forEach((entry) => (buttonParametersNamedObject[entry.value] = entry.title))

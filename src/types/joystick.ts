@@ -80,7 +80,7 @@ export interface ProtocolAction {
   /**
    * Action identification
    */
-  id: string | number
+  id: string
   /**
    * Human-readable name for the action
    */

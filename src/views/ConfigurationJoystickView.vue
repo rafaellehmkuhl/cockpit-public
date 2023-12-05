@@ -85,20 +85,6 @@
             :buttons-actions-correspondency="currentButtonActions"
             @click="(e) => setCurrentInputs(joystick, e)"
           />
-          <table>
-            <tr>
-              <th>Joystick button</th>
-              <th>Button state</th>
-              <th>Button function</th>
-              <th>MAVLink button</th>
-            </tr>
-            <tr v-for="(button, i) in joystick.state.buttons" :key="i">
-              <td>{{ i }}</td>
-              <td>{{ button?.toFixed(0) }}</td>
-              <td>{{ actionName(i) }}</td>
-              <td>{{ mavlinkActionButton(actionName(i)) }}</td>
-            </tr>
-          </table>
         </div>
         <div class="flex">
           <button
@@ -250,8 +236,6 @@
 </template>
 
 <script setup lang="ts">
-import { toReactive } from '@vueuse/core'
-import Swal from 'sweetalert2'
 import { ref, watch } from 'vue'
 import { onMounted } from 'vue'
 import { onUnmounted } from 'vue'
@@ -261,12 +245,11 @@ import Button from '@/components/Button.vue'
 import JoystickPS from '@/components/joysticks/JoystickPS.vue'
 import { modifierKeyActions } from '@/libs/joystick/protocols/other'
 import { useControllerStore } from '@/stores/controller'
-import { useMainVehicleStore } from '@/stores/mainVehicle'
 import {
   type CockpitButton,
   type Joystick,
   type JoystickInput,
-  type ProtocolAction,
+  CockpitModifierKeyOption,
   InputType,
   JoystickAxis,
   JoystickAxisInput,
@@ -278,7 +261,6 @@ import {
 import BaseConfigurationView from './BaseConfigurationView.vue'
 
 const controllerStore = useControllerStore()
-const vehicleStore = useMainVehicleStore()
 
 onMounted(() => {
   controllerStore.enableForwarding = false
@@ -350,36 +332,6 @@ const remapInput = async (joystick: Joystick, input: JoystickInput): Promise<voi
 }
 
 const currentButtonActions = computed(
-  () => controllerStore.protocolMapping.buttonsCorrespondencies[currentModifierKey.value.id]
+  () => controllerStore.protocolMapping.buttonsCorrespondencies[currentModifierKey.value.id as CockpitModifierKeyOption]
 )
-
-// const currentButtonActions = ref(controllerStore.protocolMapping.buttonsCorrespondencies[currentModifierKey.value.id])
-// watch(controllerStore.protocolMapping, () => {
-//   console.log('protocol mapping changed')
-//   currentButtonActions.value = controllerStore.protocolMapping.buttonsCorrespondencies[currentModifierKey.value.id]
-// })
-
-const actionName = (button: JoystickButton) => {
-  const protocolAction = currentButtonActions.value[button].action
-  return protocolAction.protocol === JoystickProtocol.MAVLinkManualControl ? protocolAction.name : '--'
-}
-
-const mavlinkButtonsActions = computed(() => {
-  const buttonParametersNamedObject: { [key in number]: string } = {}
-  vehicleStore.mavlinkManualControlManager.vehicleButtonParameterTable.forEach(
-    (entry) => (buttonParametersNamedObject[entry.value] = entry.title)
-  )
-  const currentButtonParameters = Object.entries(
-    vehicleStore.mavlinkManualControlManager.currentVehicleParameters
-  ).filter(([k]) => k.includes('BTN'))
-  const buttonActionIdTable = currentButtonParameters.map((btn) => ({
-    button: btn[0].replace('BTN', '').replace('FUNCTION', '').split('_').reverse().join(''),
-    actionId: buttonParametersNamedObject[btn[1]],
-  }))
-  return buttonActionIdTable
-})
-
-const mavlinkActionButton = (actionId) => {
-  return mavlinkButtonsActions.value.find((butAct) => butAct.actionId === actionId)?.button ?? '--'
-}
 </script>
