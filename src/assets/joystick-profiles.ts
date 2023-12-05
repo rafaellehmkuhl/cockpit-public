@@ -1,8 +1,8 @@
 import { JoystickModel } from '@/libs/joystick/manager'
 import { availableCockpitActions } from '@/libs/joystick/protocols/cockpit-actions'
 import {
+  availableMavlinkManualControlButtonFunctions,
   mavlinkManualControlAxes,
-  mavlinkManualControlButtonFunctions,
 } from '@/libs/joystick/protocols/mavlink-manual-control'
 import { modifierKeyActions, otherAvailableActions } from '@/libs/joystick/protocols/other'
 import {
@@ -24,16 +24,16 @@ export const cockpitStandardToProtocols: JoystickProtocolActionsMapping = {
   },
   buttonsCorrespondencies: {
     [CockpitModifierKeyOption.regular]: {
-      [JoystickButton.B0]: { action: mavlinkManualControlButtonFunctions['Arm'] },
+      [JoystickButton.B0]: { action: availableMavlinkManualControlButtonFunctions['Arm'] },
       [JoystickButton.B1]: { action: otherAvailableActions.no_function },
-      [JoystickButton.B2]: { action: mavlinkManualControlButtonFunctions['Mount tilt up'] },
-      [JoystickButton.B3]: { action: mavlinkManualControlButtonFunctions['Mount tilt down'] },
+      [JoystickButton.B2]: { action: availableMavlinkManualControlButtonFunctions['Mount tilt up'] },
+      [JoystickButton.B3]: { action: availableMavlinkManualControlButtonFunctions['Mount tilt down'] },
       [JoystickButton.B4]: { action: availableCockpitActions.go_to_previous_view },
       [JoystickButton.B5]: { action: otherAvailableActions.no_function },
-      [JoystickButton.B6]: { action: mavlinkManualControlButtonFunctions['Gain inc'] },
-      [JoystickButton.B7]: { action: mavlinkManualControlButtonFunctions['Gain dec'] },
-      [JoystickButton.B8]: { action: mavlinkManualControlButtonFunctions['Lights1 brighter'] },
-      [JoystickButton.B9]: { action: mavlinkManualControlButtonFunctions['Lights1 dimmer'] },
+      [JoystickButton.B6]: { action: availableMavlinkManualControlButtonFunctions['Gain inc'] },
+      [JoystickButton.B7]: { action: availableMavlinkManualControlButtonFunctions['Gain dec'] },
+      [JoystickButton.B8]: { action: availableMavlinkManualControlButtonFunctions['Lights1 brighter'] },
+      [JoystickButton.B9]: { action: availableMavlinkManualControlButtonFunctions['Lights1 dimmer'] },
       [JoystickButton.B10]: { action: availableCockpitActions.toggle_full_screen },
       [JoystickButton.B11]: { action: otherAvailableActions.no_function },
       [JoystickButton.B12]: { action: otherAvailableActions.no_function },

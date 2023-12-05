@@ -1,7 +1,10 @@
 import { type ProtocolAction } from '@/types/joystick'
 
 import { availableCockpitActions } from './protocols/cockpit-actions'
-import { mavlinkManualControlAxes, mavlinkManualControlButtonFunctions } from './protocols/mavlink-manual-control'
+import {
+  availableMavlinkManualControlButtonFunctions,
+  mavlinkManualControlAxes,
+} from './protocols/mavlink-manual-control'
 import { modifierKeyActions, otherAvailableActions } from './protocols/other'
 
 export const allAvailableAxes: ProtocolAction[] = [
@@ -11,7 +14,7 @@ export const allAvailableAxes: ProtocolAction[] = [
 
 export const allAvailableButtons: ProtocolAction[] = [
   ...Object.values(availableCockpitActions),
-  ...Object.values(mavlinkManualControlButtonFunctions),
+  ...Object.values(availableMavlinkManualControlButtonFunctions),
   ...Object.values(otherAvailableActions),
   ...Object.values(modifierKeyActions),
 ]
