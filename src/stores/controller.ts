@@ -2,11 +2,12 @@ import { useStorage } from '@vueuse/core'
 import { saveAs } from 'file-saver'
 import { defineStore } from 'pinia'
 import Swal from 'sweetalert2'
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 
 import { availableGamepadToCockpitMaps, cockpitStandardToProtocols } from '@/assets/joystick-profiles'
 import { type JoystickEvent, EventType, joystickManager, JoystickModel } from '@/libs/joystick/manager'
-import { allAvailableAxes, allAvailableButtons, modifierKeyActions } from '@/libs/joystick/protocols'
+import { allAvailableAxes, allAvailableButtons } from '@/libs/joystick/protocols'
+import { modifierKeyActions } from '@/libs/joystick/protocols/other'
 import {
   type JoystickProtocolActionsMapping,
   type JoystickState,
@@ -23,7 +24,7 @@ export type controllerUpdateCallback = (
 export const useControllerStore = defineStore('controller', () => {
   const joysticks = ref<Map<number, Joystick>>(new Map())
   const updateCallbacks = ref<controllerUpdateCallback[]>([])
-  const protocolMapping = useStorage('cockpit-protocol-mapping-v5', cockpitStandardToProtocols)
+  const protocolMapping = useStorage('cockpit-protocol-mapping-v5.1', cockpitStandardToProtocols)
   const cockpitStdMappings = useStorage('cockpit-standard-mappings', availableGamepadToCockpitMaps)
   const availableAxesActions = allAvailableAxes
   const availableButtonActions = allAvailableButtons

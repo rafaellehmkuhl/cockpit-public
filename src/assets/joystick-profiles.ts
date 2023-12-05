@@ -1,10 +1,10 @@
 import { JoystickModel } from '@/libs/joystick/manager'
-import { modifierKeyActions, otherAvailableActions } from '@/libs/joystick/protocols'
 import { availableCockpitActions } from '@/libs/joystick/protocols/cockpit-actions'
 import {
   mavlinkManualControlAxes,
   mavlinkManualControlButtonFunctions,
 } from '@/libs/joystick/protocols/mavlink-manual-control'
+import { modifierKeyActions, otherAvailableActions } from '@/libs/joystick/protocols/other'
 import {
   type GamepadToCockpitStdMapping,
   type JoystickProtocolActionsMapping,

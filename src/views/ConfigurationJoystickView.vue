@@ -85,7 +85,6 @@
             :buttons-actions-correspondency="currentButtonActions"
             @click="(e) => setCurrentInputs(joystick, e)"
           />
-          <div v-for="action in mavlinkButtonsActions" class="flex">{{ action.button }} - {{ action.actionId }}</div>
           <table>
             <tr>
               <th>Joystick button</th>
@@ -260,7 +259,7 @@ import { computed } from 'vue'
 
 import Button from '@/components/Button.vue'
 import JoystickPS from '@/components/joysticks/JoystickPS.vue'
-import { modifierKeyActions } from '@/libs/joystick/protocols'
+import { modifierKeyActions } from '@/libs/joystick/protocols/other'
 import { useControllerStore } from '@/stores/controller'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 import {

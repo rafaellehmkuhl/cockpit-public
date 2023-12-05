@@ -4,10 +4,12 @@
 /* eslint-disable jsdoc/require-jsdoc */
 import { capitalize } from 'vue'
 
+import { otherAvailableActions } from '@/libs/joystick/protocols/other'
 import { round, scale } from '@/libs/utils'
 import type { ArduPilot } from '@/libs/vehicle/ardupilot/ardupilot'
 import { Parameter } from '@/libs/vehicle/types'
 import { type JoystickProtocolActionsMapping, type JoystickState, type ProtocolAction, JoystickAxis, JoystickButton, JoystickProtocol } from '@/types/joystick'
+import Swal from 'sweetalert2'
 
 /**
  * Possible axes in the MAVLink `MANUAL_CONTROL` message protocol
@@ -305,12 +307,6 @@ export class MavlinkManualControlManager {
   constructor() {
     setInterval(() => {
       this.updateMavlinkButtonParameters()
-      // console.log('hey')
-      // console.log('x', this.manualControlState?.x)
-      // console.log('y', this.manualControlState?.y)
-      // console.log('z', this.manualControlState?.z)
-      // console.log('r', this.manualControlState?.r)
-      // console.log('buttons', this.manualControlState?.buttons)
     }, 1000)
   }
 
@@ -451,9 +447,6 @@ export class MavlinkManualControlManager {
       const wantedUnmappedShiftMavlinkActions = wantedShiftMavlinkActions
         .filter((actionId) => !currentMappedActionsInShiftButtons.includes(actionId as string))
 
-    console.log('wantedUnmappedRegularMavlinkActions', wantedUnmappedRegularMavlinkActions)
-    console.log('wantedUnmappedShiftMavlinkActions', wantedUnmappedShiftMavlinkActions)
-
     const disabledVehicleRegularButtons = currentRegularButtonParameters.filter((v) => v.actionId === 'Disabled')
     const disabledVehicleShiftButtons = currentShiftButtonParameters.filter((v) => v.actionId === 'Disabled')
 
@@ -483,39 +476,59 @@ export class MavlinkManualControlManager {
       indexShiftButtonToUse++
     })
 
-    console.log('remainingUnmappedRegularMavlinkActions', remainingUnmappedRegularMavlinkActions)
-    console.log('remainingUnmappedShiftMavlinkActions', remainingUnmappedShiftMavlinkActions)
+    const unnecessaryVehicleRegularButtons = currentRegularButtonParameters.filter((v) => !wantedRegularMavlinkActions.includes(v.actionId))
+    const unnecessaryVehicleShiftButtons = currentShiftButtonParameters.filter((v) => !wantedShiftMavlinkActions.includes(v.actionId))
+
+    const finallyRemainedUnmappedRegularMavlinkActions: string[] = []
+    indexRegularButtonToUse = 0
+    remainingUnmappedRegularMavlinkActions.forEach((actionId) => {
+      if (indexRegularButtonToUse >= unnecessaryVehicleRegularButtons.length) {
+        finallyRemainedUnmappedRegularMavlinkActions.push(actionId as string)
+      } else {
+        const mavlinkActionValue = this.vehicleButtonParameterTable.find((e) => e.title === actionId)
+        if (mavlinkActionValue === undefined) return
+        this.vehicle?.setParameter({ id: unnecessaryVehicleRegularButtons[indexRegularButtonToUse].button, value: mavlinkActionValue.value })
+      }
+      indexRegularButtonToUse++
+    })
+
+    const finallyRemainedUnmappedShiftMavlinkActions: string[] = []
+    indexShiftButtonToUse = 0
+    remainingUnmappedShiftMavlinkActions.forEach((actionId) => {
+      if (indexShiftButtonToUse >= unnecessaryVehicleShiftButtons.length) {
+        finallyRemainedUnmappedShiftMavlinkActions.push(actionId as string)
+      } else {
+        const mavlinkActionValue = this.vehicleButtonParameterTable.find((e) => e.title === actionId)
+        if (mavlinkActionValue === undefined) return
+        this.vehicle?.setParameter({ id: unnecessaryVehicleShiftButtons[indexShiftButtonToUse].button, value: mavlinkActionValue.value })
+      }
+      indexShiftButtonToUse++
+    })
+
+    // There are no spots left to map the remaining ones, so we throw a warning and un-map them from the joystick.
+    finallyRemainedUnmappedRegularMavlinkActions.forEach((actionId) => {
+      const buttonAction = Object.entries(this.currentActionsMapping.buttonsCorrespondencies.regular).find((v) => v[1].action.id === actionId)
+      if (buttonAction === undefined) return
+      Swal.fire({
+        text: `There are no spots left in the vehicle for the MAVLink Manual Control function ${actionId}.
+        Consider mapping this function to a shift button.`,
+        icon: 'error',
+        timer: 6000,
+      })
+      this.currentActionsMapping.buttonsCorrespondencies.regular[Number(buttonAction[0]) as JoystickButton].action = otherAvailableActions.no_function
+    })
+
+    finallyRemainedUnmappedShiftMavlinkActions.forEach((actionId) => {
+      const buttonAction = Object.entries(this.currentActionsMapping.buttonsCorrespondencies.shift).find((v) => v[1].action.id === actionId)
+      if (buttonAction === undefined) return
+      Swal.fire({
+        text: `There are no spots left in the vehicle for the MAVLink Manual Control function ${actionId}.
+        Consider mapping this function to a shift button.`,
+        icon: 'error',
+        timer: 6000,
+      })
+      this.currentActionsMapping.buttonsCorrespondencies.shift[Number(buttonAction[0]) as JoystickButton].action = otherAvailableActions.no_function
+    })
   }
-
-
-
-
-
-  //   const availableButtons = [...disabledVehicleButtons, ...mappedAndNotUsedActions].map((ba) => ba.button)
-
-  //   const indexButtonToUse = 0
-  //   Object.entries(this.currentActionsMapping.buttonsCorrespondencies.regular).forEach((corr) => {
-  //     // This routine is only for the MAVLink ManualControl buttons
-  //     if (corr[1].action.protocol !== JoystickProtocol.MAVLinkManualControl) return
-
-  //     // We are only interested in actions that are not yet mapped in the vehicle
-  //     if (buttonActionIdTable.map((ba) => ba.actionId).includes(corr[1].action.id)) return
-
-  //     // We need at least one available button spot to map the action to
-  //     if (availableButtons[indexButtonToUse] === undefined) {
-  //       // Swal.fire({
-  //       //   text: `There are no spots left in the vehicle for new functions.
-  //       //   Consider mapping this function to a shift button.`,
-  //       //   icon: 'error',
-  //       // })
-  //       console.error('No spots left in the vehicle for new MAVLink ManualControl functions.')
-  //       return
-  //     }
-
-  //     const mavlinkActionValue = this.vehicleButtonParameterTable.find((e) => e.title === corr[1].action.id)
-  //     if (mavlinkActionValue === undefined) return
-  //     this.vehicle?.setParameter({ id: availableButtons[indexButtonToUse], value: mavlinkActionValue.value })
-  //   })
-  // }
 }
 
