@@ -296,21 +296,23 @@ export class MavlinkManualControlManager {
   currentActionsMapping: JoystickProtocolActionsMapping
   activeButtonsActions: ProtocolAction[]
   manualControlState: MavlinkManualControlState | undefined = undefined
+  lastValidActionsMapping: JoystickProtocolActionsMapping
   parametersTable: { title: string; value: number }[] = []
   vehicleButtonParameterTable: { title: string; value: number }[] = []
   currentVehicleParameters: { [key in string]: number } = {}
   public vehicle: ArduPilot | undefined
 
-  // constructor() {
-  //   setInterval(() => {
-  //     console.log('hey')
-  //     console.log('x', this.manualControlState?.x)
-  //     console.log('y', this.manualControlState?.y)
-  //     console.log('z', this.manualControlState?.z)
-  //     console.log('r', this.manualControlState?.r)
-  //     console.log('buttons', this.manualControlState?.buttons)
-  //   }, 40)
-  // }
+  constructor() {
+    setInterval(() => {
+      this.updateMavlinkButtonParameters()
+      // console.log('hey')
+      // console.log('x', this.manualControlState?.x)
+      // console.log('y', this.manualControlState?.y)
+      // console.log('z', this.manualControlState?.z)
+      // console.log('r', this.manualControlState?.r)
+      // console.log('buttons', this.manualControlState?.buttons)
+    }, 1000)
+  }
 
   setVehicle(vehicle: ArduPilot): void {
     // Set vehicle instance
@@ -335,6 +337,9 @@ export class MavlinkManualControlManager {
     this.joystickState = state
     this.currentActionsMapping = protocolActionsMapping
     this.activeButtonsActions = activeButtonsActions
+
+    // Update our mapping with the changes made by the user.
+    // Act over the vehicle (by changing it's buttons parameters) if needed.
     this.upadteManualControlState()
   }
 
@@ -415,49 +420,102 @@ export class MavlinkManualControlManager {
     }
   }
 
-  //   setInterval(() => updateMavlinkButtonsPrettyNames(), 1000)
+  updateMavlinkButtonParameters = (): void => {
+    if (!this.vehicle || !this.currentActionsMapping || !this.currentVehicleParameters || !this.vehicleButtonParameterTable) return
+    // for (let i = 0; i<16; i++) {
+    //   this.vehicle.setParameter({ id: `BTN${i}_FUNCTION`, value: 0 })
+    //   this.vehicle.setParameter({ id: `BTN${i}_SFUNCTION`, value: 0 })
+    // }
+    // return
 
-  //   const updateMavlinkButtonParameters = (): void => {
+    const buttonParametersNamedObject: { [key in number]: string } = {}
+    this.vehicleButtonParameterTable.forEach((entry) => (buttonParametersNamedObject[entry.value] = entry.title))
+    const currentRegularButtonParameters = Object.entries(this.currentVehicleParameters)
+      .filter(([k]) => k.includes('BTN') && !k.includes('S'))
+      .map((btn) => ({ button: btn[0], actionId: buttonParametersNamedObject[btn[1]] }))
+    const currentShiftButtonParameters = Object.entries(this.currentVehicleParameters)
+      .filter(([k]) => k.includes('BTN') && k.includes('S'))
+      .map((btn) => ({ button: btn[0], actionId: buttonParametersNamedObject[btn[1]] }))
+
+    const currentMappedActionsInRegularButtons = currentRegularButtonParameters.map((v) => v.actionId)
+    const currentMappedActionsInShiftButtons = currentShiftButtonParameters.map((v) => v.actionId)
+
+    const wantedRegularMavlinkActions = Object.entries(this.currentActionsMapping.buttonsCorrespondencies.regular)
+      .filter((entry) => entry[1].action.protocol === JoystickProtocol.MAVLinkManualControl)
+      .map((corr) => corr[1].action.id)
+    const wantedUnmappedRegularMavlinkActions = wantedRegularMavlinkActions
+      .filter((actionId) => !currentMappedActionsInRegularButtons.includes(actionId as string))
+      const wantedShiftMavlinkActions = Object.entries(this.currentActionsMapping.buttonsCorrespondencies.shift)
+        .filter((entry) => entry[1].action.protocol === JoystickProtocol.MAVLinkManualControl)
+        .map((corr) => corr[1].action.id)
+      const wantedUnmappedShiftMavlinkActions = wantedShiftMavlinkActions
+        .filter((actionId) => !currentMappedActionsInShiftButtons.includes(actionId as string))
+
+    console.log('wantedUnmappedRegularMavlinkActions', wantedUnmappedRegularMavlinkActions)
+    console.log('wantedUnmappedShiftMavlinkActions', wantedUnmappedShiftMavlinkActions)
+
+    const disabledVehicleRegularButtons = currentRegularButtonParameters.filter((v) => v.actionId === 'Disabled')
+    const disabledVehicleShiftButtons = currentShiftButtonParameters.filter((v) => v.actionId === 'Disabled')
+
+    const remainingUnmappedRegularMavlinkActions: string[] = []
+    let indexRegularButtonToUse = 0
+    wantedUnmappedRegularMavlinkActions.forEach((actionId) => {
+      if (indexRegularButtonToUse >= disabledVehicleRegularButtons.length) {
+        remainingUnmappedRegularMavlinkActions.push(actionId as string)
+      } else {
+        const mavlinkActionValue = this.vehicleButtonParameterTable.find((e) => e.title === actionId)
+        if (mavlinkActionValue === undefined) return
+        this.vehicle?.setParameter({ id: disabledVehicleRegularButtons[indexRegularButtonToUse].button, value: mavlinkActionValue.value })
+      }
+      indexRegularButtonToUse++
+    })
+
+    const remainingUnmappedShiftMavlinkActions: string[] = []
+    let indexShiftButtonToUse = 0
+    wantedUnmappedShiftMavlinkActions.forEach((actionId) => {
+      if (indexShiftButtonToUse >= disabledVehicleShiftButtons.length) {
+        remainingUnmappedShiftMavlinkActions.push(actionId as string)
+      } else {
+        const mavlinkActionValue = this.vehicleButtonParameterTable.find((e) => e.title === actionId)
+        if (mavlinkActionValue === undefined) return
+        this.vehicle?.setParameter({ id: disabledVehicleShiftButtons[indexShiftButtonToUse].button, value: mavlinkActionValue.value })
+      }
+      indexShiftButtonToUse++
+    })
+
+    console.log('remainingUnmappedRegularMavlinkActions', remainingUnmappedRegularMavlinkActions)
+    console.log('remainingUnmappedShiftMavlinkActions', remainingUnmappedShiftMavlinkActions)
+  }
 
 
-  //     const usedMavlinkActions = Object.entries(this.currentActionsMapping.buttonsCorrespondencies.regular).map(
-  //       (corr) => corr[1].action.id
-  //     )
-  //     // console.log('usedMavlinkActions', usedMavlinkActions)
-  //     const mappedAndNotUsedActions = buttonActionIdTable.filter((ba) => !usedMavlinkActions.includes(ba.actionId))
-  //     // console.log('mappedAndNotUsedActions', mappedAndNotUsedActions)
 
-  //     const disabledVehicleButtons = buttonActionIdTable.filter(
-  //       (ba) => !ba.button.includes('S') && ba.actionId === 'Disabled'
-  //     )
 
-  //     // console.log('disabledVehicleButtons', disabledVehicleButtons)
 
-  //     const availableButtons = [...disabledVehicleButtons, ...mappedAndNotUsedActions].map((ba) => ba.button)
+  //   const availableButtons = [...disabledVehicleButtons, ...mappedAndNotUsedActions].map((ba) => ba.button)
 
-  //     const indexButtonToUse = 0
-  //     Object.entries(this.currentActionsMapping.buttonsCorrespondencies.regular).forEach((corr) => {
-  //       // This routine is only for the MAVLink ManualControl buttons
-  //       if (corr[1].action.protocol !== JoystickProtocol.MAVLinkManualControl) return
+  //   const indexButtonToUse = 0
+  //   Object.entries(this.currentActionsMapping.buttonsCorrespondencies.regular).forEach((corr) => {
+  //     // This routine is only for the MAVLink ManualControl buttons
+  //     if (corr[1].action.protocol !== JoystickProtocol.MAVLinkManualControl) return
 
-  //       // We are only interested in actions that are not yet mapped in the vehicle
-  //       if (buttonActionIdTable.map((ba) => ba.actionId).includes(corr[1].action.id)) return
+  //     // We are only interested in actions that are not yet mapped in the vehicle
+  //     if (buttonActionIdTable.map((ba) => ba.actionId).includes(corr[1].action.id)) return
 
-  //       // We need at least one available button spot to map the action to
-  //       if (availableButtons[indexButtonToUse] === undefined) {
-  //         // Swal.fire({
-  //         //   text: `There are no spots left in the vehicle for new functions.
-  //         //   Consider mapping this function to a shift button.`,
-  //         //   icon: 'error',
-  //         // })
-  //         console.error('No spots left in the vehicle for new MAVLink ManualControl functions.')
-  //         return
-  //       }
+  //     // We need at least one available button spot to map the action to
+  //     if (availableButtons[indexButtonToUse] === undefined) {
+  //       // Swal.fire({
+  //       //   text: `There are no spots left in the vehicle for new functions.
+  //       //   Consider mapping this function to a shift button.`,
+  //       //   icon: 'error',
+  //       // })
+  //       console.error('No spots left in the vehicle for new MAVLink ManualControl functions.')
+  //       return
+  //     }
 
-  //       const mavlinkActionValue = this.vehicleButtonParameterTable.find((e) => e.title === corr[1].action.id)
-  //       if (mavlinkActionValue === undefined) return
-  //       this.vehicle?.setParameter({ id: availableButtons[indexButtonToUse], value: mavlinkActionValue.value })
-  //     })
-  //   }
+  //     const mavlinkActionValue = this.vehicleButtonParameterTable.find((e) => e.title === corr[1].action.id)
+  //     if (mavlinkActionValue === undefined) return
+  //     this.vehicle?.setParameter({ id: availableButtons[indexButtonToUse], value: mavlinkActionValue.value })
+  //   })
+  // }
 }
 

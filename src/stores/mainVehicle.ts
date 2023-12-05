@@ -380,5 +380,6 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     configurationPages,
     rtcConfiguration,
     genericVariables,
+    mavlinkManualControlManager, // TODO: Remove that
   }
 })

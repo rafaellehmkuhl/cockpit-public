@@ -350,11 +350,15 @@ const remapInput = async (joystick: Joystick, input: JoystickInput): Promise<voi
   justRemappedInput.value = false
 }
 
-const currentButtonActions = ref(controllerStore.protocolMapping.buttonsCorrespondencies[currentModifierKey.value.id])
-watch(controllerStore.protocolMapping, () => {
-  console.log('protocol mapping changed')
-  currentButtonActions.value = controllerStore.protocolMapping.buttonsCorrespondencies[currentModifierKey.value.id]
-})
+const currentButtonActions = computed(
+  () => controllerStore.protocolMapping.buttonsCorrespondencies[currentModifierKey.value.id]
+)
+
+// const currentButtonActions = ref(controllerStore.protocolMapping.buttonsCorrespondencies[currentModifierKey.value.id])
+// watch(controllerStore.protocolMapping, () => {
+//   console.log('protocol mapping changed')
+//   currentButtonActions.value = controllerStore.protocolMapping.buttonsCorrespondencies[currentModifierKey.value.id]
+// })
 
 const actionName = (button: JoystickButton) => {
   const protocolAction = currentButtonActions.value[button].action
@@ -363,8 +367,12 @@ const actionName = (button: JoystickButton) => {
 
 const mavlinkButtonsActions = computed(() => {
   const buttonParametersNamedObject: { [key in number]: string } = {}
-  vehicleStore.buttonParameterTable.forEach((entry) => (buttonParametersNamedObject[entry.value] = entry.title))
-  const currentButtonParameters = Object.entries(vehicleStore.currentParameters).filter(([k]) => k.includes('BTN'))
+  vehicleStore.mavlinkManualControlManager.vehicleButtonParameterTable.forEach(
+    (entry) => (buttonParametersNamedObject[entry.value] = entry.title)
+  )
+  const currentButtonParameters = Object.entries(
+    vehicleStore.mavlinkManualControlManager.currentVehicleParameters
+  ).filter(([k]) => k.includes('BTN'))
   const buttonActionIdTable = currentButtonParameters.map((btn) => ({
     button: btn[0].replace('BTN', '').replace('FUNCTION', '').split('_').reverse().join(''),
     actionId: buttonParametersNamedObject[btn[1]],
