@@ -3,11 +3,73 @@ import { saveAs } from 'file-saver'
 import localforage from 'localforage'
 import { defineStore } from 'pinia'
 import Swal from 'sweetalert2'
-import { ref } from 'vue'
+import { type Ref, computed, onBeforeUnmount, ref } from 'vue'
+import adapter from 'webrtc-adapter'
+
+import { WebRTCManager } from '@/composables/webRTC'
+import { isEqual } from '@/libs/utils'
+import type { Stream } from '@/libs/webrtc/signalling_protocol'
+import { useMainVehicleStore } from '@/stores/mainVehicle'
 
 export const useVideoStore = defineStore('video', () => {
-  const availableIceIps = ref<string[] | undefined>(undefined)
+  const { rtcConfiguration, webRTCSignallingURI } = useMainVehicleStore()
+  console.debug('[WebRTC] Using webrtc-adapter for', adapter.browserDetails)
+
   const allowedIceIps = useStorage<string[]>('cockpit-allowed-stream-ips', [])
+  const activeStreams = ref<{ [key in string]: StreamData }>({})
+  const mainWebRTCManager = new WebRTCManager(webRTCSignallingURI.val, rtcConfiguration)
+  const { availableStreams } = mainWebRTCManager.startStream(ref(undefined), allowedIceIps)
+  const commonAvailableIceIps = ref<string[]>([])
+
+  const namesAvailableStreams = computed(() => availableStreams.value.map((stream) => stream.name))
+
+  // Check often if the streams were updated. This can mean a stream became available, or that a stream
+  // that was available was dropped.
+  setInterval(() => {
+    Object.keys(activeStreams.value).forEach((streamName) => {
+      const updatedStream = availableStreams.value.find((s) => s.name === streamName)
+      if (isEqual(updatedStream, activeStreams.value[streamName].stream)) return
+
+      // Whenever the stream is to be updated we first reset it's variables (activateStream method), so
+      // consumers can be updated as well.
+      console.log(`New stream for '${streamName}':`)
+      console.log(JSON.stringify(updatedStream, null, 2))
+      activateStream(streamName)
+      // @ts-ignore
+      activeStreams.value[streamName].stream = updatedStream
+    })
+  }, 300)
+
+  /**
+   * Activates a stream by starting it and storing it's variables inside a common object.
+   * This way multiple consumers will always access the same resource, so we don't consume unnecessary
+   * bandwith or stress the stream provider more than we need to.
+   * @param {string} streamName - Unique name for the stream, common between the multiple consumers
+   */
+  const activateStream = (streamName: string): void => {
+    const stream = ref()
+    const webRtcManager = new WebRTCManager(webRTCSignallingURI.val, rtcConfiguration)
+    const { availableICEIPs, mediaStream } = webRtcManager.startStream(stream, allowedIceIps)
+    activeStreams.value[streamName] = {
+      stream: stream,
+      webRtcManager: webRtcManager,
+      availableICEIPs: availableICEIPs,
+      mediaStream: mediaStream,
+    }
+  }
+
+  /**
+   * bandwith or stress the stream provider more than we need to.
+   * @param {string} streamName - Name of the stream
+   * @returns {MediaStream | undefined} MediaStream that is running, if available
+   */
+  const getMediaStream = (streamName: string): MediaStream | undefined => {
+    if (activeStreams.value[streamName] === undefined) {
+      activateStream(streamName)
+    }
+    // @ts-ignore
+    return activeStreams.value[streamName].mediaStream
+  }
 
   // Offer download of backuped videos
   const videoRecoveryDB = localforage.createInstance({
@@ -51,11 +113,11 @@ export const useVideoStore = defineStore('video', () => {
   // Routine to make sure the user has chosen the allowed ICE candidate IPs, so the stream works as expected
   const iceIpCheckInterval = setInterval(() => {
     // Pass if there are no available IPs yet or if the user has already set the allowed ones
-    if (availableIceIps.value === undefined || !allowedIceIps.value.isEmpty()) {
+    if (commonAvailableIceIps.value === undefined || !allowedIceIps.value.isEmpty()) {
       return
     }
     // If there's more than one IP candidate available, send a warning an clear the check routine
-    if (availableIceIps.value.length >= 1) {
+    if (commonAvailableIceIps.value.length >= 1) {
       Swal.fire({
         html: `
           <p>Cockpit detected more than one IP address being used to route the video streaming. This often
@@ -76,5 +138,33 @@ export const useVideoStore = defineStore('video', () => {
     }
   }, 5000)
 
-  return { availableIceIps, allowedIceIps, videoRecoveryDB }
+  return {
+    commonAvailableIceIps,
+    allowedIceIps,
+    namesAvailableStreams,
+    videoRecoveryDB,
+    getMediaStream,
+  }
 })
+
+/**
+ * Everything needed for every stream
+ */
+interface StreamData {
+  /**
+   * The actual WebRTC stream
+   */
+  stream: Ref<Stream | undefined>
+  /**
+   * The responsible for its management
+   */
+  webRtcManager: WebRTCManager
+  /**
+   * A list of IPs from WebRTC candidates that are available for a given stream
+   */
+  availableICEIPs: Ref<Array<string>>
+  /**
+   * MediaStream object, if WebRTC stream is chosen
+   */
+  mediaStream: Ref<MediaStream | undefined>
+}

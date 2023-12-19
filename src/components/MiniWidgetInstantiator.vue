@@ -24,7 +24,8 @@
     <JoystickCommIndicator :mini-widget="miniWidget" />
   </template>
   <template v-if="miniWidget.component === MiniWidgetType.MiniVideoRecorder">
-    <MiniVideoRecorder :mini-widget="miniWidget" />
+    <div>oi</div>
+    <!-- <MiniVideoRecorder :mini-widget="miniWidget" /> -->
   </template>
   <template v-if="miniWidget.component === MiniWidgetType.ModeSelector">
     <ModeSelector :options="miniWidget" />
