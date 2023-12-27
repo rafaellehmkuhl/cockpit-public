@@ -1,3 +1,4 @@
+import { allAutomagicIds } from '@/libs/automagic'
 import { type MiniWidgetProfile, MiniWidgetType } from '@/types/miniWidgets'
 import { type Profile, WidgetType } from '@/types/widgets'
 
@@ -586,3 +587,5 @@ export const miniWidgetsProfiles: MiniWidgetProfile[] = [
   },
 ]
 export const miniWidgetsProfile = miniWidgetsProfiles[0]
+
+export const defaultActiveAutomagicIds = allAutomagicIds

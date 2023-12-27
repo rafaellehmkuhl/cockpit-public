@@ -12,6 +12,8 @@ import { createApp } from 'vue'
 import VueVirtualScroller from 'vue-virtual-scroller'
 
 import App from './App.vue'
+import { defaultActiveAutomagicIds } from './assets/defaults'
+import { runAutomagics } from './libs/automagic'
 import vuetify from './plugins/vuetify'
 import { loadFonts } from './plugins/webfontloader'
 import router from './router'
@@ -23,3 +25,5 @@ const app = createApp(App)
 app.component('FontAwesomeIcon', FontAwesomeIcon)
 app.use(router).use(vuetify).use(createPinia()).use(FloatingVue).use(VueVirtualScroller)
 app.mount('#app')
+
+runAutomagics(defaultActiveAutomagicIds)
