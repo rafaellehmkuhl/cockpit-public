@@ -243,19 +243,88 @@
             </div>
           </template>
         </ExpansiblePanel>
+        <ExpansiblePanel no-bottom-divider :is-expanded="!interfaceStore.isOnPhoneScreen">
+          <template #title>Generic Mavlink2Rest connections</template>
+          <template #content>
+            <v-card class="flex flex-col pb-2 pa-5 ma-4" max-width="600px">
+              <div class="mx-2 my-2">
+                <div v-for="conn in mavlinkConnectionsList" :key="conn.name" class="my-2">
+                  <v-icon :icon="'mdi-circle-small'" class="mr-1" />
+                  <span class="text-xl font-bold">{{ conn.name }}</span>
+                  <p class="ml-6">{{ conn.address }}</p>
+                </div>
+              </div>
+              <div class="flex">
+                <v-text-field
+                  v-model="newMavlink2RestConnectionAddress"
+                  label="New Mavlink2Rest connection address"
+                  variant="underlined"
+                  type="input"
+                  hint="Address of a Mavlink2Rest web-socket address"
+                  class="uri-input"
+                />
+                <v-btn
+                  v-tooltip.bottom="'Add'"
+                  icon="mdi-plus"
+                  class="mx-1 mb-5 pa-0"
+                  rounded="lg"
+                  flat
+                  @click="createNewMavlinkConnection"
+                />
+              </div>
+            </v-card>
+            <div class="flex justify-between mt-2 w-full">
+              <v-textarea
+                id="rtcConfigTextInput"
+                v-model="customRtcConfiguration"
+                :disabled="!mainVehicleStore.customWebRTCConfiguration.enabled"
+                variant="outlined"
+                label="Custom WebRTC Configuration"
+                :rows="6"
+                hint="e.g.: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }"
+                class="w-full"
+              />
+              <div class="flex flex-col justify-around align-center w-[100px] -mr-6">
+                <GlassButton
+                  :size="interfaceStore.isOnSmallScreen ? 'small' : 'default'"
+                  variant="uncontained"
+                  label="APPLY"
+                  :disabled="!mainVehicleStore.customWebRTCConfiguration.enabled"
+                  label-class="font-thin text-[15px] opacity-[0.95] -ml-1"
+                  no-effects
+                  class="-mt-8"
+                  @click="handleCustomRtcConfiguration"
+                />
+                <div class="flex flex-col align-end text-[10px] -mt-8">
+                  <v-switch
+                    v-model="mainVehicleStore.customWebRTCConfiguration.enabled"
+                    v-tooltip.bottom="'Enable custom'"
+                    class="-mt-5 bg-transparent"
+                    rounded="lg"
+                    hide-details
+                  />
+                  <div class="-mt-[4px]">
+                    {{ mainVehicleStore.customWebRTCConfiguration.enabled ? 'Enabled' : 'Disabled' }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+        </ExpansiblePanel>
       </div>
     </template>
   </BaseConfigurationView>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, reactive, ref, watch } from 'vue'
 
 import { defaultGlobalAddress } from '@/assets/defaults'
 import ExpansiblePanel from '@/components/ExpansiblePanel.vue'
 import GlassButton from '@/components/GlassButton.vue'
 import * as Connection from '@/libs/connection/connection'
 import { ConnectionManager } from '@/libs/connection/connection-manager'
+import { createMavlinkConnection, MavlinkConnection, mavlinkConnections } from '@/libs/mavlink-generic-conn'
 import { isValidNetworkAddress, reloadCockpit } from '@/libs/utils'
 import * as Protocol from '@/libs/vehicle/protocol/protocol'
 import { useAppInterfaceStore } from '@/stores/appInterface'
@@ -265,6 +334,18 @@ import BaseConfigurationView from './BaseConfigurationView.vue'
 
 const mainVehicleStore = useMainVehicleStore()
 const interfaceStore = useAppInterfaceStore()
+
+const newMavlink2RestConnectionAddress = ref('')
+const createNewMavlinkConnection = (): void => {
+  const parsedName = newMavlink2RestConnectionAddress.value.replace('.local', '')
+  const parsedAddress = new Connection.URI(`ws://${newMavlink2RestConnectionAddress.value}/mavlink2rest/ws/mavlink`)
+  createMavlinkConnection(parsedName, parsedAddress)
+}
+
+const mavlinkConnectionsList = reactive<MavlinkConnection[]>([])
+setInterval(() => {
+  Object.assign(mavlinkConnectionsList, mavlinkConnections)
+}, 200)
 
 const globalAddressForm = ref()
 const globalAddressFormValid = ref(false)
