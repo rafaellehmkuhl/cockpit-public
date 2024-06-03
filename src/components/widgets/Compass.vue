@@ -14,6 +14,12 @@
           <span class="mr-1 text-slate-100">Heading style</span>
           <div class="w-40"><Dropdown v-model="widget.options.headingStyle" :options="headingOptions" /></div>
         </div>
+        <div class="flex items-center justify-between w-full my-1">
+          <span class="mr-1 text-slate-100">Data source</span>
+          <div class="w-40">
+            <Dropdown v-model="widget.options.dataSource" :options="sourceOptions" />
+          </div>
+        </div>
       </div>
     </div>
   </Dialog>
@@ -22,20 +28,24 @@
 <script setup lang="ts">
 import { useElementSize } from '@vueuse/core'
 import gsap from 'gsap'
-import { computed, nextTick, onBeforeMount, onMounted, reactive, ref, toRefs, watch } from 'vue'
+import { computed, nextTick, onBeforeMount, onBeforeUnmount, onMounted, reactive, Ref, ref, toRefs, watch } from 'vue'
 
 import Dialog from '@/components/Dialog.vue'
 import Dropdown from '@/components/Dropdown.vue'
+import {
+  availableGenericVariables,
+  GenericVariableTag,
+  listenGenericVariable,
+  unlistenGenericVariable,
+} from '@/libs/cockpit-basics'
 import { datalogger, DatalogVariable } from '@/libs/sensors-logging'
 import { degrees, radians, resetCanvas, sequentialArray } from '@/libs/utils'
-import { useMainVehicleStore } from '@/stores/mainVehicle'
 import { useWidgetManagerStore } from '@/stores/widgetManager'
 import type { Widget } from '@/types/widgets'
 
 const widgetStore = useWidgetManagerStore()
 
 datalogger.registerUsage(DatalogVariable.heading)
-const store = useMainVehicleStore()
 const compassRoot = ref()
 const canvasRef = ref<HTMLCanvasElement | undefined>()
 const canvasContext = ref()
@@ -71,6 +81,13 @@ const props = defineProps<{
 }>()
 const widget = toRefs(props).widget
 
+// New system
+const sourceTags: GenericVariableTag[] = ['yaw', 'heading']
+const sourceOptions: Ref<string[]> = ref([])
+let listenerId = ''
+
+setInterval(() => (sourceOptions.value = availableGenericVariables(sourceTags)), 1000)
+
 onBeforeMount(() => {
   // Set initial widget options if they don't exist
   if (Object.keys(widget.value.options).length === 0) {
@@ -78,12 +95,24 @@ onBeforeMount(() => {
       headingStyle: headingOptions[0],
     }
   }
+  widget.value.options.dataSource = widget.value.options.dataSource ?? ''
+
+  // Set initial listener
+  if (widget.value.options.dataSource) {
+    updateListener(widget.value.options.dataSource)
+  }
 })
 
 onMounted(() => {
   // Set initial value to 0.01 since 0.0 and 360 does not render anything
   adjustLinesX()
   renderCanvas()
+})
+
+onBeforeUnmount(() => {
+  if (listenerId) {
+    unlistenGenericVariable(listenerId)
+  }
 })
 
 // Calculates the smallest between the widget dimensions, so we can keep the inner content always inside it, without overlays
@@ -192,18 +221,29 @@ const renderCanvas = (): void => {
 
 const yaw = ref(0.01)
 let oldYaw: number | undefined = undefined
-watch(store.attitude, (attitude) => {
-  if (oldYaw === undefined) {
-    yaw.value = degrees(store.attitude.yaw)
-    oldYaw = attitude.yaw
-    return
-  }
-  const yawDiff = Math.abs(degrees(attitude.yaw - oldYaw))
-  if (yawDiff > 0.1) {
-    oldYaw = attitude.yaw
-    yaw.value = degrees(store.attitude.yaw)
-  }
-})
+
+const updateListener = (source: string): void => {
+  if (listenerId) unlistenGenericVariable(listenerId)
+  listenerId = listenGenericVariable(source, (value) => {
+    const newYaw = degrees(value as number)
+    yaw.value = newYaw
+    // if (oldYaw === undefined) {
+    //   yaw.value = degrees(newYaw)
+    //   oldYaw = newYaw
+    //   return
+    // }
+    // const yawDiff = Math.abs(degrees(newYaw - oldYaw))
+    // if (yawDiff > 0.1) {
+    //   oldYaw = newYaw
+    //   yaw.value = degrees(newYaw)
+    // }
+  })
+
+  // Reset initial value
+  yaw.value = 0.01
+}
+
+watch(widget.value.options, () => updateListener(widget.value.options.dataSource), { deep: true })
 
 // eslint-disable-next-line jsdoc/require-jsdoc
 type RenderVariables = { yawAngleDegrees: number }

@@ -171,16 +171,48 @@
           </div>
         </div>
       </v-card>
+      <v-card class="flex flex-col pb-2 pa-5 ma-4" max-width="600px">
+        <div class="flex items-center">
+          <v-icon :icon="'mdi-information'" class="mr-3" />
+          <span class="text-h6">Generic Mavlink2Rest connections</span>
+        </div>
+        <div class="mx-2 my-2">
+          <div v-for="conn in mavlinkConnectionsList" :key="conn.name" class="my-2">
+            <v-icon :icon="'mdi-circle-small'" class="mr-1" />
+            <span class="text-xl font-bold">{{ conn.name }}</span>
+            <p class="ml-6">{{ conn.address }}</p>
+          </div>
+        </div>
+        <div class="flex">
+          <v-text-field
+            v-model="newMavlink2RestConnectionAddress"
+            label="New Mavlink2Rest connection address"
+            variant="underlined"
+            type="input"
+            hint="Address of a Mavlink2Rest web-socket address"
+            class="uri-input"
+          />
+          <v-btn
+            v-tooltip.bottom="'Add'"
+            icon="mdi-plus"
+            class="mx-1 mb-5 pa-0"
+            rounded="lg"
+            flat
+            @click="createNewMavlinkConnection"
+          />
+        </div>
+      </v-card>
     </template>
   </BaseConfigurationView>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, reactive, ref, watch } from 'vue'
 
 import { defaultGlobalAddress } from '@/assets/defaults'
 import * as Connection from '@/libs/connection/connection'
 import { ConnectionManager } from '@/libs/connection/connection-manager'
+import { createMavlinkConnection, MavlinkConnection, mavlinkConnections } from '@/libs/mavlink-generic-conn'
 import { isValidNetworkAddress } from '@/libs/utils'
 import * as Protocol from '@/libs/vehicle/protocol/protocol'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
@@ -188,6 +220,18 @@ import { useMainVehicleStore } from '@/stores/mainVehicle'
 import BaseConfigurationView from './BaseConfigurationView.vue'
 
 const mainVehicleStore = useMainVehicleStore()
+
+const newMavlink2RestConnectionAddress = ref('')
+const createNewMavlinkConnection = (): void => {
+  const parsedName = newMavlink2RestConnectionAddress.value.replace('.local', '')
+  const parsedAddress = new Connection.URI(`ws://${newMavlink2RestConnectionAddress.value}/mavlink2rest/ws/mavlink`)
+  createMavlinkConnection(parsedName, parsedAddress)
+}
+
+const mavlinkConnectionsList = reactive<MavlinkConnection[]>([])
+setInterval(() => {
+  Object.assign(mavlinkConnectionsList, mavlinkConnections)
+}, 200)
 
 const globalAddressForm = ref()
 const globalAddressFormValid = ref(false)
