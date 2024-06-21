@@ -441,16 +441,47 @@ export class MavlinkManualControlManager {
     const yCorrespondency = Object.entries(this.currentActionsMapping.axesCorrespondencies).find((entry) => entry[1].action.protocol === JoystickProtocol.MAVLinkManualControl && entry[1].action.id === mavlinkManualControlAxes.axis_y.id)
     const zCorrespondency = Object.entries(this.currentActionsMapping.axesCorrespondencies).find((entry) => entry[1].action.protocol === JoystickProtocol.MAVLinkManualControl && entry[1].action.id === mavlinkManualControlAxes.axis_z.id)
     const rCorrespondency = Object.entries(this.currentActionsMapping.axesCorrespondencies).find((entry) => entry[1].action.protocol === JoystickProtocol.MAVLinkManualControl && entry[1].action.id === mavlinkManualControlAxes.axis_r.id)
-    const sCorrespondency = Object.entries(this.currentActionsMapping.axesCorrespondencies).find((entry) => entry[1].action.protocol === JoystickProtocol.MAVLinkManualControl && entry[1].action.id === mavlinkManualControlAxes.axis_s.id)
-    const tCorrespondency = Object.entries(this.currentActionsMapping.axesCorrespondencies).find((entry) => entry[1].action.protocol === JoystickProtocol.MAVLinkManualControl && entry[1].action.id === mavlinkManualControlAxes.axis_t.id)
+
+    /**
+     * Eldin's special implementation
+     *
+     * This is an special implementation to use the left and right joystick triggers (L2 and R2) to control zoom and
+     * focus of the camera, by sending their combination to the S and T axes of the MAVLink Manual Control message.
+     *
+     * This is a temporary solution until we have a better way to handle this kind of mapping.
+     *
+     * Axis S is going to be used to focus, being the trigger's merged state when shift is not pressed
+     * Axis T is going to be used to zoom, when the shift button is pressed.
+     */
+
+    const leftTriggerValue = this.joystickState.buttons[6]
+    const rightTriggerValue = this.joystickState.buttons[7]
+    const shiftPressed = this.activeButtonsActions.map((a) => a.id).includes(modifierKeyActions.shift.id)
+
+    let sState = 1500
+    let tState = 1500
+
+    if (!shiftPressed) {
+      if (leftTriggerValue !== undefined && leftTriggerValue > 0.05) {
+        sState = 1500 - 500 * leftTriggerValue
+      } else if (rightTriggerValue !== undefined && rightTriggerValue > 0.05) {
+        sState = 1500 + 500 * rightTriggerValue
+      }
+    } else {
+      if (leftTriggerValue !== undefined && leftTriggerValue > 0.05) {
+        tState = 1500 - 500 * leftTriggerValue
+      } else if (rightTriggerValue !== undefined && rightTriggerValue > 0.05) {
+        tState = 1500 + 500 * rightTriggerValue
+      }
+    }
 
     // Populate MAVLink Manual Control state of axes and buttons
     this.manualControlState.x = xCorrespondency === undefined ? 0 : round(scale(this.joystickState.axes[xCorrespondency[0] as unknown as JoystickAxis] ?? 0, -1, 1, xCorrespondency[1].min, xCorrespondency[1].max), 0)
     this.manualControlState.y = yCorrespondency === undefined ? 0 : round(scale(this.joystickState.axes[yCorrespondency[0] as unknown as JoystickAxis] ?? 0, -1, 1, yCorrespondency[1].min, yCorrespondency[1].max), 0)
     this.manualControlState.z = zCorrespondency === undefined ? 0 : round(scale(this.joystickState.axes[zCorrespondency[0] as unknown as JoystickAxis] ?? 0, -1, 1, zCorrespondency[1].min, zCorrespondency[1].max), 0)
     this.manualControlState.r = rCorrespondency === undefined ? 0 : round(scale(this.joystickState.axes[rCorrespondency[0] as unknown as JoystickAxis] ?? 0, -1, 1, rCorrespondency[1].min, rCorrespondency[1].max), 0)
-    this.manualControlState.s = sCorrespondency === undefined ? 0 : round(scale(this.joystickState.axes[sCorrespondency[0] as unknown as JoystickAxis] ?? 0, -1, 1, sCorrespondency[1].min, sCorrespondency[1].max), 0)
-    this.manualControlState.t = tCorrespondency === undefined ? 0 : round(scale(this.joystickState.axes[tCorrespondency[0] as unknown as JoystickAxis] ?? 0, -1, 1, tCorrespondency[1].min, tCorrespondency[1].max), 0)
+    this.manualControlState.s = round(sState, 0)
+    this.manualControlState.t = round(tState, 0)
     this.manualControlState.buttons = buttons_int
     this.manualControlState.buttons2 = buttons2_int
   }
