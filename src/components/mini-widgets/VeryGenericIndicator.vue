@@ -159,7 +159,7 @@
 
 <script setup lang="ts">
 import * as MdiExports from '@mdi/js/mdi'
-import { watchThrottled } from '@vueuse/core'
+import { refDebounced, watchThrottled } from '@vueuse/core'
 import Fuse from 'fuse.js'
 import Swal from 'sweetalert2'
 import { computed, onBeforeMount, onMounted, ref, toRefs, watch, watchEffect } from 'vue'
@@ -273,7 +273,7 @@ watch(
 )
 
 watch(store.genericVariables, () => updateVariableState())
-watch(store.availableGenericVariables, () => updateGenericVariablesNames())
+watch(store.availableGenericVariables, () => updateGenericVariablesNames(), { deep: true })
 watch(
   miniWidget,
   () => {
@@ -325,15 +325,18 @@ watchThrottled(
 // Search for variable using fuzzy-finder
 const variableNameSearchString = ref('')
 const allVariablesNames = ref<string[]>([])
+// const allVariablesNamesDebounced = refDebounced(allVariablesNames, 500)
 const showVariableChooseModal = ref(false)
 const showIconChooseModal = ref(false)
 
 const variableNamesToShow = computed(() => {
   if (variableNameSearchString.value === '') {
     return allVariablesNames.value
+    // return allVariablesNamesDebounced.value
   }
 
   const variableNameFuse = new Fuse(allVariablesNames.value, fuseOptions)
+  // const variableNameFuse = new Fuse(allVariablesNamesDebounced.value, fuseOptions)
   const filteredVariablesResult = variableNameFuse.search(variableNameSearchString.value)
   return filteredVariablesResult.map((r) => r.item).filter((value, index, self) => self.indexOf(value) === index)
 })
@@ -350,6 +353,15 @@ const chooseIcon = (iconName: string): void => {
   iconSearchString.value = ''
   showIconChooseModal.value = false
 }
+
+// watch(allVariablesNames, () => {
+//   console.log('allVariablesNames changed!')
+//   console.log(allVariablesNames.value)
+// })
+
+setInterval(() => {
+  console.log('Number of variables:', allVariablesNames.value.length)
+}, 1000)
 
 watch(showVariableChooseModal, async (newValue) => {
   if (newValue === true && variableNamesToShow.value.isEmpty()) {
