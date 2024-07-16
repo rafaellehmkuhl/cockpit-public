@@ -1,4 +1,5 @@
 import { type RemovableRef, useStorage, watchThrottled } from '@vueuse/core'
+import { diff } from 'jest-diff'
 import { type MaybeRef, onMounted, ref, unref } from 'vue'
 
 import {
@@ -11,6 +12,7 @@ import { useDevelopmentStore } from '@/stores/development'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 
 import { useInteractionDialog } from './interactionDialog'
+import { useSettingsSyncConflictDialog } from './settingsSyncConflictDialog'
 
 /**
  * This composable will keep a setting in sync between the browser's local storage and BlueOS.
@@ -30,8 +32,6 @@ import { useInteractionDialog } from './interactionDialog'
  * @returns { RemovableRef<T> }
  */
 export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): RemovableRef<T> {
-  const { showDialog, closeDialog } = useInteractionDialog()
-
   const primitiveDefaultValue = unref(defaultValue)
   const currentValue = useStorage(key, primitiveDefaultValue)
   const finishedInitialFetch = ref(false)
@@ -50,7 +50,7 @@ export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): Rem
     return vehicleStore.globalAddress
   }
 
-  const askIfUserWantsToUseBlueOsValue = async (): Promise<boolean> => {
+  const askIfUserWantsToUseBlueOsValue = async (blueOsValue: unknown, cockpitValue: unknown): Promise<boolean> => {
     let useBlueOsValue = true
 
     const preferBlueOs = (): void => {
@@ -61,20 +61,12 @@ export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): Rem
       useBlueOsValue = false
     }
 
-    await showDialog({
-      title: 'Conflict with BlueOS',
-      message: `
-        The value for '${key}' that is currently used in Cockpit differs from the one stored in BlueOS. What do you
-        want to do?
-      `,
-      variant: 'warning',
-      actions: [
-        { text: 'Use the value from BlueOS', action: preferBlueOs },
-        { text: "Keep Cockpit's value", action: preferCockpit },
-      ],
-    })
+    console.log(`Conflict between BlueOS and Cockpit for key '${key}'.`)
+    console.log(`BlueOS value:`, blueOsValue)
+    console.log(`Cockpit value:`, cockpitValue)
+    console.log(`Diff:`, diff(blueOsValue, cockpitValue))
 
-    closeDialog()
+    useSettingsSyncConflictDialog(key, cockpitValue, blueOsValue)
 
     return useBlueOsValue
   }
@@ -124,7 +116,7 @@ export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): Rem
       // If Cockpit has a different value than BlueOS, ask the user if they want to use the value from BlueOS or
       // if they want to update BlueOS with the value from Cockpit.
 
-      const useBlueOsValue = await askIfUserWantsToUseBlueOsValue()
+      const useBlueOsValue = await askIfUserWantsToUseBlueOsValue(valueOnBlueOS, currentValue.value)
 
       if (useBlueOsValue) {
         currentValue.value = valueOnBlueOS as T
