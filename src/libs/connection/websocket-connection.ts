@@ -73,6 +73,7 @@ export class WebSocketConnection extends Connection.Abstract {
     socket.onmessage = (message: MessageEvent) => {
       try {
         this.onRead.emit_value(this._textEncoder.encode(message.data))
+        console.log('Received message.')
       } catch (error) {
         console.error('Error reading websocket message: ', error)
       }
