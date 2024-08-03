@@ -216,11 +216,24 @@ export abstract class ArduPilotVehicle<Modes> extends Vehicle.AbstractVehicle<Mo
     ]
   }
 
+  millisTakenLastSecond = 0
+  countLastSecond = 0
+  timeNow = new Date().getTime()
+  timeLastSecond = this.timeNow
+
   /**
    *  Decode incoming message
    * @param {Uint8Array} message
    */
   onMessage(message: Uint8Array): void {
+    const timeNow = new Date().getTime()
+    if (timeNow - this.timeLastSecond >= 1000) {
+      console.log(`${this.millisTakenLastSecond} ms taken // ${this.countLastSecond} messages received`)
+      this.millisTakenLastSecond = 0
+      this.countLastSecond = 0
+      this.timeLastSecond = timeNow
+    }
+    const timeBefore = new Date().getTime()
     const textDecoder = new TextDecoder()
     let mavlink_message: Package
     const text_message = textDecoder.decode(message)
@@ -492,6 +505,9 @@ export abstract class ArduPilotVehicle<Modes> extends Vehicle.AbstractVehicle<Mo
     }
 
     this.onMAVLinkPackage(mavlink_message)
+    const timeAfter = new Date().getTime()
+    this.millisTakenLastSecond += timeAfter - timeBefore
+    this.countLastSecond++
   }
 
   /**
