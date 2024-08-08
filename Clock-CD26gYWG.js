@@ -1,0 +1,1 @@
+import{d as s,p as n,o,c as a,t as c,b as e,q as m}from"./index-Csa3iGZA.js";const r={class:"flex items-center justify-center m-2 text-sm font-bold text-center text-white select-none min-w-[80px]"},f=s({__name:"Clock",setup(i){const t=n({interval:1e3});return(l,p)=>(o(),a("div",r,c(e(m)(e(t),"E LLL do HH:mm")),1))}});export{f as default};
