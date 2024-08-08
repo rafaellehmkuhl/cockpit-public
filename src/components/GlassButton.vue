@@ -24,12 +24,11 @@
       </template>
       <v-icon
         v-if="isRound || isUncontained"
+        :icon="icon || ''"
         :size="props.iconSize || calculatedIconSize"
         :class="iconClass"
-        class="opacity-90"
-      >
-        {{ icon }}
-      </v-icon>
+        class="opacity-90 scale-[85%]"
+      />
       <div v-else class="flex items-center align-center justify-center w-full h-full">
         <v-icon :size="props.iconSize || calculatedIconSize" :class="iconClass">{{ icon }}</v-icon>
         <div class="text-white select-none" :class="labelClass">
