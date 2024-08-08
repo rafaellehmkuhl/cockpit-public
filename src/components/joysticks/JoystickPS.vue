@@ -206,6 +206,7 @@ watch(
 
 const joystickModel = toRefs(props).model
 const buttonsActionsCorrespondency = toRefs(props).buttonsActionsCorrespondency
+watch(buttonsActionsCorrespondency, () => updateLabelsState())
 
 const updateLabelsState = (): void => {
   Object.values(JoystickButton).forEach((button) => {

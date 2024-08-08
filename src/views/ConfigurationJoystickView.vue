@@ -705,19 +705,19 @@ const headers = ref([
 ])
 
 const tableItems = computed(() => {
-  const axesItems = currentJoystick.value?.gamepadToCockpitMap?.axes.slice(0, 4).map((axis) => ({
-    type: 'axis',
-    id: axis,
-  }))
-  const buttonItems = currentJoystick.value?.gamepadToCockpitMap?.buttons
-    .map((button, index) => ({
-      type: 'button',
-      id: button,
-      index: index,
-    }))
+  if (currentJoystick.value === undefined) {
+    return []
+  }
+
+  const originalAxes = currentJoystick.value.gamepadToCockpitMap?.axes || []
+  const axesItems = originalAxes.slice(0, 4).map((axis) => ({ type: 'axis', id: axis }))
+
+  const originalButtons = currentJoystick.value.gamepadToCockpitMap?.buttons || []
+  const buttonItems = originalButtons
+    .map((button, index) => ({ type: 'button', id: button, index: index }))
     .filter((button) => button.index >= 0 && button.index <= 15)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return [...(axesItems as any), ...(buttonItems as any)]
+
+  return [...axesItems, ...buttonItems]
 })
 
 watch(inputClickedDialog, () => {
