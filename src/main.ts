@@ -7,6 +7,8 @@ import { far } from '@fortawesome/free-regular-svg-icons'
 import { fas } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 import * as Sentry from '@sentry/vue'
+// import { app as electronApp } from 'electron'
+import electronUpdater, { type AppUpdater } from 'electron-updater'
 import FloatingVue from 'floating-vue'
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
@@ -46,3 +48,57 @@ app.mount('#app')
 
 // Initialize the logger store
 useOmniscientLoggerStore()
+
+console.log('Vue.js main process started.')
+
+const isRunningElectron = navigator.userAgent.toLowerCase().includes('electron')
+console.log('Running on electron?', isRunningElectron)
+
+/**
+ * Get auto updater instance
+ * @returns {AppUpdater}
+ * @see https://www.electron.build/auto-update
+ */
+function getAutoUpdater(): AppUpdater {
+  // Using destructuring to access autoUpdater due to the CommonJS module of 'electron-updater'.
+  // It is a workaround for ESM compatibility issues, see https://github.com/electron-userland/electron-builder/issues/7976.
+  const { autoUpdater } = electronUpdater
+  return autoUpdater
+}
+
+if (isRunningElectron) {
+  console.log('Electron main process started.')
+
+  const autoUpdater = getAutoUpdater()
+
+  autoUpdater.on('checking-for-update', () => {
+    console.log('Checking for update...')
+  })
+  autoUpdater.on('update-available', () => {
+    console.log('Update available.')
+  })
+  autoUpdater.on('update-not-available', () => {
+    console.log('Update not available.')
+  })
+  autoUpdater.on('error', (err) => {
+    console.log('Error in auto-updater. ' + err)
+  })
+  autoUpdater.on('download-progress', (progressObj) => {
+    let log_message = 'Download speed: ' + progressObj.bytesPerSecond
+    log_message = log_message + ' - Downloaded ' + progressObj.percent + '%'
+    log_message = log_message + ' (' + progressObj.transferred + '/' + progressObj.total + ')'
+    console.log(log_message)
+  })
+  autoUpdater.on('update-downloaded', () => {
+    console.log('Update downloaded')
+  })
+
+  // electronApp.whenReady().then(() => {
+  //   console.log('Electron app is ready.')
+
+  //   // Check for software updates
+  //   autoUpdater.checkForUpdatesAndNotify()
+
+  //   console.log('Cockpit version:', electronApp.getVersion())
+  // })
+}
