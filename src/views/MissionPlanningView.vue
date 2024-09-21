@@ -110,6 +110,13 @@
           <div v-if="index !== missionStore.currentPlanningWaypoints.length - 1" class="w-full h-px my-3 bg-gray-50" />
         </div>
       </div>
+      <button
+        v-if="missionStore.currentPlanningWaypoints.length > 0"
+        class="h-auto py-1 px-2 mt-4 font-medium text-sm rounded-sm bg-red-500 hover:bg-red-600 transition-colors duration-200 text-white"
+        @click="deleteAllWaypoints"
+      >
+        Delete All Waypoints
+      </button>
     </div>
     <v-tooltip location="top center" text="Home position is currently undefined" :disabled="Boolean(home)">
       <template #activator="{ props: tooltipProps }">
@@ -589,6 +596,11 @@ const generateWaypointsFromSurvey = (): void => {
   isCreatingSurvey.value = false
 
   showDialog({ variant: 'success', message: 'Waypoints generated from survey path.', timer: 3000 })
+}
+
+const deleteAllWaypoints = (): void => {
+  missionStore.currentPlanningWaypoints.forEach((waypoint) => removeWaypoint(waypoint))
+  showDialog({ variant: 'success', message: 'All waypoints have been deleted.', timer: 3000 })
 }
 
 onMounted(async () => {
