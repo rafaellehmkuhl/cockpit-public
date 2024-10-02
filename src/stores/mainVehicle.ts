@@ -531,9 +531,7 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
   })
 
   const mavlinkManualControlManager = new MavlinkManualControlManager()
-  const cockpitActionsManager = new CockpitActionsManager()
   controllerStore.registerControllerUpdateCallback(mavlinkManualControlManager.updateControllerData)
-  controllerStore.registerControllerUpdateCallback(cockpitActionsManager.updateControllerData)
 
   // Loop to send MAVLink Manual Control messages
   setInterval(() => {
@@ -548,13 +546,6 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     }
   }, 40)
   setInterval(() => sendGcsHeartbeat(), 1000)
-
-  // Loop to send Cockpit Action messages
-  setInterval(() => {
-    if (controllerStore.enableForwarding) {
-      cockpitActionsManager.sendCockpitActions()
-    }
-  }, 10)
 
   return {
     arm,
