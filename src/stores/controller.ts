@@ -15,6 +15,7 @@ import { MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { type JoystickEvent, EventType, joystickManager, JoystickModel } from '@/libs/joystick/manager'
 import { allAvailableAxes, allAvailableButtons } from '@/libs/joystick/protocols'
 import { modifierKeyActions, otherAvailableActions } from '@/libs/joystick/protocols/other'
+import { isElectron } from '@/libs/utils'
 import { Alert, AlertLevel } from '@/types/alert'
 import {
   type JoystickProtocolActionsMapping,
@@ -153,21 +154,23 @@ export const useControllerStore = defineStore('controller', () => {
     }
   }
 
-  // Disable joystick forwarding if the window/tab is not visible (using VueUse)
-  const windowVisibility = useDocumentVisibility()
-  watch(windowVisibility, (value) => {
-    // Disable this failcheck if the user explicitly wants to hold the last input when the window is hidden
-    // This can be considered unsafe, as the user might not be aware of the joystick input being forwarded to the vehicle
-    if (holdLastInputWhenWindowHidden.value) return
+  // Disable joystick forwarding if the window/tab is not visible (only for the browser version of Cockpit)
+  if (!isElectron()) {
+    const windowVisibility = useDocumentVisibility()
+    watch(windowVisibility, (value) => {
+      // Disable this failcheck if the user explicitly wants to hold the last input when the window is hidden
+      // This can be considered unsafe, as the user might not be aware of the joystick input being forwarded to the vehicle
+      if (holdLastInputWhenWindowHidden.value) return
 
-    if (value === 'hidden') {
-      console.warn('Window/tab hidden. Disabling joystick forwarding.')
-      enableForwarding.value = false
-    } else {
-      console.info('Window/tab visible. Enabling joystick forwarding.')
-      enableForwarding.value = true
-    }
-  })
+      if (value === 'hidden') {
+        console.warn('Window/tab hidden. Disabling joystick forwarding.')
+        enableForwarding.value = false
+      } else {
+        console.info('Window/tab visible. Enabling joystick forwarding.')
+        enableForwarding.value = true
+      }
+    })
+  }
 
   const { showDialog } = useInteractionDialog()
 
