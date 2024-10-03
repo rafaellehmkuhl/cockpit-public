@@ -1,134 +1,245 @@
 <template>
-  <v-container class="configuration-actions-view">
-    <v-row>
-      <v-col cols="12">
-        <h2 class="text-h4 mb-6">HTTP Request Actions Configuration</h2>
-      </v-col>
-    </v-row>
+  <BaseConfigurationView>
+    <template #title>Cockpit Actions Configuration</template>
+    <template #content>
+      <div
+        class="flex-col h-full overflow-y-auto ml-[10px] pr-3 -mr-[10px]"
+        :class="interfaceStore.isOnSmallScreen ? 'max-w-[80vw] max-h-[90vh]' : 'max-w-[680px] max-h-[85vh]'"
+      >
+        <ExpansiblePanel no-top-divider :is-expanded="!interfaceStore.isOnPhoneScreen">
+          <template #title>HTTP Request Actions</template>
+          <template #info>
+            <p>View, manage, and create HTTP request actions.</p>
+          </template>
+          <template #content>
+            <div class="flex justify-center flex-col ml-2 mb-8 mt-2 w-[96%]">
+              <v-data-table
+                :items="allSavedActionConfigs"
+                items-per-page="10"
+                class="elevation-1 bg-transparent rounded-lg"
+                theme="dark"
+                :style="interfaceStore.globalGlassMenuStyles"
+              >
+                <template #headers>
+                  <tr>
+                    <th class="text-left">
+                      <p class="text-[16px] font-bold">Name</p>
+                    </th>
+                    <th class="text-center">
+                      <p class="text-[16px] font-bold">URL</p>
+                    </th>
+                    <th class="text-right">
+                      <p class="text-[16px] font-bold">Actions</p>
+                    </th>
+                  </tr>
+                </template>
+                <template #item="{ item }">
+                  <tr>
+                    <td class="w-[30%]">
+                      <div :id="item.id" class="flex items-center justify-left rounded-xl mx-1">
+                        <p class="whitespace-nowrap overflow-hidden text-overflow-ellipsis w-[160px]">{{ item.name }}</p>
+                      </div>
+                    </td>
+                    <td class="w-[240px]">{{ item.url }}</td>
+                    <td class="w-[150px] text-center">
+                      <div class="d-flex align-center justify-center">
+                        <v-btn
+                          variant="outlined"
+                          class="rounded-full mx-1"
+                          icon="mdi-pencil"
+                          size="x-small"
+                          @click="openActionDialog(); editActionConfig(item.id)"
+                        />
+                        <v-btn
+                          variant="outlined"
+                          class="rounded-full mx-1"
+                          color="error"
+                          icon="mdi-delete"
+                          size="x-small"
+                          @click="deleteActionConfig(item.id)"
+                        >
+                          <v-icon>mdi-delete</v-icon>
+                        </v-btn>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+                <template #bottom>
+                  <tr>
+                    <td colspan="3" class="text-center flex items-center justify-center h-[50px] mb-3">
+                          <v-btn
+                            variant="outlined"
+                            class="rounded-lg"
+                            @click="openActionDialog(); resetNewAction()"
+                          >
+                            <v-icon start>mdi-plus</v-icon>
+                            New HTTP action
+                          </v-btn>
+                    </td>
+                  </tr>
+                </template>
+              </v-data-table>
+            </div>
+          </template>
+        </ExpansiblePanel>
+      </div>
+    </template>
+  </BaseConfigurationView>
 
-    <v-row>
-      <v-col cols="12" md="6">
-        <v-card class="action-form pa-4">
-          <h3 class="text-h5 mb-4">{{ editMode ? 'Edit Action' : 'Create New Action' }}</h3>
-          <v-form @submit.prevent="createActionConfig">
-            <v-text-field v-model="newActionConfig.name" label="Action Name" required></v-text-field>
-            <v-select
-              v-model="newActionConfig.method"
-              :items="availableHttpRequestMethods"
-              label="Request Type"
-              required
-            ></v-select>
-            <v-text-field v-model="newActionConfig.url" label="URL" required></v-text-field>
+  <v-dialog v-model="actionDialog.show" max-width="500px">
+    <v-card class="rounded-lg p-3" :style="interfaceStore.globalGlassMenuStyles">
+      <v-card-title class="text-h6 font-weight-bold pa-2">{{ editMode ? 'Edit Action' : 'Create New Action' }}</v-card-title>
+      <v-card-text class="pa-2">
+        <v-form @submit.prevent="createActionConfig" class="d-flex flex-column gap-2">
+          <v-text-field v-model="newActionConfig.name" label="Action Name" required variant="outlined" density="compact"></v-text-field>
+          <v-select
+            v-model="newActionConfig.method"
+            :items="availableHttpRequestMethods"
+            label="Request Type"
+            required
+            variant="outlined"
+            density="compact"
+          ></v-select>
+          <v-text-field v-model="newActionConfig.url" label="URL" required variant="outlined" density="compact"></v-text-field>
 
-            <h4 class="text-h6 mt-4 mb-2">URL Parameters:</h4>
-            <v-chip-group column>
+          <div class="d-flex align-center justify-space-between">
+            <h3 class="text-subtitle-2 font-weight-bold">URL Parameters</h3>
+            <v-btn variant="text" @click="openUrlParamDialog" class="px-2 py-1" density="compact">
+              <v-icon size="small">mdi-plus</v-icon>
+              Add
+            </v-btn>
+          </div>
+          <div v-if="Object.keys(newActionConfig.urlParams).length > 0" class="mb-2">
+            <v-chip-group>
               <v-chip
                 v-for="(param, index) in Object.entries(newActionConfig.urlParams)"
-                :key="index"
+                :key="`param-${index}`"
                 closable
                 @click:close="removeUrlParam(param[0])"
+                size="x-small"
+                class="ma-1"
               >
                 {{ param[0] }}: {{ param[1] }}
               </v-chip>
             </v-chip-group>
-            <v-btn color="primary" @click="openUrlParamDialog">
-              <v-icon left>mdi-plus</v-icon>
-              Add URL Parameter
-            </v-btn>
+          </div>
 
-            <h4 class="text-h6 mt-4 mb-2">Headers:</h4>
-            <v-chip-group column>
+          <div class="d-flex align-center justify-space-between">
+            <h3 class="text-subtitle-2 font-weight-bold">Headers</h3>
+            <v-btn variant="text" @click="openHeaderDialog" class="px-2 py-1" density="compact">
+              <v-icon size="small">mdi-plus</v-icon>
+              Add
+            </v-btn>
+          </div>
+          <div v-if="Object.keys(newActionConfig.headers).length > 0" class="mb-2">
+            <v-chip-group>
               <v-chip
                 v-for="(header, index) in Object.entries(newActionConfig.headers)"
-                :key="index"
+                :key="`header-${index}`"
                 closable
                 @click:close="removeHeader(header[0])"
+                size="x-small"
+                class="ma-1"
               >
                 {{ header[0] }}: {{ header[1] }}
               </v-chip>
             </v-chip-group>
-            <v-btn color="primary" @click="openHeaderDialog">
-              <v-icon left>mdi-plus</v-icon>
-              Add Header
+          </div>
+
+          <div class="d-flex align-center justify-space-between">
+            <h3 class="text-subtitle-2 font-weight-bold">JSON Body</h3>
+            <v-btn variant="text" @click="openJsonDialog" class="px-2 py-1" density="compact">
+              <v-icon size="small">mdi-code-json</v-icon>
+              Edit
             </v-btn>
+          </div>
+        </v-form>
+      </v-card-text>
+      <v-card-actions class="pa-2">
+        <v-spacer></v-spacer>
+        <v-btn color="primary" variant="text" @click="closeActionDialog" size="small">Cancel</v-btn>
+        <v-btn
+          color="primary"
+          :disabled="!isFormValid"
+          @click="createActionConfig(); closeActionDialog()"
+          size="small"
+        >
+          {{ editMode ? 'Save' : 'Create' }}
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 
-            <h4 class="text-h6 mt-4 mb-2">JSON Body Template:</h4>
-            <v-btn color="primary" @click="openJsonDialog">
-              <v-icon left>mdi-code-json</v-icon>
-              Edit JSON Body
-            </v-btn>
+  <!-- URL Parameter Dialog -->
+  <v-dialog v-model="urlParamDialog.show" max-width="400px">
+    <v-card class="rounded-lg p-3" :style="interfaceStore.globalGlassMenuStyles">
+      <v-card-title class="text-h6 font-weight-bold pa-2">Add URL Parameter</v-card-title>
+      <v-card-text class="pa-2">
+        <v-form @submit.prevent="addUrlParameter" class="d-flex flex-column gap-2">
+          <v-text-field v-model="urlParamDialog.key" label="Parameter Key" required variant="outlined" density="compact"></v-text-field>
+          <v-select
+            v-model="urlParamDialog.valueType"
+            :items="paramValueOptions"
+            label="Parameter Value"
+            required
+            variant="outlined"
+            density="compact"
+          ></v-select>
+          <v-text-field
+            v-if="urlParamDialog.valueType === 'hardcoded'"
+            v-model="urlParamDialog.hardcodedValue"
+            label="Hardcoded Value"
+            required
+            variant="outlined"
+            density="compact"
+          ></v-text-field>
+        </v-form>
+      </v-card-text>
+      <v-card-actions class="pa-2">
+        <v-spacer></v-spacer>
+        <v-btn color="primary" variant="text" @click="closeUrlParamDialog" size="small">Cancel</v-btn>
+        <v-btn
+          color="primary"
+          @click="addUrlParameter(); closeUrlParamDialog()"
+          size="small"
+        >
+          Save
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 
-            <v-btn color="primary" type="submit" class="mt-4" :disabled="!isFormValid">
-              {{ editMode ? 'Save Action' : 'Create Action' }}
-            </v-btn>
-            <v-btn color="secondary" class="mt-4 ml-2" @click="discardChanges">Discard Changes</v-btn>
-          </v-form>
-        </v-card>
-      </v-col>
+  <!-- Header Dialog -->
+  <v-dialog v-model="headerDialog.show" max-width="400px">
+    <v-card class="rounded-lg p-3" :style="interfaceStore.globalGlassMenuStyles">
+      <v-card-title class="text-h6 font-weight-bold pa-2">Add Header</v-card-title>
+      <v-card-text class="pa-2">
+        <v-form @submit.prevent="addHeader" class="d-flex flex-column gap-2">
+          <v-text-field
+            v-model="headerDialog.key"
+            label="Header Key"
+            required
+            variant="outlined"
+            :error-messages="headerDialog.error"
+            density="compact"
+          ></v-text-field>
+          <v-text-field v-model="headerDialog.value" label="Header Value" variant="outlined" density="compact"></v-text-field>
+        </v-form>
+      </v-card-text>
+      <v-card-actions class="pa-2">
+        <v-spacer></v-spacer>
+        <v-btn color="primary" variant="text" @click="closeHeaderDialog" size="small">Cancel</v-btn>
+        <v-btn color="primary" @click="addHeader" size="small">Save</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 
-      <v-col cols="12" md="6">
-        <v-card class="action-list pa-4">
-          <h3 class="text-h5 mb-4">Existing Actions</h3>
-          <v-list>
-            <v-list-item v-for="[id, action] in allSavedActionConfigs" :key="id">
-              <v-list-item-content>
-                <v-list-item-title>{{ action.name }}</v-list-item-title>
-                <v-list-item-subtitle>{{ action.method }} {{ action.url }}</v-list-item-subtitle>
-              </v-list-item-content>
-              <v-list-item-action>
-                <v-btn color="primary" icon @click="editActionConfig(id)">
-                  <v-icon>mdi-pencil</v-icon>
-                </v-btn>
-                <v-btn color="error" icon @click="deleteActionConfig(id)">
-                  <v-icon>mdi-delete</v-icon>
-                </v-btn>
-              </v-list-item-action>
-            </v-list-item>
-          </v-list>
-        </v-card>
-      </v-col>
-    </v-row>
-
-    <!-- URL Parameter Dialog -->
-    <v-dialog v-model="urlParamDialog.show" max-width="500px">
-      <v-card>
-        <v-card-title>
-          <span class="text-h5">Add URL Parameter</span>
-        </v-card-title>
-        <v-card-text>
-          <v-container>
-            <v-row>
-              <v-col cols="12">
-                <v-text-field v-model="urlParamDialog.key" label="Parameter Key" required></v-text-field>
-              </v-col>
-              <v-col cols="12">
-                <v-select
-                  v-model="urlParamDialog.valueType"
-                  :items="paramValueOptions"
-                  label="Parameter Value"
-                  required
-                ></v-select>
-              </v-col>
-              <v-col v-if="urlParamDialog.valueType === 'hardcoded'" cols="12">
-                <v-text-field v-model="urlParamDialog.hardcodedValue" label="Hardcoded Value" required></v-text-field>
-              </v-col>
-            </v-row>
-          </v-container>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn color="blue darken-1" @click="closeUrlParamDialog">Cancel</v-btn>
-          <v-btn color="blue darken-1" @click="addUrlParameter">Save</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-
-    <v-dialog v-model="bodyDialog.show" max-width="600px">
-      <v-card>
-        <v-card-title>
-          <span class="text-h5">Edit JSON Body Template</span>
-        </v-card-title>
-        <v-card-text>
+  <!-- JSON Body Dialog -->
+  <v-dialog v-model="bodyDialog.show" max-width="400px">
+    <v-card class="rounded-lg p-3" :style="interfaceStore.globalGlassMenuStyles">
+      <v-card-title class="text-h6 font-weight-bold pa-2">Edit JSON Body Template</v-card-title>
+      <v-card-text class="pa-2">
+        <v-form @submit.prevent="saveJsonBody" class="d-flex flex-column gap-2">
           <v-textarea
             v-model="bodyDialog.bodyText"
             label="JSON Body Template"
@@ -137,52 +248,24 @@
             :error-messages="bodyDialog.error"
             rows="10"
             @update:model-value="validateJsonTemplateForDialog"
+            variant="outlined"
+            density="compact"
           ></v-textarea>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn color="blue darken-1" @click="closeJsonDialog">Cancel</v-btn>
-          <v-btn color="blue darken-1" :disabled="!bodyDialog.isValid" @click="saveJsonBody">Save</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-
-    <!-- Header Dialog -->
-    <v-dialog v-model="headerDialog.show" max-width="500px">
-      <v-card>
-        <v-card-title>
-          <span class="text-h5">Add Header</span>
-        </v-card-title>
-        <v-card-text>
-          <v-container>
-            <v-row>
-              <v-col cols="12">
-                <v-text-field
-                  v-model="headerDialog.key"
-                  label="Header Key"
-                  required
-                  :error-messages="headerDialog.error"
-                ></v-text-field>
-              </v-col>
-              <v-col cols="12">
-                <v-text-field v-model="headerDialog.value" label="Header Value"></v-text-field>
-              </v-col>
-            </v-row>
-          </v-container>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn color="blue darken-1" @click="closeHeaderDialog">Cancel</v-btn>
-          <v-btn color="blue darken-1" @click="addHeader">Save</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-  </v-container>
+        </v-form>
+      </v-card-text>
+      <v-card-actions class="pa-2">
+        <v-spacer></v-spacer>
+        <v-btn color="primary" variant="text" @click="closeJsonDialog" size="small">Cancel</v-btn>
+        <v-btn color="primary" :disabled="!bodyDialog.isValid" @click="saveJsonBody" size="small">Save</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 
+import ExpansiblePanel from '@/components/ExpansiblePanel.vue'
 import { getAllCockpitActionParametersInfo } from '@/libs/actions/data-lake'
 import {
   availableHttpRequestMethods,
@@ -192,6 +275,12 @@ import {
   HttpRequestMethod,
   registerHttpRequestActionConfig,
 } from '@/libs/actions/http-request'
+import { useAppInterfaceStore } from '@/stores/appInterface'
+
+import BaseConfigurationView from './BaseConfigurationView.vue'
+import { watch } from 'vue'
+
+const interfaceStore = useAppInterfaceStore()
 
 const actionsConfigs = reactive<Record<string, HttpRequestActionConfig>>({})
 const newActionConfig = ref<HttpRequestActionConfig>({
@@ -201,10 +290,6 @@ const newActionConfig = ref<HttpRequestActionConfig>({
   headers: {},
   urlParams: {},
   body: '',
-})
-
-const allSavedActionConfigs = computed(() => {
-  return Object.entries(actionsConfigs)
 })
 
 const bodyInputError = ref('')
@@ -431,11 +516,21 @@ const resetNewAction = (): void => {
   editMode.value = false
 }
 
+const allSavedActionConfigs = computed(() => {
+  return Object.entries(actionsConfigs).map(([id, action]) => ({ id, ...action }))
+})
+
+watch(actionsConfigs, () => {
+  console.log('actionsConfigs', actionsConfigs)
+  console.log('allSavedActionConfigs', allSavedActionConfigs.value)
+})
+
 const discardChanges = (): void => {
   resetNewAction()
 }
 
 const deleteActionConfig = (id: string): void => {
+  console.log('deleteActionConfig', id)
   delete actionsConfigs[id]
   deleteHttpRequestActionConfig(id)
   loadSavedActions()
@@ -445,14 +540,26 @@ const loadSavedActions = (): void => {
   Object.assign(actionsConfigs, getAllHttpRequestActionConfigs())
 }
 
+const actionDialog = ref({
+  show: false,
+})
+
+const openActionDialog = (): void => {
+  actionDialog.value.show = true
+}
+
+const closeActionDialog = (): void => {
+  actionDialog.value.show = false
+  resetNewAction()
+}
+
 onMounted(() => {
   loadSavedActions()
 })
 </script>
 
 <style scoped>
-.configuration-actions-view {
-  max-width: 1200px;
-  margin: 0 auto;
+.v-data-table ::v-deep tbody tr:hover {
+  background-color: rgba(0, 0, 0, 0.1) !important;
 }
 </style>

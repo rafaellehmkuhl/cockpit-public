@@ -120,7 +120,6 @@ export const getHttpRequestActionCallback = (id: string): HttpRequestActionCallb
     }
   }
 
-  console.log('parsedUrlParams', parsedUrlParams)
   const cockpitInputsInUrlParams = Object.entries(action.urlParams).filter(
     ([, value]) => typeof value === 'string' && value.startsWith('{{') && value.endsWith('}}')
   )
