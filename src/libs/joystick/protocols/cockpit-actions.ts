@@ -1,7 +1,7 @@
 /* eslint-disable vue/max-len */
 /* eslint-disable prettier/prettier */
 /* eslint-disable max-len */
-import { type ProtocolAction,JoystickProtocol } from '@/types/joystick'
+import { type ProtocolAction, JoystickProtocol } from '@/types/joystick'
 
 /**
  * Possible functions in the MAVLink `MANUAL_CONTROL` message protocol
@@ -23,7 +23,7 @@ export enum CockpitActionsFunction {
  * An action to be performed by Cockpit itself
  */
 export class CockpitAction implements ProtocolAction {
-  id: CockpitActionsFunction | string
+  id: CockpitActionsFunction
   name: string
   readonly protocol = JoystickProtocol.CockpitAction
 
@@ -35,7 +35,7 @@ export class CockpitAction implements ProtocolAction {
 }
 
 // Available actions
-export const availableCockpitActions: { [key in CockpitActionsFunction | string]: CockpitAction } = {
+export const availableCockpitActions: { [key in CockpitActionsFunction]: CockpitAction } = {
   [CockpitActionsFunction.go_to_next_view]: new CockpitAction(CockpitActionsFunction.go_to_next_view, 'Go to next view'),
   [CockpitActionsFunction.go_to_previous_view]: new CockpitAction(CockpitActionsFunction.go_to_previous_view, 'Go to previous view'),
   [CockpitActionsFunction.toggle_full_screen]: new CockpitAction(CockpitActionsFunction.toggle_full_screen, 'Toggle full screen'),
@@ -100,6 +100,12 @@ export class CockpitActionsManager {
 }
 
 export const cockpitActionsManager = new CockpitActionsManager()
+
+export const registerNewAction = (action: CockpitAction): void => {
+  cockpitActionsManager.registerNewAction(action)
+  console.debug(`Registered new action ${action.name} with id (${action.id}).`)
+  console.warn(`Available actions: ${JSON.stringify(availableCockpitActions, null, 2)}`)
+}
 
 export const registerActionCallback = (action: CockpitAction, callback: CockpitActionCallback): string => {
   return cockpitActionsManager.registerActionCallback(action, callback)
