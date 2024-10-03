@@ -1,6 +1,8 @@
 /* eslint-disable vue/max-len */
 /* eslint-disable prettier/prettier */
 /* eslint-disable max-len */
+import '@/libs/actions/http-request'
+
 import { type ProtocolAction, JoystickProtocol } from '@/types/joystick'
 
 /**

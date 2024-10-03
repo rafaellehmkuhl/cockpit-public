@@ -140,7 +140,7 @@
 import { computed, onMounted, ref } from 'vue'
 
 import { getAllCockpitActionParametersInfo } from '@/libs/actions/data-lake'
-import { availableHttpRequestMethods, HttpRequestActionConfig, HttpRequestMethod } from '@/libs/actions/http-request'
+import { availableHttpRequestMethods, deleteHttpRequestActionConfig, getAllHttpRequestActionConfigs, HttpRequestActionConfig, HttpRequestMethod, registerHttpRequestActionConfig } from '@/libs/actions/http-request'
 
 const actionsConfigs = ref<Record<string, HttpRequestActionConfig>>({})
 const newActionConfig = ref<HttpRequestActionConfig>({
@@ -178,12 +178,6 @@ const paramValueOptions = computed(() => {
 })
 
 const isFormValid = computed(() => {
-  console.log('isformvalid?')
-  console.log(newActionConfig.value.name)
-  console.log(newActionConfig.value.method)
-  console.log(newActionConfig.value.url)
-  console.log(isValidUrlParams(newActionConfig.value.urlParams))
-  console.log(isValidJsonTemplate(newActionConfig.value.body))
   return (
     newActionConfig.value.name &&
     newActionConfig.value.method &&
@@ -258,8 +252,6 @@ const validateJsonTemplateForDialog = (template: string): void => {
 }
 
 const isValidUrlParams = (params: Record<string, string>): boolean => {
-  console.log('isValidUrlParams?')
-  console.log(params)
   return Object.entries(params).every(([key, value]) => {
     if (value.startsWith('"{{') && value.endsWith('}}"')) {
       const parsedValue = value.replace('"{{', '').replace('}}"', '').trim()
@@ -323,13 +315,9 @@ const editActionConfig = (actionConfig: HttpRequestActionConfig): void => {
 }
 
 const createActionConfig = (): void => {
-  if (editMode.value) {
-    actionsConfigs.value[newActionConfig.value.name] = { ...newActionConfig.value }
-    editMode.value = false
-  } else {
-    actionsConfigs.value[newActionConfig.value.name] = { ...newActionConfig.value }
-  }
-  saveActions()
+  editMode.value = false
+  registerHttpRequestActionConfig(newActionConfig.value)
+  loadSavedActions()
   resetNewAction()
 }
 
@@ -351,24 +339,17 @@ const discardChanges = (): void => {
 }
 
 const deleteActionConfig = (id: string): void => {
-  delete actionsConfigs.value[id]
-  saveActions()
+  deleteHttpRequestActionConfig(id)
+  loadSavedActions()
 }
 
-const saveActions = (): void => {
-  localStorage.setItem('httpRequestActions', JSON.stringify(actionsConfigs.value))
-}
-
-const loadActions = (): void => {
-  const savedActions = localStorage.getItem('httpRequestActions')
-  if (savedActions) {
-    actionsConfigs.value = JSON.parse(savedActions)
-  }
+const loadSavedActions = (): void => {
+  actionsConfigs.value = getAllHttpRequestActionConfigs()
 }
 
 onMounted(() => {
   console.log('Component mounted')
-  loadActions()
+  loadSavedActions()
 })
 </script>
 

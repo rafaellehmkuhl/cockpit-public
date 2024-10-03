@@ -76,10 +76,16 @@ export const updateHttpRequestActionConfig = (id: string, updatedAction: HttpReq
 
 export const updateCockpitActions = (): void => {
   const httpResquestActions = getAllHttpRequestActionConfigs()
+  console.log('httpResquestActions?')
+  console.log(httpResquestActions)
   for (const [id, action] of Object.entries(httpResquestActions)) {
+    console.log('action?')
+    console.log(action)
     const cockpitAction = new CockpitAction(id as CockpitActionsFunction, action.name)
     registerNewAction(cockpitAction)
     registerActionCallback(cockpitAction, getHttpRequestActionCallback(id))
+    console.log('cockpitAction?')
+    console.log(cockpitAction)
   }
 }
 
@@ -87,6 +93,8 @@ export const loadHttpRequestActionConfigs = (): void => {
   const savedActions = localStorage.getItem('cockpit-http-request-actions')
   if (savedActions) {
     registeredHttpRequestActionConfigs = JSON.parse(savedActions)
+    console.log('registeredHttpRequestActionConfigs?')
+    console.log(registeredHttpRequestActionConfigs)
   }
 }
 
