@@ -123,7 +123,7 @@
             persistent-hint
             :error-messages="bodyDialog.error"
             rows="10"
-            @update:model-value="validateJsonTemplate"
+            @update:model-value="validateJsonTemplateForDialog"
           ></v-textarea>
         </v-card-text>
         <v-card-actions>
@@ -193,41 +193,68 @@ const isFormValid = computed(() => {
   )
 })
 
-const isValidJsonTemplate = (template: string): boolean => {
-  if (!template.trim()) return true // Allow empty template
+// eslint-disable-next-line jsdoc/require-jsdoc
+const validateJsonTemplate = (template: string): { isValid: boolean; error: string } => {
+  if (!template.trim()) {
+    return { isValid: true, error: '' }
+  }
 
-  // Replace placeholders with a valid JSON value temporarily
+  // Check if all placeholders are properly formatted
   const placeholderRegex = /\{\{\s*([^}]+)\s*\}\}/g
-  const tempTemplate = template.replace(placeholderRegex, '"PLACEHOLDER"')
-
-  try {
-    console.log('tempTemplate?')
-    console.log(tempTemplate)
-    const parsed = JSON.parse(tempTemplate)
-    console.log('parsed?')
-    console.log(parsed)
-    if (typeof parsed !== 'object' || parsed === null) {
-      bodyDialog.value.error = 'Invalid JSON structure'
-      return false
-    }
-
-    // Check if all placeholders are properly formatted
-    const placeholders = template.match(placeholderRegex)
-    if (placeholders) {
-      for (const placeholder of placeholders) {
-        if (!/\{\{\s*[a-zA-Z_][a-zA-Z0-9_]*\s*\}\}/.test(placeholder)) {
-          bodyDialog.value.error = `Invalid placeholder format: ${placeholder}`
-          return false
+  const placeholders = template.match(placeholderRegex)
+  console.log('placeholders?')
+  console.log(placeholders)
+  if (placeholders) {
+    const availableInputs = paramValueOptions.value
+      .map((option) => option.value)
+      .filter((option) => option !== 'hardcoded')
+    console.log('availableInputs?')
+    console.log(availableInputs)
+    for (const placeholder of placeholders) {
+      const inputName = placeholder.match(/\{\{\s*([^}]+)\s*\}\}/)?.[1]?.trim()
+      console.log('inputName?')
+      console.log(inputName)
+      if (!inputName) {
+        console.log('invalid placeholder format')
+        return { isValid: false, error: `Invalid placeholder format: ${placeholder}` }
+      }
+      if (!availableInputs.includes(inputName)) {
+        console.log('invalid input name')
+        return {
+          isValid: false,
+          error: `Invalid input name in placeholder: ${inputName}. Available inputs are: ${availableInputs.join(', ')}`,
         }
       }
     }
-
-    bodyDialog.value.error = ''
-    return true
-  } catch (error) {
-    bodyDialog.value.error = 'Invalid JSON: ' + (error as Error).message
-    return false
   }
+  console.log('all good here')
+
+  // Replace placeholders with a valid JSON value temporarily
+  const tempTemplate = template.replace(placeholderRegex, 'PLACEHOLDER')
+  console.log('tempTemplate?')
+  console.log(tempTemplate)
+
+  try {
+    const parsed = JSON.parse(tempTemplate)
+    if (typeof parsed !== 'object' || parsed === null) {
+      return { isValid: false, error: 'Invalid JSON structure' }
+    }
+
+    return { isValid: true, error: '' }
+  } catch (error) {
+    return { isValid: false, error: 'Invalid JSON: ' + (error as Error).message }
+  }
+}
+
+const isValidJsonTemplate = (template: string): boolean => {
+  const { isValid } = validateJsonTemplate(template)
+  return isValid
+}
+
+const validateJsonTemplateForDialog = (template: string): void => {
+  const { isValid, error } = validateJsonTemplate(template)
+  bodyDialog.value.error = error
+  bodyDialog.value.isValid = isValid
 }
 
 const isValidUrlParams = (params: Record<string, string>): boolean => {
@@ -336,54 +363,6 @@ const loadActions = (): void => {
   const savedActions = localStorage.getItem('httpRequestActions')
   if (savedActions) {
     actionsConfigs.value = JSON.parse(savedActions)
-  }
-}
-
-const validateJsonTemplate = (template: string): void => {
-  if (!template.trim()) {
-    bodyDialog.value.error = ''
-    bodyDialog.value.isValid = true
-    return
-  }
-
-  // Check if all placeholders are properly formatted
-  const placeholderRegex = /\{\{\s*([^}]+)\s*\}\}/g
-  const placeholders = template.match(placeholderRegex)
-  if (placeholders) {
-    const availableInputs = paramValueOptions.value.map((option) => option.value)
-    for (const placeholder of placeholders) {
-      const inputName = placeholder.match(/\{\{\s*([^}]+)\s*\}\}/)?.[1]?.trim()
-      if (!inputName) {
-        bodyDialog.value.error = `Invalid placeholder format: ${placeholder}`
-        bodyDialog.value.isValid = false
-        return
-      }
-      if (!availableInputs.includes(inputName)) {
-        bodyDialog.value.error = `Invalid input name in placeholder: ${inputName}. Available inputs are: ${availableInputs.join(
-          ', '
-        )}`
-        bodyDialog.value.isValid = false
-        return
-      }
-    }
-  }
-
-  // Replace placeholders with a valid JSON value temporarily
-  const tempTemplate = template.replace(placeholderRegex, '"PLACEHOLDER"')
-
-  try {
-    const parsed = JSON.parse(tempTemplate)
-    if (typeof parsed !== 'object' || parsed === null) {
-      bodyDialog.value.error = 'Invalid JSON structure'
-      bodyDialog.value.isValid = false
-      return
-    }
-
-    bodyDialog.value.error = ''
-    bodyDialog.value.isValid = true
-  } catch (error) {
-    bodyDialog.value.error = 'Invalid JSON: ' + (error as Error).message
-    bodyDialog.value.isValid = false
   }
 }
 
