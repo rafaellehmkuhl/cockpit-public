@@ -44,7 +44,7 @@ class CockpitActionParameter {
 }
 
 const cockpitActionParametersInfo: Record<string, CockpitActionParameter> = {}
-export const cockpitActionParametersData: Record<string, Record<string, string | number | boolean>> = {}
+export const cockpitActionParametersData: Record<string, string | number | boolean> = {}
 
 export const getCockpitActionParametersInfo = (id: string): CockpitActionParameter | undefined => {
   return cockpitActionParametersInfo[id]
@@ -62,16 +62,16 @@ export const setCockpitActionParameterInfo = (id: string, parameter: CockpitActi
   cockpitActionParametersInfo[id] = parameter
 }
 
-export const getCockpitActionParameterData = (id: string): Record<string, string | number | boolean> | undefined => {
+export const getCockpitActionParameterData = (id: string): string | number | boolean | undefined => {
   return cockpitActionParametersData[id]
 }
 
-export const setCockpitActionParameterData = (id: string, data: Record<string, string | number | boolean>): void => {
+export const setCockpitActionParameterData = (id: string, data: string | number | boolean): void => {
   cockpitActionParametersData[id] = data
 }
 
 const placeholderParameterOneInfo = new CockpitActionParameter(
-  'placeholderParameterOneInfo',
+  'placeholderParameterOne',
   'Placeholder Parameter One',
   'string',
   true,
@@ -79,7 +79,7 @@ const placeholderParameterOneInfo = new CockpitActionParameter(
 )
 
 const placeholderParameterTwoInfo = new CockpitActionParameter(
-  'placeholderParameterTwoInfo',
+  'placeholderParameterTwo',
   'Placeholder Parameter Two',
   'number',
   true,
@@ -87,12 +87,11 @@ const placeholderParameterTwoInfo = new CockpitActionParameter(
   undefined,
   undefined,
   undefined,
-  0,
-  100
+  0
 )
 
 const placeholderParameterThreeInfo = new CockpitActionParameter(
-  'placeholderParameterThreeInfo',
+  'placeholderParameterThree',
   'Placeholder Parameter Three',
   'boolean',
   true,
@@ -102,3 +101,7 @@ const placeholderParameterThreeInfo = new CockpitActionParameter(
 setCockpitActionParameterInfo(placeholderParameterOneInfo.id, placeholderParameterOneInfo)
 setCockpitActionParameterInfo(placeholderParameterTwoInfo.id, placeholderParameterTwoInfo)
 setCockpitActionParameterInfo(placeholderParameterThreeInfo.id, placeholderParameterThreeInfo)
+
+setCockpitActionParameterData(placeholderParameterOneInfo.id, 'John Doe')
+setCockpitActionParameterData(placeholderParameterTwoInfo.id, 5)
+setCockpitActionParameterData(placeholderParameterThreeInfo.id, true)

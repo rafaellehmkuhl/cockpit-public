@@ -76,16 +76,14 @@ export const updateHttpRequestActionConfig = (id: string, updatedAction: HttpReq
 
 export const updateCockpitActions = (): void => {
   const httpResquestActions = getAllHttpRequestActionConfigs()
-  console.log('httpResquestActions?')
-  console.log(httpResquestActions)
   for (const [id, action] of Object.entries(httpResquestActions)) {
-    console.log('action?')
-    console.log(action)
-    const cockpitAction = new CockpitAction(id as CockpitActionsFunction, action.name)
-    registerNewAction(cockpitAction)
-    registerActionCallback(cockpitAction, getHttpRequestActionCallback(id))
-    console.log('cockpitAction?')
-    console.log(cockpitAction)
+    try {
+      const cockpitAction = new CockpitAction(id as CockpitActionsFunction, action.name)
+      registerNewAction(cockpitAction)
+      registerActionCallback(cockpitAction, getHttpRequestActionCallback(id))
+    } catch (error) {
+      console.error(`Error registering action ${id}: ${error}`)
+    }
   }
 }
 
@@ -93,8 +91,6 @@ export const loadHttpRequestActionConfigs = (): void => {
   const savedActions = localStorage.getItem('cockpit-http-request-actions')
   if (savedActions) {
     registeredHttpRequestActionConfigs = JSON.parse(savedActions)
-    console.log('registeredHttpRequestActionConfigs?')
-    console.log(registeredHttpRequestActionConfigs)
   }
 }
 
@@ -116,21 +112,24 @@ export const getHttpRequestActionCallback = (id: string): HttpRequestActionCallb
   const cockpitInputsInBody = action.body.match(/{{\s*([^{}\s]+)\s*}}/g)
   if (cockpitInputsInBody) {
     for (const input of cockpitInputsInBody) {
-      const inputData = getCockpitActionParameterData(input)
+      const parsedInput = input.replace('{{', '').replace('}}', '').trim()
+      const inputData = getCockpitActionParameterData(parsedInput)
       if (inputData) {
         parsedBody = parsedBody.replace(input, inputData.toString())
       }
     }
   }
 
-  const cockpitInputsInUrlParams = Object.values(action.urlParams).filter(
-    (param) => typeof param === 'string' && param.startsWith('{{') && param.endsWith('}}')
+  console.log('parsedUrlParams', parsedUrlParams)
+  const cockpitInputsInUrlParams = Object.entries(action.urlParams).filter(
+    ([, value]) => typeof value === 'string' && value.startsWith('{{') && value.endsWith('}}')
   )
   if (cockpitInputsInUrlParams) {
-    for (const input of cockpitInputsInUrlParams) {
-      const inputData = getCockpitActionParameterData(input)
+    for (const [key, value] of cockpitInputsInUrlParams) {
+      const parsedInput = value.replace('{{', '').replace('}}', '').trim()
+      const inputData = getCockpitActionParameterData(parsedInput)
       if (inputData) {
-        parsedUrlParams[input] = inputData.toString()
+        parsedUrlParams[key] = inputData.toString()
       }
     }
   }
@@ -143,7 +142,7 @@ export const getHttpRequestActionCallback = (id: string): HttpRequestActionCallb
     fetch(url, {
       method: action.method,
       headers: action.headers,
-      body: parsedBody,
+      body: action.method === HttpRequestMethod.GET ? undefined : parsedBody,
     })
   }
 }

@@ -36,6 +36,22 @@
               Add URL Parameter
             </v-btn>
 
+            <h4 class="text-h6 mt-4 mb-2">Headers:</h4>
+            <v-chip-group column>
+              <v-chip
+                v-for="(header, index) in Object.entries(newActionConfig.headers)"
+                :key="index"
+                closable
+                @click:close="removeHeader(header[0])"
+              >
+                {{ header[0] }}: {{ header[1] }}
+              </v-chip>
+            </v-chip-group>
+            <v-btn color="primary" @click="openHeaderDialog">
+              <v-icon left>mdi-plus</v-icon>
+              Add Header
+            </v-btn>
+
             <h4 class="text-h6 mt-4 mb-2">JSON Body Template:</h4>
             <v-btn color="primary" @click="openJsonDialog">
               <v-icon left>mdi-code-json</v-icon>
@@ -54,19 +70,16 @@
         <v-card class="action-list pa-4">
           <h3 class="text-h5 mb-4">Existing Actions</h3>
           <v-list>
-            <v-list-item v-for="action in Object.values(actionsConfigs)" :key="action.name">
+            <v-list-item v-for="[id, action] in allSavedActionConfigs" :key="id">
               <v-list-item-content>
                 <v-list-item-title>{{ action.name }}</v-list-item-title>
                 <v-list-item-subtitle>{{ action.method }} {{ action.url }}</v-list-item-subtitle>
-                <v-list-item-subtitle>
-                  URL Parameters: {{ Object.keys(action.urlParams).length }}
-                </v-list-item-subtitle>
               </v-list-item-content>
               <v-list-item-action>
-                <v-btn color="primary" icon @click="editActionConfig(action)">
+                <v-btn color="primary" icon @click="editActionConfig(id)">
                   <v-icon>mdi-pencil</v-icon>
                 </v-btn>
-                <v-btn color="error" icon @click="deleteActionConfig(action.name)">
+                <v-btn color="error" icon @click="deleteActionConfig(id)">
                   <v-icon>mdi-delete</v-icon>
                 </v-btn>
               </v-list-item-action>
@@ -133,16 +146,54 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Header Dialog -->
+    <v-dialog v-model="headerDialog.show" max-width="500px">
+      <v-card>
+        <v-card-title>
+          <span class="text-h5">Add Header</span>
+        </v-card-title>
+        <v-card-text>
+          <v-container>
+            <v-row>
+              <v-col cols="12">
+                <v-text-field
+                  v-model="headerDialog.key"
+                  label="Header Key"
+                  required
+                  :error-messages="headerDialog.error"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12">
+                <v-text-field v-model="headerDialog.value" label="Header Value"></v-text-field>
+              </v-col>
+            </v-row>
+          </v-container>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="blue darken-1" @click="closeHeaderDialog">Cancel</v-btn>
+          <v-btn color="blue darken-1" @click="addHeader">Save</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 
 import { getAllCockpitActionParametersInfo } from '@/libs/actions/data-lake'
-import { availableHttpRequestMethods, deleteHttpRequestActionConfig, getAllHttpRequestActionConfigs, HttpRequestActionConfig, HttpRequestMethod, registerHttpRequestActionConfig } from '@/libs/actions/http-request'
+import {
+  availableHttpRequestMethods,
+  deleteHttpRequestActionConfig,
+  getAllHttpRequestActionConfigs,
+  HttpRequestActionConfig,
+  HttpRequestMethod,
+  registerHttpRequestActionConfig,
+} from '@/libs/actions/http-request'
 
-const actionsConfigs = ref<Record<string, HttpRequestActionConfig>>({})
+const actionsConfigs = reactive<Record<string, HttpRequestActionConfig>>({})
 const newActionConfig = ref<HttpRequestActionConfig>({
   name: '',
   method: HttpRequestMethod.GET,
@@ -150,6 +201,10 @@ const newActionConfig = ref<HttpRequestActionConfig>({
   headers: {},
   urlParams: {},
   body: '',
+})
+
+const allSavedActionConfigs = computed(() => {
+  return Object.entries(actionsConfigs)
 })
 
 const bodyInputError = ref('')
@@ -168,6 +223,13 @@ const bodyDialog = ref({
   isValid: false,
 })
 
+const headerDialog = ref({
+  show: false,
+  key: '',
+  value: '',
+  error: '',
+})
+
 const paramValueOptions = computed(() => {
   const options = [{ title: 'Hardcoded value', value: 'hardcoded' }]
   const availableInputParameters = getAllCockpitActionParametersInfo()
@@ -183,6 +245,7 @@ const isFormValid = computed(() => {
     newActionConfig.value.method &&
     newActionConfig.value.url &&
     isValidUrlParams(newActionConfig.value.urlParams) &&
+    isValidHeaders(newActionConfig.value.headers) &&
     isValidJsonTemplate(newActionConfig.value.body)
   )
 })
@@ -196,24 +259,17 @@ const validateJsonTemplate = (template: string): { isValid: boolean; error: stri
   // Check if all placeholders are properly formatted
   const placeholderRegex = /\{\{\s*([^}]+)\s*\}\}/g
   const placeholders = template.match(placeholderRegex)
-  console.log('placeholders?')
-  console.log(placeholders)
   if (placeholders) {
     const availableInputs = paramValueOptions.value
       .map((option) => option.value)
       .filter((option) => option !== 'hardcoded')
-    console.log('availableInputs?')
-    console.log(availableInputs)
     for (const placeholder of placeholders) {
       const inputName = placeholder.match(/\{\{\s*([^}]+)\s*\}\}/)?.[1]?.trim()
-      console.log('inputName?')
-      console.log(inputName)
+      console.log('inputName', inputName)
       if (!inputName) {
-        console.log('invalid placeholder format')
         return { isValid: false, error: `Invalid placeholder format: ${placeholder}` }
       }
       if (!availableInputs.includes(inputName)) {
-        console.log('invalid input name')
         return {
           isValid: false,
           error: `Invalid input name in placeholder: ${inputName}. Available inputs are: ${availableInputs.join(', ')}`,
@@ -221,12 +277,9 @@ const validateJsonTemplate = (template: string): { isValid: boolean; error: stri
       }
     }
   }
-  console.log('all good here')
 
   // Replace placeholders with a valid JSON value temporarily
   const tempTemplate = template.replace(placeholderRegex, 'PLACEHOLDER')
-  console.log('tempTemplate?')
-  console.log(tempTemplate)
 
   try {
     const parsed = JSON.parse(tempTemplate)
@@ -253,12 +306,30 @@ const validateJsonTemplateForDialog = (template: string): void => {
 
 const isValidUrlParams = (params: Record<string, string>): boolean => {
   return Object.entries(params).every(([key, value]) => {
-    if (value.startsWith('"{{') && value.endsWith('}}"')) {
-      const parsedValue = value.replace('"{{', '').replace('}}"', '').trim()
+    if (value.startsWith('{{') && value.endsWith('}}')) {
+      const parsedValue = value.replace('{{', '').replace('}}', '').trim()
       return key !== '' && value !== '' && paramValueOptions.value.map((option) => option.value).includes(parsedValue)
     }
     return key !== '' && value !== ''
   })
+}
+
+// eslint-disable-next-line jsdoc/require-jsdoc
+const isValidHeaders = (headers: Record<string, string>): { isValid: boolean; error: string } => {
+  for (const [key, value] of Object.entries(headers)) {
+    // Header keys should be non-empty and contain valid characters
+    const validKeyRegex = /^[a-zA-Z0-9!#$%&'*+-.^_`|~]+$/
+    if (!key || !validKeyRegex.test(key)) {
+      const error = 'Invalid header key. Use only letters, numbers, and common punctuation. No spaces allowed.'
+      return { isValid: false, error }
+    }
+
+    // Header values can be empty, but if not, they should not contain newlines
+    if (value && /[\r\n]/.test(value)) {
+      return { isValid: false, error: 'Header value cannot contain newlines.' }
+    }
+  }
+  return { isValid: true, error: '' }
 }
 
 const openUrlParamDialog = (): void => {
@@ -275,7 +346,7 @@ const closeUrlParamDialog = (): void => {
 }
 
 const addUrlParameter = (): void => {
-  const parsedValue = `"{{ ${urlParamDialog.value.valueType} }}"`
+  const parsedValue = `{{ ${urlParamDialog.value.valueType} }}`
   const value = urlParamDialog.value.valueType === 'hardcoded' ? urlParamDialog.value.hardcodedValue : parsedValue
   newActionConfig.value.urlParams[urlParamDialog.value.key] = value
   closeUrlParamDialog()
@@ -302,16 +373,42 @@ const saveJsonBody = (): void => {
 }
 
 const removeUrlParam = (key: string): void => {
-  console.log('removeUrlParam?')
-  console.log(key)
   delete newActionConfig.value.urlParams[key]
+}
+
+const openHeaderDialog = (): void => {
+  headerDialog.value = {
+    show: true,
+    key: '',
+    value: '',
+    error: '',
+  }
+}
+
+const closeHeaderDialog = (): void => {
+  headerDialog.value.show = false
+  headerDialog.value.error = ''
+}
+
+const addHeader = (): void => {
+  const { isValid, error } = isValidHeaders({ [headerDialog.value.key]: headerDialog.value.value })
+  if (isValid) {
+    newActionConfig.value.headers[headerDialog.value.key] = headerDialog.value.value
+    closeHeaderDialog()
+  } else {
+    headerDialog.value.error = error
+  }
+}
+
+const removeHeader = (key: string): void => {
+  delete newActionConfig.value.headers[key]
 }
 
 const editMode = ref(false)
 
-const editActionConfig = (actionConfig: HttpRequestActionConfig): void => {
+const editActionConfig = (id: string): void => {
   editMode.value = true
-  newActionConfig.value = JSON.parse(JSON.stringify(actionConfig)) // Deep copy
+  newActionConfig.value = JSON.parse(JSON.stringify(actionsConfigs[id])) // Deep copy
 }
 
 const createActionConfig = (): void => {
@@ -339,16 +436,16 @@ const discardChanges = (): void => {
 }
 
 const deleteActionConfig = (id: string): void => {
+  delete actionsConfigs[id]
   deleteHttpRequestActionConfig(id)
   loadSavedActions()
 }
 
 const loadSavedActions = (): void => {
-  actionsConfigs.value = getAllHttpRequestActionConfigs()
+  Object.assign(actionsConfigs, getAllHttpRequestActionConfigs())
 }
 
 onMounted(() => {
-  console.log('Component mounted')
   loadSavedActions()
 })
 </script>
