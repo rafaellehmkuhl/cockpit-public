@@ -70,6 +70,7 @@ interface CallbackEntry {
 export class CockpitActionsManager {
   availableActions: { [key in CockpitActionsFunction]: CockpitAction } = { ...predefinedCockpitActions }
   actionsCallbacks: Record<string, CallbackEntry> = {}
+  lastTimeActionExecuted: { [key in CockpitActionsFunction]?: number } = {}
 
   registerNewAction = (action: CockpitAction): void => {
     this.availableActions[action.id] = action
@@ -95,9 +96,15 @@ export class CockpitActionsManager {
       return
     }
 
+    const lastTimeActionExecuted = this.lastTimeActionExecuted[callbackEntry.action.id]
+    if (lastTimeActionExecuted && Date.now() - lastTimeActionExecuted < 1000) {
+      return
+    }
+
     console.debug(`Executing action callback for action ${id}.`)
     try {
       callbackEntry.callback()
+      this.lastTimeActionExecuted[callbackEntry.action.id] = Date.now()
     } catch (error) {
       console.error(`Error executing action callback for action ${id}.`, error)
     }
