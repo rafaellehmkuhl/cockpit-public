@@ -1,9 +1,13 @@
 import { defineStore } from 'pinia'
 import { computed, reactive, watch } from 'vue'
 
+import { useInteractionDialog } from '@/composables/interactionDialog'
 import { useBlueOsStorage } from '@/composables/settingsSyncer'
+import { listenForAlerts } from '@/libs/alerts'
 
 import { Alert, AlertLevel } from '../types/alert'
+
+const { showDialog } = useInteractionDialog()
 
 export const useAlertStore = defineStore('alert', () => {
   const alerts = reactive([new Alert(AlertLevel.Success, 'Cockpit started')])
@@ -134,6 +138,10 @@ export const useAlertStore = defineStore('alert', () => {
     }
     synth.speak(utterance)
   }
+
+  listenForAlerts((alert) => {
+    showDialog({ message: alert.message, variant: alert.variant, timer: alert.timer })
+  })
 
   watch(alerts, () => {
     const lastAlert = alerts.slice(-1)[0]

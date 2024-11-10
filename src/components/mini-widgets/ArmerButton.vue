@@ -30,12 +30,12 @@ const vehicleStore = useMainVehicleStore()
 const widgetStore = useWidgetManagerStore()
 
 const arm = (): void => {
-  const tryToArm = async (): Promise<void> => tryOrAlert(vehicleStore.arm)
+  const tryToArm = async (): Promise<void> => await tryOrAlert(vehicleStore.arm)
   slideToConfirm(tryToArm, { command: 'Arm' }, canByPassCategory(EventCategory.ARM))
 }
 
 const disarm = (): void => {
-  const tryToDisarm = async (): Promise<void> => tryOrAlert(vehicleStore.disarm)
+  const tryToDisarm = async (): Promise<void> => await tryOrAlert(vehicleStore.disarm)
   slideToConfirm(tryToDisarm, { command: 'Disarm' }, canByPassCategory(EventCategory.DISARM))
 }
 </script>

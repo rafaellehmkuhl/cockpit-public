@@ -205,7 +205,7 @@ export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): Rem
             actions: [{ text: 'OK', action: closeDialog }],
             timer: 3000,
           })
-          reloadCockpit()
+          await reloadCockpit()
         }
       } else {
         await updateValueOnBlueOS(currentValue.value)

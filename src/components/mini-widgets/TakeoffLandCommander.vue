@@ -19,14 +19,14 @@ const vehicleStore = useMainVehicleStore()
 
 const takeoff = async (): Promise<void> => {
   showAltitudeSlider.value = true
-  const tryToTakeOff = async (): Promise<void> => tryOrAlert(vehicleStore.takeoff)
+  const tryToTakeOff = async (): Promise<void> => await tryOrAlert(vehicleStore.takeoff)
   await slideToConfirm(tryToTakeOff, { command: 'Takeoff' }, canByPassCategory(EventCategory.TAKEOFF))
   showAltitudeSlider.value = false
 }
 
-const land = (): void => {
-  const tryToLand = async (): Promise<void> => tryOrAlert(vehicleStore.land)
-  slideToConfirm(tryToLand, { command: 'Land' }, canByPassCategory(EventCategory.LAND))
+const land = async (): Promise<void> => {
+  const tryToLand = async (): Promise<void> => await tryOrAlert(vehicleStore.land)
+  await slideToConfirm(tryToLand, { command: 'Land' }, canByPassCategory(EventCategory.LAND))
   showAltitudeSlider.value = false
 }
 </script>

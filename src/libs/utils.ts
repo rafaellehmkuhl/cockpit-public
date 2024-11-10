@@ -1,8 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
-import { useInteractionDialog } from '@/composables/interactionDialog'
-
-const { showDialog } = useInteractionDialog()
+import { pushAlert } from '@/libs/alerts'
 
 export const constrain = (value: number, min: number, max: number): number => {
   return Math.max(Math.min(value, max), min)
@@ -135,7 +132,7 @@ export const tryOrAlert = async (tryFunction: () => Promise<void>): Promise<void
   try {
     await tryFunction()
   } catch (error) {
-    showDialog({ message: error as string, variant: 'error' })
+    await pushAlert({ message: error as string, variant: 'error' })
   }
 }
 
@@ -143,10 +140,10 @@ export const tryOrAlert = async (tryFunction: () => Promise<void>): Promise<void
  * Wait till the next tick to reload Cockpit
  * @param {number} timeout The time to wait before reloading, in milliseconds. Default value is 500 ms.
  */
-export const reloadCockpit = (timeout = 500): void => {
+export const reloadCockpit = async (timeout = 500): Promise<void> => {
   const restartMessage = `Restarting Cockpit in ${timeout / 1000} seconds...`
   console.log(restartMessage)
-  showDialog({ message: restartMessage, variant: 'info', timer: timeout })
+  await pushAlert({ message: restartMessage, variant: 'info', timer: timeout })
   setTimeout(() => location.reload(), timeout)
 }
 
