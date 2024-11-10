@@ -12,6 +12,7 @@ export enum WidgetType {
   CompassHUD = 'CompassHUD',
   CustomWidgetBase = 'CustomWidgetBase',
   DepthHUD = 'DepthHUD',
+  DoItYourself = 'DoItYourself',
   IFrame = 'IFrame',
   ImageView = 'ImageView',
   Map = 'Map',
