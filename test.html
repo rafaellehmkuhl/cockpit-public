@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Print window.exposed_interface</title>
+</head>
+<body>
+    <div id="widgetDiv">
+        <p>Exposed IFrame interfaces</p>
+        <p></p>Pitch: <span id="pitchValue"></span></p>
+        <p></p>Data lake slider: <span id="dataLakeSlider"></span></p>
+        <p></p>Data lake switch: <span id="dataLakeSwitch"></span></p>
+    </div>
+
+    <script>
+        let registered = false;
+        const pitchValueElement = document.getElementById('pitchValue');
+        const dataLakeSliderElement = document.getElementById('dataLakeSlider');
+        const dataLakeSwitchElement = document.getElementById('dataLakeSwitch');
+        function printExposedInterface() {
+            const decoder = new TextDecoder()
+            if (window.MavlinkSignal && !registered && window.cockpit) {
+                registered = true;
+                window.MavlinkSignal.add((message) => {
+                    const msg = JSON.parse(decoder.decode(message))['message']
+                    if (msg.type !== 'ATTITUDE') return
+                    console.log(msg)
+                    pitchValueElement.innerHTML = `<pre>${msg.pitch}</pre>`;
+                })
+                window.cockpit.listenCockpitActionVariable('slider1', (value) => {
+                    dataLakeSliderElement.innerHTML = `<pre>${value}</pre>`;
+                })
+                window.cockpit.listenCockpitActionVariable('switch1', (value) => {
+                    dataLakeSwitchElement.innerHTML = `<pre>${value}</pre>`;
+                })
+            } else {
+                console.log('Cannot print exposed interface...')
+            }
+        }
+        printExposedInterface();
+
+        setInterval(printExposedInterface, 1000);
+    </script>
+
+    <style>
+        body {
+            background-color: blue;
+            color: white;
+            font-family: monospace;
+            font-size: 1.5rem;
+        }
+        #widgetDiv {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</body>
+</html>
