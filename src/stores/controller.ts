@@ -11,10 +11,12 @@ import {
 } from '@/assets/joystick-profiles'
 import { useInteractionDialog } from '@/composables/interactionDialog'
 import { useBlueOsStorage } from '@/composables/settingsSyncer'
+import { setCockpitActionVariableData } from '@/libs/actions/data-lake'
 import { MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { type JoystickEvent, EventType, joystickManager, JoystickModel } from '@/libs/joystick/manager'
 import { allAvailableAxes, allAvailableButtons } from '@/libs/joystick/protocols'
 import { CockpitActionsFunction, executeActionCallback } from '@/libs/joystick/protocols/cockpit-actions'
+import { ensureDataLakeVariable } from '@/libs/joystick/protocols/data-lake'
 import { modifierKeyActions, otherAvailableActions } from '@/libs/joystick/protocols/other'
 import { slideToConfirm } from '@/libs/slide-to-confirm'
 import { Alert, AlertLevel } from '@/types/alert'
@@ -177,6 +179,41 @@ export const useControllerStore = defineStore('controller', () => {
     const joystick = joysticks.value.get(event.detail.index)
     if (joystick === undefined || (event.type !== EventType.Axis && event.type !== EventType.Button)) return
     joystick.gamepad = event.detail.gamepad
+
+    // Handle data lake variables for axes
+    Object.entries(protocolMapping.value.axesCorrespondencies).forEach(([axis, mapping]) => {
+      if (mapping.action.protocol === JoystickProtocol.DataLake) {
+        const value = joystick.state.axes[Number(axis)]
+        if (value !== undefined) {
+          ensureDataLakeVariable(mapping.action)
+          // For axes, if variable is boolean, convert to true/false based on threshold
+          if (mapping.action.variableType === 'boolean') {
+            setCockpitActionVariableData(mapping.action.id, value > 0.5)
+          } else {
+            setCockpitActionVariableData(mapping.action.id, value)
+          }
+        }
+      }
+    })
+
+    // Handle data lake variables for buttons
+    Object.values(protocolMapping.value.buttonsCorrespondencies).forEach((layout) => {
+      Object.entries(layout).forEach(([button, mapping]) => {
+        if (mapping.action.protocol === JoystickProtocol.DataLake) {
+          const value = joystick.state.buttons[Number(button)]
+          if (value !== undefined) {
+            ensureDataLakeVariable(mapping.action)
+            // For buttons, if variable is boolean, convert to true/false based on threshold
+            // For number variables, use raw value (useful for trigger buttons)
+            if (mapping.action.variableType === 'boolean') {
+              setCockpitActionVariableData(mapping.action.id, value > 0.5)
+            } else {
+              setCockpitActionVariableData(mapping.action.id, value)
+            }
+          }
+        }
+      })
+    })
 
     const joystickModel = joystick.model || JoystickModel.Unknown
     joystick.gamepadToCockpitMap = cockpitStdMappings.value[joystickModel]

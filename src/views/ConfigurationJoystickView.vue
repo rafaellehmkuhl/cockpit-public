@@ -451,9 +451,9 @@
               >Unmap Input</v-btn
             >
           </div>
-          <div class="flex flex-col w-[300px] justify-evenly">
+          <div class="flex flex-col w-[400px] justify-evenly">
             <ExpansiblePanel
-              v-for="protocol in filteredProtocols"
+              v-for="protocol in protocolsToShowChoosingPanel"
               :key="protocol"
               compact
               mark-expanded
@@ -477,6 +477,17 @@
                     placeholder="Search actions..."
                     class="-mb-4"
                   />
+                  <div v-if="protocol === JoystickProtocol.DataLake" class="flex items-center gap-2 mb-2">
+                    <v-text-field
+                      v-model="newDataLakeVarName"
+                      label="New variable name"
+                      density="compact"
+                      variant="outlined"
+                      hide-details
+                      class="flex-grow"
+                    />
+                    <v-btn variant="outlined" size="small" @click="createNewDataLakeVariable"> Create Variable </v-btn>
+                  </div>
                   <Button
                     v-for="action in sortJoystickActions(protocol)"
                     :key="action.name"
@@ -559,15 +570,18 @@
 
 <script setup lang="ts">
 import semver from 'semver'
+import { v4 as uuid4 } from 'uuid'
 import { type Ref, computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 
 import Button from '@/components/Button.vue'
 import ExpansiblePanel from '@/components/ExpansiblePanel.vue'
 import InteractionDialog from '@/components/InteractionDialog.vue'
 import JoystickPS from '@/components/joysticks/JoystickPS.vue'
+import { useInteractionDialog } from '@/composables/interactionDialog'
 import { getArdupilotVersion, getMavlink2RestVersion } from '@/libs/blueos'
 import { MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { JoystickModel } from '@/libs/joystick/manager'
+import { createDataLakeAction } from '@/libs/joystick/protocols/data-lake'
 import { modifierKeyActions } from '@/libs/joystick/protocols/other'
 import { useAppInterfaceStore } from '@/stores/appInterface'
 import { useControllerStore } from '@/stores/controller'
@@ -645,9 +659,11 @@ watch(
   }
 )
 
-const filteredProtocols = protocols.filter(
-  (protocol) => protocol === JoystickProtocol.MAVLinkManualControl || protocol === JoystickProtocol.CockpitAction
-)
+const protocolsToShowChoosingPanel = [
+  JoystickProtocol.MAVLinkManualControl,
+  JoystickProtocol.CockpitAction,
+  JoystickProtocol.DataLake,
+]
 
 const warnIfJoystickDoesNotSupportExtendedManualControl = async (): Promise<void> => {
   try {
@@ -797,9 +813,9 @@ const axisRemappingText = computed(() => {
     : 'No axis detected.'
 })
 
-const buttonActionsToShow = computed(() =>
-  controllerStore.availableButtonActions.filter((a) => JSON.stringify(a) !== JSON.stringify(modifierKeyActions.regular))
-)
+const buttonActionsToShow = computed(() => {
+  return controllerStore.availableButtonActions.filter((a) => protocolsToShowChoosingPanel.includes(a.protocol))
+})
 
 const availableVehicleTypes = computed(() => Object.keys(MavType))
 
@@ -836,4 +852,49 @@ const closeInputMappingDialog = (): void => {
   inputClickedDialog.value = false
   protocolToExpand.value = undefined
 }
+
+const newDataLakeVarName = ref('')
+
+const createNewDataLakeVariable = async (): Promise<void> => {
+  if (!newDataLakeVarName.value) {
+    showDialog({ message: 'Please enter a name for the variable', variant: 'warning' })
+    return
+  }
+
+  const id = `joystick_${uuid4()}`
+  const name = newDataLakeVarName.value
+
+  // Determine type based on input
+  let type: 'number' | 'boolean'
+  if (currentAxisInputs.value.length > 0) {
+    type = 'number'
+  } else if (currentButtonInputs.value.length > 0) {
+    // Triggers (buttons 4-7) use analog values
+    type = [4, 5, 6, 7].includes(Number(currentButtonInputs.value[0]?.id)) ? 'number' : 'boolean'
+  } else {
+    showDialog({ message: 'Please select an input first', variant: 'warning' })
+    return
+  }
+
+  const action = createDataLakeAction(id, name, type)
+
+  if (currentAxisInputs.value.length > 0) {
+    currentAxisInputs.value.forEach((input) => {
+      controllerStore.protocolMapping.axesCorrespondencies[input.id].action = action
+    })
+  } else if (currentButtonInputs.value.length > 0) {
+    currentButtonInputs.value.forEach((input) => {
+      controllerStore.protocolMapping.buttonsCorrespondencies[currentModifierKey.value.id][input.id].action = action
+    })
+  }
+
+  newDataLakeVarName.value = ''
+  showDialog({
+    message: `Created ${type} variable "${name}" and mapped it to the selected input`,
+    variant: 'success',
+    timer: 3000,
+  })
+}
+
+const { showDialog } = useInteractionDialog()
 </script>
