@@ -8,6 +8,7 @@ import electronUpdater, { type AppUpdater } from 'electron-updater'
 export const setupAutoUpdater = (mainWindow: BrowserWindow): void => {
   const autoUpdater: AppUpdater = electronUpdater.autoUpdater
   autoUpdater.logger = console
+  autoUpdater.forceDevUpdateConfig = true // TODO: Remove this before merging
   autoUpdater.autoDownload = false // Prevent automatic downloads
 
   autoUpdater
