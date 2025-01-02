@@ -55,7 +55,7 @@ export const getDataLakeVariableData = (id: string): string | number | boolean |
   return dataLakeVariableData[id]
 }
 
-export const setDataLakeVariableData = (id: string, data: string | number | boolean): void => {
+export const setDataLakeVariableData = (id: string, data: string | number | boolean | undefined): void => {
   dataLakeVariableData[id] = data
   notifyDataLakeVariableListeners(id)
 }
