@@ -44,10 +44,12 @@ type GamepadToCockpitStdMappingV2 = {
 
 // Get the default mappings (if the user has old V2 mappings, migrate them from to V3)
 const defaultGamepadToCockpitMaps = (): Record<JoystickModel, GamepadToCockpitStdMapping> => {
+  return availableGamepadToCockpitMaps // TODO: Remove this before merging. Make sure this migration is working.
+
   const oldMappings = localStorage.getItem('cockpit-standard-mappings-v2')
   if (!oldMappings) return availableGamepadToCockpitMaps
 
-  const parsedOldMappings = JSON.parse(oldMappings)
+  const parsedOldMappings = JSON.parse(oldMappings as string)
   if (Object.keys(parsedOldMappings).length === 0) return availableGamepadToCockpitMaps
 
   const newMappings = availableGamepadToCockpitMaps
