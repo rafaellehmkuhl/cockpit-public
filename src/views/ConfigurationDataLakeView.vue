@@ -15,27 +15,17 @@
             <div class="flex justify-center flex-col ml-2 mb-8 mt-2 w-[640px]">
               <v-data-table
                 :items="allVariables"
-                items-per-page="10"
-                class="elevation-1 bg-transparent rounded-lg"
+                items-per-page="5"
+                class="elevation-1 bg-transparent rounded-lg data-table-container"
                 theme="dark"
                 :style="interfaceStore.globalGlassMenuStyles"
+                :headers="[
+                  { title: 'Name', align: 'start', key: 'name' },
+                  { title: 'Type', align: 'center', key: 'type' },
+                  { title: 'Current Value', align: 'center', key: 'value' },
+                  { title: 'Actions', align: 'end', key: 'actions' },
+                ]"
               >
-                <template #headers>
-                  <tr>
-                    <th class="text-left">
-                      <p class="text-[16px] font-bold">Name</p>
-                    </th>
-                    <th class="text-center">
-                      <p class="text-[16px] font-bold">Type</p>
-                    </th>
-                    <th class="text-center">
-                      <p class="text-[16px] font-bold">Current Value</p>
-                    </th>
-                    <th class="text-right">
-                      <p class="text-[16px] font-bold">Actions</p>
-                    </th>
-                  </tr>
-                </template>
                 <template #item="{ item }">
                   <tr>
                     <td>
@@ -50,7 +40,9 @@
                     </td>
                     <td>
                       <div class="flex items-center justify-center rounded-xl mx-1">
-                        <p class="whitespace-nowrap overflow-hidden text-overflow-ellipsis">{{ item.value }}</p>
+                        <p class="whitespace-nowrap overflow-hidden text-overflow-ellipsis">
+                          {{ item.type === 'number' ? Number(item.value).toFixed(7) : item.value }}
+                        </p>
                       </div>
                     </td>
                     <td class="w-[200px] text-right">
@@ -74,14 +66,12 @@
                     </td>
                   </tr>
                 </template>
-                <template #bottom>
-                  <tr class="w-full">
-                    <td colspan="4" class="text-center flex items-center justify-center h-[50px] mb-3 w-full gap-2">
-                      <v-btn variant="outlined" class="rounded-lg" @click="openNewVariableDialog()">
-                        <v-icon start>mdi-plus</v-icon>
-                        New Variable
-                      </v-btn>
-                    </td>
+                <template #body.append>
+                  <tr>
+                    <v-btn variant="outlined" class="rounded-lg" @click="openNewVariableDialog()">
+                      <v-icon start>mdi-plus</v-icon>
+                      New Variable
+                    </v-btn>
                   </tr>
                 </template>
                 <template #no-data>
@@ -299,7 +289,7 @@ const saveVariable = (): void => {
 }
 
 const deleteVariable = (id: string): void => {
-  unlistenDataLakeVariable(id)
+  unlistenDataLakeVariable(id, listeners.value[id])
   delete currentValues.value[id]
   deleteDataLakeVariable(id)
 }
@@ -316,5 +306,15 @@ onUnmounted(() => {
 <style scoped>
 .v-data-table ::v-deep tbody tr:hover {
   background-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+:deep(.v-data-table) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+:deep(.v-data-table__wrapper) {
+  flex-grow: 1;
 }
 </style>
