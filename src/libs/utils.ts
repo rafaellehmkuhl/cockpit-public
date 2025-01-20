@@ -171,3 +171,10 @@ export const isElectron = (): boolean => {
 
   return false
 }
+
+export const humanizeString = (str: string): string => {
+  return str
+    .replace(/-/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (match) => match.toUpperCase())
+}
