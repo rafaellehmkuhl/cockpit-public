@@ -58,7 +58,7 @@ export const getDataLakeVariableData = (id: string): DataLakeVariableDataType | 
   return dataLakeVariableData[id]
 }
 
-export const setDataLakeVariableData = (id: string, data: DataLakeVariableDataType): void => {
+export const setDataLakeVariableData = (id: string, data: DataLakeVariableDataType | null): void => {
   dataLakeVariableData[id] = data
   notifyDataLakeVariableListeners(id)
 }

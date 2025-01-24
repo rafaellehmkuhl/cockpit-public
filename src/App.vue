@@ -358,6 +358,7 @@ import ConfigurationJoystickView from './views/ConfigurationJoystickView.vue'
 import ConfigurationTelemetryView from './views/ConfigurationLogsView.vue'
 import ConfigurationMAVLinkView from './views/ConfigurationMAVLinkView.vue'
 import ConfigurationMissionView from './views/ConfigurationMissionView.vue'
+import ConfigurationNewJoystickView from './views/ConfigurationNewJoystickView.vue'
 import ConfigurationUIView from './views/ConfigurationUIView.vue'
 import ConfigurationVideoView from './views/ConfigurationVideoView.vue'
 
@@ -393,6 +394,11 @@ const configMenu = [
     icon: 'mdi-controller',
     title: 'Joystick',
     component: markRaw(ConfigurationJoystickView) as ConfigComponent,
+  },
+  {
+    icon: 'mdi-controller',
+    title: 'New Joystick',
+    component: markRaw(ConfigurationNewJoystickView) as ConfigComponent,
   },
   {
     icon: 'mdi-video',

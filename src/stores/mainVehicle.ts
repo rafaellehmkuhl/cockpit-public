@@ -23,7 +23,7 @@ import { MavAutopilot, MAVLinkType, MavType } from '@/libs/connection/m2r/messag
 import type { Message } from '@/libs/connection/m2r/messages/mavlink2rest-message'
 import eventTracker from '@/libs/external-telemetry/event-tracking'
 import { availableCockpitActions, registerActionCallback } from '@/libs/joystick/protocols/cockpit-actions'
-import { MavlinkManualControlManager } from '@/libs/joystick/protocols/mavlink-manual-control'
+// import { MavlinkManualControlManager } from '@/libs/joystick/protocols/mavlink-manual-control'
 import type { ArduPilot } from '@/libs/vehicle/ardupilot/ardupilot'
 import { CustomMode } from '@/libs/vehicle/ardupilot/ardurover'
 import type { ArduPilotParameterSetData } from '@/libs/vehicle/ardupilot/types'
@@ -552,12 +552,12 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
       if (oldVehicleType !== vehicleType.value && vehicleType.value !== undefined) {
         console.log('Vehicle type changed to', vehicleType.value)
 
-        try {
-          controllerStore.loadDefaultProtocolMappingForVehicle(vehicleType.value)
-          console.info(`Loaded default joystick protocol mapping for vehicle type ${vehicleType.value}.`)
-        } catch (error) {
-          console.error(`Could not load default protocol mapping for vehicle type ${vehicleType.value}: ${error}`)
-        }
+        // try {
+        //   controllerStore.loadDefaultProtocolMappingForVehicle(vehicleType.value)
+        //   console.info(`Loaded default joystick protocol mapping for vehicle type ${vehicleType.value}.`)
+        // } catch (error) {
+        //   console.error(`Could not load default protocol mapping for vehicle type ${vehicleType.value}: ${error}`)
+        // }
 
         try {
           widgetStore.loadDefaultProfileForVehicle(vehicleType.value)
@@ -610,21 +610,18 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     registerActionCallback(availableCockpitActions.mavlink_disarm, disarm)
   })
 
-  const mavlinkManualControlManager = new MavlinkManualControlManager()
-  controllerStore.registerControllerUpdateCallback(mavlinkManualControlManager.updateControllerData)
+  // // Loop to send MAVLink Manual Control messages
+  // setInterval(() => {
+  //   // Set the manager vehicle instance if yet undefined
+  //   if (mainVehicle.value && mavlinkManualControlManager.vehicle === undefined) {
+  //     mavlinkManualControlManager.setVehicle(mainVehicle.value as ArduPilot)
+  //   }
 
-  // Loop to send MAVLink Manual Control messages
-  setInterval(() => {
-    // Set the manager vehicle instance if yet undefined
-    if (mainVehicle.value && mavlinkManualControlManager.vehicle === undefined) {
-      mavlinkManualControlManager.setVehicle(mainVehicle.value as ArduPilot)
-    }
-
-    // Send MAVLink Manual Control message
-    if (controllerStore.enableForwarding) {
-      mavlinkManualControlManager.sendManualControl()
-    }
-  }, 40)
+  //   // Send MAVLink Manual Control message
+  //   if (controllerStore.enableForwarding) {
+  //     mavlinkManualControlManager.sendManualControl()
+  //   }
+  // }, 40)
   setInterval(() => sendGcsHeartbeat(), 1000)
 
   return {
