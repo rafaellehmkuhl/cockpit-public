@@ -1,5 +1,8 @@
 import { v4 as uuid } from 'uuid'
 
+export type DataLakeVariableType = 'string' | 'number' | 'boolean' | 'null'
+export type DataLakeVariableDataType = string | number | boolean
+
 /**
  * A variable to be used on a Cockpit action
  * @param { string } id - The id of the variable
@@ -10,10 +13,10 @@ import { v4 as uuid } from 'uuid'
 export class DataLakeVariable {
   id: string
   name: string
-  type: 'string' | 'number' | 'boolean'
+  type: DataLakeVariableType
   description?: string
   // eslint-disable-next-line jsdoc/require-jsdoc
-  constructor(id: string, name: string, type: 'string' | 'number' | 'boolean', description?: string) {
+  constructor(id: string, name: string, type: DataLakeVariableType, description?: string) {
     this.id = id
     this.name = name
     this.type = type
@@ -22,8 +25,8 @@ export class DataLakeVariable {
 }
 
 const dataLakeVariableInfo: Record<string, DataLakeVariable> = {}
-export const dataLakeVariableData: Record<string, string | number | boolean | undefined> = {}
-const dataLakeVariableListeners: Record<string, Record<string, (value: string | number | boolean) => void>> = {}
+export const dataLakeVariableData: Record<string, DataLakeVariableDataType | undefined | null> = {}
+const dataLakeVariableListeners: Record<string, Record<string, (value: DataLakeVariableDataType | null) => void>> = {}
 const dataLakeVariableInfoListeners: Record<string, (variables: Record<string, DataLakeVariable>) => void> = {}
 
 export const getAllDataLakeVariablesInfo = (): Record<string, DataLakeVariable> => {
@@ -51,11 +54,11 @@ export const updateDataLakeVariableInfo = (variable: DataLakeVariable): void => 
   notifyDataLakeVariableInfoListeners()
 }
 
-export const getDataLakeVariableData = (id: string): string | number | boolean | undefined => {
+export const getDataLakeVariableData = (id: string): DataLakeVariableDataType | undefined | null => {
   return dataLakeVariableData[id]
 }
 
-export const setDataLakeVariableData = (id: string, data: string | number | boolean): void => {
+export const setDataLakeVariableData = (id: string, data: DataLakeVariableDataType): void => {
   dataLakeVariableData[id] = data
   notifyDataLakeVariableListeners(id)
 }
@@ -67,7 +70,7 @@ export const deleteDataLakeVariable = (id: string): void => {
 
 export const listenDataLakeVariable = (
   variableId: string,
-  listener: (value: string | number | boolean) => void
+  listener: (value: DataLakeVariableDataType | null) => void
 ): string => {
   if (!dataLakeVariableListeners[variableId]) {
     dataLakeVariableListeners[variableId] = {}
