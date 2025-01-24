@@ -1,5 +1,3 @@
-import { JoystickModel } from '@/libs/joystick/manager'
-
 /**
  * Available joystick protocols.
  * Each protocol is expected to have it's own way of doing thing, including mapping, limiting, communicating, etc.
@@ -33,41 +31,6 @@ export interface JoystickState {
   axes: (number | undefined)[]
 }
 
-/**
- * Joystick abstraction for widget
- */
-export class Joystick {
-  gamepad: Gamepad
-  gamepadToCockpitMap: GamepadToCockpitStdMapping | undefined = undefined
-  model = JoystickModel.Unknown
-
-  /**
-   * Create joystick component
-   * @param {Gamepad} gamepad Axis to be set
-   */
-  constructor(gamepad: Gamepad) {
-    this.gamepad = gamepad
-  }
-
-  /**
-   * Returns current state of axes and buttons
-   * @returns {JoystickState}
-   */
-  get state(): JoystickState {
-    return {
-      buttons:
-        this.gamepadToCockpitMap?.buttons.map((idx) => {
-          if (idx === null || this.gamepad.buttons[idx] === undefined) return undefined
-          return this.gamepad.buttons[idx].value
-        }) || [],
-      axes:
-        this.gamepadToCockpitMap?.axes.map((idx) => {
-          if (idx === null || this.gamepad.axes[idx] === undefined) return undefined
-          return this.gamepad.axes[idx]
-        }) || [],
-    }
-  }
-}
 
 /**
  *
@@ -158,47 +121,40 @@ export interface JoystickProtocolActionsMapping {
   }
 }
 
-export type CockpitButton = null | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 | 27 | 28 | 29 | 30 | 31 // eslint-disable-line
-export type CockpitAxis = null | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 | 27 | 28 | 29 | 30 | 31 // eslint-disable-line
+export type GamepadToCockpitButtonCorrespondency = {
+  /**
+   * The index of the button in the Gamepad API input array
+   */
+  indexInGamepadAPI: number | null
+  /**
+   * The id of the button in the Cockpit standard
+   */
+  idInCockpitStd: JoystickButton
+}
+
+export type GamepadToCockpitAxisCorrespondency = {
+  /**
+   * The index of the axis in the Gamepad API input array
+   */
+  indexInGamepadAPI: number | null
+  /**
+   * The id of the axis in the Cockpit standard
+   */
+  idInCockpitStd: JoystickAxis
+}
 
 /**
  * This interface defines the mapping for a specific controller from the Gamepad API to Cockpit's standard.
  */
 export interface GamepadToCockpitStdMapping {
   /**
-   *  Name to help identification of a mapping profile
-   */
-  name: string
-  /**
    * Correspondency from Gamepad API to Cockpit standard axes.
-   * Corresponds to which Axis in the Cockpit standard should the Nth axis be mapped to.
-   * E.g.: [2, 0, 1, 3] means axis 0 in the Gamepad API will provide data to axis 2 in Cockpit, while axis 1
-   * in the Gamepad API will provide data to axis 0 in Cockpit.
-   * Gamepad API / Cockpit API
-   *      0     ->     2
-   *      1     ->     0
-   *      2     ->     1
-   *      3     ->     undefined
-   *     ...    ->    ...
-   *
-   * You can notice that in the previous case axis 3 in the Gamepad API does is not used in the Cockpit API
    */
-  axes: CockpitAxis[]
+  axes: GamepadToCockpitAxisCorrespondency[]
   /**
    * Correspondency from Gamepad API to Cockpit standard buttons.
-   * Corresponds to which button in the Cockpit standard should the Nth button be mapped to.
-   * E.g.: [3, 4, 15, 2, ...] means button 0 in the Gamepad API will provide data to button 3 in the Cockpit
-   * API, while button 1 in the Gamepad API will provide data to button 4 in the Cockpit API.
-   * Gamepad API / Cockpit API
-   *      0     ->     3
-   *      1     ->     4
-   *      2     ->     15
-   *      3     ->     undefined
-   *     ...    ->    ...
-   *
-   * You can notice that in the previous case button 3 in the Gamepad API does is not used in the Cockpit API
    */
-  buttons: CockpitButton[]
+  buttons: GamepadToCockpitButtonCorrespondency[]
 }
 
 /**
@@ -223,6 +179,20 @@ export enum JoystickButton {
   B15 = 15, // Right button in left cluster
   B16 = 16, // Center button in center cluster
   B17 = 17, // 	Extra non-standard buttons
+  B18 = 18, // 	Extra non-standard buttons
+  B19 = 19, // 	Extra non-standard buttons
+  B20 = 20, // 	Extra non-standard buttons
+  B21 = 21, // 	Extra non-standard buttons
+  B22 = 22, // 	Extra non-standard buttons
+  B23 = 23, // 	Extra non-standard buttons
+  B24 = 24, // 	Extra non-standard buttons
+  B25 = 25, // 	Extra non-standard buttons
+  B26 = 26, // 	Extra non-standard buttons
+  B27 = 27, // 	Extra non-standard buttons
+  B28 = 28, // 	Extra non-standard buttons
+  B29 = 29, // 	Extra non-standard buttons
+  B30 = 30, // 	Extra non-standard buttons
+  B31 = 31, // 	Extra non-standard buttons
 }
 
 /**

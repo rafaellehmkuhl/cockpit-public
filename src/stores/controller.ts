@@ -10,12 +10,17 @@ import {
   setDataLakeVariableData,
 } from '@/libs/actions/data-lake'
 import { type JoystickEvent, EventType, joystickManager, JoystickModel } from '@/libs/joystick/manager'
+import { Joystick } from '@/libs/joystick/to-be-named'
 import { humanizeString } from '@/libs/utils'
-import { GamepadToCockpitStdMapping, Joystick } from '@/types/joystick'
+import { GamepadToCockpitStdMapping } from '@/types/joystick'
 
 const cockpitStdMappingsKey = 'cockpit-standard-mappings-v3'
 
-export const joystickInputDataLakeId = (joystickIndex: number, inputType: 'button' | 'axis', inputId: number | string): string => {
+export const joystickInputDataLakeId = (
+  joystickIndex: number,
+  inputType: 'button' | 'axis',
+  inputId: number | string
+): string => {
   return `joystick-${joystickIndex}-${inputType}-${inputId}`
 }
 
