@@ -72,10 +72,10 @@
                   :variant="simplifiedMainMenu ? 'uncontained' : 'round'"
                   :tooltip="simplifiedMainMenu ? 'Flight' : undefined"
                   :width="buttonSize"
-                  :selected="$route.name === 'Flight'"
+                  :selected="route.name === 'Flight'"
                   @click="
                     () => {
-                      $router.push('/')
+                      router.push('/')
                       closeMainMenu()
                     }
                   "
@@ -94,10 +94,10 @@
                   :variant="simplifiedMainMenu ? 'uncontained' : 'round'"
                   :tooltip="simplifiedMainMenu ? 'Mission Planning' : undefined"
                   :width="buttonSize"
-                  :selected="$route.name === 'Mission planning'"
+                  :selected="route.name === 'Mission planning'"
                   @click="
                     () => {
-                      $router.push('/mission-planning')
+                      router.push('/mission-planning')
                       closeMainMenu()
                     }
                   "
@@ -249,6 +249,9 @@
             >
               <span class="text-3xl transition-all mdi mdi-menu text-slate-300 hover:text-slate-50" />
             </button>
+            <v-btn size="48px" class="bg-transparent" variant="text" @click="widgetStore.toggleConfigurationMode">
+              <v-icon class="text-slate-300 hover:text-slate-50">mdi-cog</v-icon></v-btn
+            >
             <div class="flex-1">
               <MiniWidgetContainer
                 :container="widgetStore.currentMiniWidgetsProfile.containers[0]"
@@ -322,43 +325,43 @@
 
 <script setup lang="ts">
 import { onClickOutside, useDebounceFn, useFullscreen, useStorage, useWindowSize } from '@vueuse/core'
+import type { DefineComponent } from 'vue'
 import { computed, markRaw, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
+import About from '@/components/About.vue'
+import AltitudeSlider from '@/components/AltitudeSlider.vue'
+import EditMenu from '@/components/EditMenu.vue'
+import GlassButton from '@/components/GlassButton.vue'
 import GlassModal from '@/components/GlassModal.vue'
+import MiniWidgetContainer from '@/components/MiniWidgetContainer.vue'
+import SlideToConfirm from '@/components/SlideToConfirm.vue'
 import Tutorial from '@/components/Tutorial.vue'
 import UpdateNotification from '@/components/UpdateNotification.vue'
 import VehicleDiscoveryDialog from '@/components/VehicleDiscoveryDialog.vue'
 import VideoLibraryModal from '@/components/VideoLibraryModal.vue'
 import { useInteractionDialog } from '@/composables/interactionDialog'
+import { useSnackbar } from '@/composables/snackbar'
 import {
   availableCockpitActions,
   registerActionCallback,
   unregisterActionCallback,
 } from '@/libs/joystick/protocols/cockpit-actions'
 import { isElectron } from '@/libs/utils'
-
-import About from './components/About.vue'
-import AltitudeSlider from './components/AltitudeSlider.vue'
-import EditMenu from './components/EditMenu.vue'
-import GlassButton from './components/GlassButton.vue'
-import MiniWidgetContainer from './components/MiniWidgetContainer.vue'
-import SlideToConfirm from './components/SlideToConfirm.vue'
-import { useSnackbar } from './composables/snackbar'
-import { useAppInterfaceStore } from './stores/appInterface'
-import { useMainVehicleStore } from './stores/mainVehicle'
-import { useWidgetManagerStore } from './stores/widgetManager'
-import { ConfigComponent } from './types/general'
-import ConfigurationActionsView from './views/ConfigurationActionsView.vue'
-import ConfigurationAlertsView from './views/ConfigurationAlertsView.vue'
-import ConfigurationDevelopmentView from './views/ConfigurationDevelopmentView.vue'
-import ConfigurationGeneralView from './views/ConfigurationGeneralView.vue'
-import ConfigurationJoystickView from './views/ConfigurationJoystickView.vue'
-import ConfigurationTelemetryView from './views/ConfigurationLogsView.vue'
-import ConfigurationMAVLinkView from './views/ConfigurationMAVLinkView.vue'
-import ConfigurationMissionView from './views/ConfigurationMissionView.vue'
-import ConfigurationUIView from './views/ConfigurationUIView.vue'
-import ConfigurationVideoView from './views/ConfigurationVideoView.vue'
+import { useAppInterfaceStore } from '@/stores/appInterface'
+import { useMainVehicleStore } from '@/stores/mainVehicle'
+import { useWidgetManagerStore } from '@/stores/widgetManager'
+import type { ConfigComponent } from '@/types/general'
+import ConfigurationActionsView from '@/views/ConfigurationActionsView.vue'
+import ConfigurationAlertsView from '@/views/ConfigurationAlertsView.vue'
+import ConfigurationDevelopmentView from '@/views/ConfigurationDevelopmentView.vue'
+import ConfigurationGeneralView from '@/views/ConfigurationGeneralView.vue'
+import ConfigurationJoystickView from '@/views/ConfigurationJoystickView.vue'
+import ConfigurationTelemetryView from '@/views/ConfigurationLogsView.vue'
+import ConfigurationMAVLinkView from '@/views/ConfigurationMAVLinkView.vue'
+import ConfigurationMissionView from '@/views/ConfigurationMissionView.vue'
+import ConfigurationUIView from '@/views/ConfigurationUIView.vue'
+import ConfigurationVideoView from '@/views/ConfigurationVideoView.vue'
 
 const { showDialog, closeDialog } = useInteractionDialog()
 const { showSnackbar } = useSnackbar()
@@ -366,6 +369,8 @@ const { showSnackbar } = useSnackbar()
 const widgetStore = useWidgetManagerStore()
 const vehicleStore = useMainVehicleStore()
 const interfaceStore = useAppInterfaceStore()
+const route = useRoute()
+const router = useRouter()
 
 const showAboutDialog = ref(false)
 const showConfigurationMenu = ref(false)
@@ -381,52 +386,52 @@ const configMenu = [
   {
     icon: 'mdi-view-dashboard-variant',
     title: 'General',
-    component: markRaw(ConfigurationGeneralView) as ConfigComponent,
+    component: markRaw(ConfigurationGeneralView) as unknown as ConfigComponent,
   },
   {
     icon: 'mdi-monitor-cellphone',
     title: 'Interface',
-    component: markRaw(ConfigurationUIView) as ConfigComponent,
+    component: markRaw(ConfigurationUIView) as unknown as ConfigComponent,
   },
   {
     icon: 'mdi-controller',
     title: 'Joystick',
-    component: markRaw(ConfigurationJoystickView) as ConfigComponent,
+    component: markRaw(ConfigurationJoystickView) as unknown as ConfigComponent,
   },
   {
     icon: 'mdi-video',
     title: 'Video',
-    component: markRaw(ConfigurationVideoView) as ConfigComponent,
+    component: markRaw(ConfigurationVideoView) as unknown as ConfigComponent,
   },
   {
     icon: 'mdi-subtitles-outline',
     title: 'Telemetry',
-    component: markRaw(ConfigurationTelemetryView) as ConfigComponent,
+    component: markRaw(ConfigurationTelemetryView) as unknown as ConfigComponent,
   },
   {
     icon: 'mdi-alert-rhombus-outline',
     title: 'Alerts',
-    component: markRaw(ConfigurationAlertsView) as ConfigComponent,
+    component: markRaw(ConfigurationAlertsView) as unknown as ConfigComponent,
   },
   {
     icon: 'mdi-dev-to',
     title: 'Dev',
-    component: markRaw(ConfigurationDevelopmentView) as ConfigComponent,
+    component: markRaw(ConfigurationDevelopmentView) as unknown as ConfigComponent,
   },
   {
     icon: 'mdi-protocol',
     title: 'MAVLink',
-    component: markRaw(ConfigurationMAVLinkView) as ConfigComponent,
+    component: markRaw(ConfigurationMAVLinkView) as unknown as ConfigComponent,
   },
   {
     icon: 'mdi-map-marker-path',
     title: 'Mission',
-    component: markRaw(ConfigurationMissionView) as ConfigComponent,
+    component: markRaw(ConfigurationMissionView) as unknown as ConfigComponent,
   },
   {
     icon: 'mdi-run-fast',
     title: 'Actions',
-    component: markRaw(ConfigurationActionsView) as ConfigComponent,
+    component: markRaw(ConfigurationActionsView) as unknown as ConfigComponent,
   },
 ]
 
@@ -657,7 +662,6 @@ const openAboutDialog = (): void => {
   closeMainMenu()
 }
 
-const route = useRoute()
 const routerSection = ref()
 
 // Full screen toggling

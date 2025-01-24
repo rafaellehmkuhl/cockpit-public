@@ -51,6 +51,7 @@ export const savedProfilesKey = 'cockpit-saved-profiles-v8'
 
 export const useWidgetManagerStore = defineStore('widget-manager', () => {
   const editingMode = ref(false)
+  const configurationMode = ref(false)
   const snapToGrid = ref(true)
   const gridInterval = ref(0.01)
   const currentMiniWidgetsProfile = useBlueOsStorage('cockpit-mini-widgets-profile-v4', miniWidgetsProfile)
@@ -863,8 +864,24 @@ export const useWidgetManagerStore = defineStore('widget-manager', () => {
     profile.hash = corrDefault?.hash ?? profile.hash
   })
 
+  // Add new function to toggle configuration mode
+  const toggleConfigurationMode = (): void => {
+    configurationMode.value = !configurationMode.value
+    // When entering configuration mode, disable edit mode
+    if (configurationMode.value && editingMode.value) {
+      editingMode.value = false
+    }
+  }
+
+  // Update the watch to also handle configuration mode
+  watch([editingMode, configurationMode], () => {
+    resetWidgetsEditingState()
+    console.log('configurationMode', configurationMode.value)
+  })
+
   return {
     editingMode,
+    configurationMode,
     snapToGrid,
     gridInterval,
     currentProfile,
@@ -916,5 +933,6 @@ export const useWidgetManagerStore = defineStore('widget-manager', () => {
     editWidgetByHash,
     setMiniWidgetLastValue,
     getMiniWidgetLastValue,
+    toggleConfigurationMode,
   }
 })

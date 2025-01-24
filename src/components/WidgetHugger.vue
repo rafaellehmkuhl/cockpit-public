@@ -1,14 +1,9 @@
 <template>
-  <div v-if="devStore.developmentMode" class="widgetOverlay dev-info">
-    <p>Position: {{ round(100 * widget.position.x, 2) }} x {{ round(100 * widget.position.y, 2) }} %</p>
-    <p>Size: {{ round(100 * widget.size.width, 2) }} x {{ round(100 * widget.size.height, 2) }} %</p>
-    <p>Position: {{ round(widget.position.x * windowWidth) }} x {{ round(widget.position.y * windowHeight) }} px</p>
-    <p>Size: {{ round(widget.size.width * windowWidth) }} x {{ round(widget.size.height * windowHeight) }} px</p>
-    <p>Client size: {{ innerWidgetRef?.clientWidth }} x {{ innerWidgetRef?.clientHeight }} px</p>
-    <p>Offset size: {{ innerWidgetRef?.offsetWidth }} x {{ innerWidgetRef?.offsetHeight }} px</p>
-    <p>Scroll size: {{ innerWidgetRef?.scrollWidth }} x {{ innerWidgetRef?.scrollHeight }} px</p>
-    <p v-for="[k, v] in Object.entries(widget?.options)" :key="k">{{ k }} (option): {{ v }}</p>
-  </div>
+  <div
+    v-if="widgetStore.configurationMode && widgetStore.isWidgetVisible(widget)"
+    class="widgetOverlay dev-info"
+    @click="handleClick"
+  />
   <div
     ref="widgetOverlay"
     class="widgetOverlay"
@@ -77,6 +72,7 @@ const widgetView = computed(() => outerWidgetRef.value?.parentElement)
 const widgetResizeHandles = computed(() => outerWidgetRef.value?.getElementsByClassName('resize-handle'))
 
 const devStore = useDevelopmentStore()
+const widgetStore = useWidgetManagerStore()
 
 const { width: windowWidth, height: windowHeight } = useWindowSize()
 
@@ -87,8 +83,14 @@ const hoveringWidgetOrOverlay = computed(() => hoveringOverlay.value || hovering
 
 // Put the widget into highlighted state when in edit-mode and hovering over it
 watch([hoveringWidgetOrOverlay, allowMoving], () => {
-  widgetStore.widgetManagerVars(widget.value.hash).highlighted = hoveringWidgetOrOverlay.value
+  widgetStore.widgetManagerVars(widget.value.hash).highlighted =
+    hoveringWidgetOrOverlay.value && (widgetStore.editingMode || widgetStore.configurationMode)
 })
+
+const handleClick = (): void => {
+  console.log('widget clicked in configuration mode', widget.value)
+  widgetStore.widgetManagerVars(widget.value.hash).configMenuOpen = true
+}
 
 const draggingWidget = ref(false)
 const isResizing = ref(false)
@@ -244,7 +246,6 @@ watch(allowMoving, (isAllowing, wasAllowing) => {
   }
 })
 
-const widgetStore = useWidgetManagerStore()
 const temporaryPosition = computed(() => {
   let tempPos = { x: position.value.x, y: position.value.y }
   const clearanceOffset = widgetStore.visibleAreaMinClearancePixels
@@ -316,10 +317,9 @@ const highlighted = computed(() => widgetStore.widgetManagerVars(widget.value.ha
   display: v-bind('overlayDisplayStyle');
 }
 .dev-info {
-  background-color: rgba(255, 255, 255, 0.3);
+  background-color: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(v-bind('devInfoBlurLevel'));
   z-index: 1;
-  pointer-events: none;
   position: absolute;
   display: flex;
   flex-direction: column;
