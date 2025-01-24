@@ -171,3 +171,16 @@ export const isElectron = (): boolean => {
 
   return false
 }
+
+/**
+ * Copy text to clipboard
+ * @param {string} text The text to copy
+ * @returns {Promise<void>} A promise that resolves when the text is copied
+ */
+export const copyToClipboard = async (text: string): Promise<void> => {
+  try {
+    await navigator.clipboard.writeText(text)
+  } catch (err) {
+    throw new Error(`Failed to copy text. Error: ${err}`)
+  }
+}
