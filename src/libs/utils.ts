@@ -195,3 +195,15 @@ export const copyToClipboard = async (text: string): Promise<void> => {
     throw new Error(`Failed to copy text. Error: ${error}`)
   }
 }
+
+/**
+ * Humanize a string
+ * @param {string} str The string to humanize
+ * @returns {string} The humanized string
+ */
+export const humanizeString = (str: string): string => {
+  return str
+    .replace(/-/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (match) => match.toUpperCase())
+}
