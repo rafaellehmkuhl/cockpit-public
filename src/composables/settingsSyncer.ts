@@ -15,11 +15,21 @@ import { savedProfilesKey } from '@/stores/widgetManager'
 import { useInteractionDialog } from './interactionDialog'
 import { openSnackbar } from './snackbar'
 
+/**
+ * Maps setting key to its last update timestamp
+ */
+export interface SettingsEpochTable {
+  [key: string]: number
+}
+
 export const resetJustMadeKey = 'cockpit-reset-just-made'
 const resetJustMade = useStorage(resetJustMadeKey, false)
 setTimeout(() => {
   resetJustMade.value = false
 }, 10000)
+
+// Store epochs for local settings
+const localEpochTable = useStorage<SettingsEpochTable>('cockpit-settings-epochs', {})
 
 const getVehicleAddress = async (): Promise<string> => {
   const vehicleStore = useMainVehicleStore()
@@ -134,7 +144,14 @@ export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): Rem
       clearTimeout(blueOsUpdateTimeout)
 
       try {
+        // Update the value
         await setKeyDataOnCockpitVehicleStorage(vehicleAddress, `settings/${username}/${key}`, newValue)
+
+        // Update the epoch
+        const currentEpoch = Date.now()
+        localEpochTable.value[key] = currentEpoch
+        await setKeyDataOnCockpitVehicleStorage(vehicleAddress, `settings/${username}/epochs/${key}`, currentEpoch)
+
         const message = `Success updating '${key}' on BlueOS.`
         openSnackbar({ message, duration: 3000, variant: 'success', closeButton: true })
         console.info(message)
@@ -167,40 +184,45 @@ export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): Rem
       const valueOnBlueOS = await getKeyDataFromCockpitVehicleStorage(vehicleAddress, `settings/${username}/${key}`)
       console.debug(`Success getting value of '${key}' from BlueOS:`, valueOnBlueOS)
 
-      // If the value on BlueOS is the same as the one we have locally, we don't need to bother the user
+      // If the value on BlueOS is the same as the one we have locally, we don't need to do anything
       if (isEqual(currentValue.value, valueOnBlueOS)) {
         console.debug(`Value for '${key}' on BlueOS is the same as the local one. No need to update.`)
         finishedInitialFetch.value = true
         return
       }
 
-      // By default, if there's a conflict, we use the value from BlueOS.
-      let useBlueOsValue = true
+      // Get epochs for both local and remote values
+      const remoteEpoch = (await getKeyDataFromCockpitVehicleStorage(
+        vehicleAddress,
+        `settings/${username}/epochs/${key}`
+      ).catch(() => 0)) as number
+      const localEpoch = localEpochTable.value[key] || 0
 
-      // If the connected vehicle is the same as the last connected vehicle, and the user is also the same, and there
-      // are conflicts, it means the user has made changes while offline, so we ask the user if they want to keep the
-      // local value or the one from BlueOS.
-      // If the connected vehicle is different from the last connected vehicle, we just use the value from BlueOS, as we
-      // don't want to overwrite the value on the new vehicle with the one from the previous vehicle.
-      if (resetJustMade.value) {
-        useBlueOsValue = false
-      } else if (lastConnectedUser === username && lastConnectedVehicleId === currentVehicleId) {
-        console.debug(`Conflict with BlueOS for key '${key}'. Asking user what to do.`)
-        useBlueOsValue = await askIfUserWantsToUseBlueOsValue()
+      // By default, if there's a conflict, we use the value with the newer epoch
+      let useBlueOsValue = remoteEpoch > localEpoch
+      console.log(`Remote epoch: ${remoteEpoch}, Local epoch: ${localEpoch}, useBlueOsValue: ${useBlueOsValue}`)
+
+      // Only ask user if epochs are equal and values are different
+      if (remoteEpoch === localEpoch && !isEqual(currentValue.value, valueOnBlueOS)) {
+        if (resetJustMade.value) {
+          useBlueOsValue = false
+        } else if (lastConnectedUser === username && lastConnectedVehicleId === currentVehicleId) {
+          console.debug(`Conflict with BlueOS for key '${key}' and equal epochs. Asking user what to do.`)
+          useBlueOsValue = await askIfUserWantsToUseBlueOsValue()
+        }
       }
 
       if (useBlueOsValue) {
         currentValue.value = valueOnBlueOS as T
+        // Update local epoch to match remote
+        localEpochTable.value[key] = remoteEpoch as number
         const message = `Fetched remote value of key ${key} from the vehicle.`
         openSnackbar({ message, duration: 3000, variant: 'success' })
 
-        // TODO: This is a workaround to make the profiles work after an import.
-        // We need to find a better way to handle this, without reloading.
         if (key === savedProfilesKey) {
           await showDialog({
             title: 'Widget profiles imported',
-            message: `The widget profiles have been imported from the vehicle. We need to reload the page to apply the
-            changes.`,
+            message: `The widget profiles have been imported from the vehicle. We need to reload the page to apply the changes.`,
             variant: 'warning',
             actions: [{ text: 'OK', action: closeDialog }],
             timer: 3000,
@@ -208,19 +230,24 @@ export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): Rem
           reloadCockpit()
         }
       } else {
+        // Update both value and epoch on BlueOS
+        const currentEpoch = Date.now()
+        localEpochTable.value[key] = currentEpoch
         await updateValueOnBlueOS(currentValue.value)
         const message = `Pushed local value of key ${key} to the vehicle.`
         openSnackbar({ message, duration: 3000, variant: 'success' })
       }
 
       console.info(`Success syncing '${key}' with BlueOS.`)
-
       finishedInitialFetch.value = true
     } catch (initialSyncError) {
       // If the initial sync fails because there's no value for the key on BlueOS, we can just use the current value
       if ((initialSyncError as Error).name === NoPathInBlueOsErrorName) {
         console.debug(`No value for '${key}' on BlueOS. Using current value. Will push it to BlueOS.`)
         try {
+          // Set initial epoch and push both value and epoch
+          const currentEpoch = Date.now()
+          localEpochTable.value[key] = currentEpoch
           await updateValueOnBlueOS(currentValue.value)
           finishedInitialFetch.value = true
           return
