@@ -3,6 +3,8 @@
 /* eslint-disable max-len */
 import { type ProtocolAction,JoystickProtocol } from '@/types/joystick'
 
+import { setupDataLakeActions } from './predefined-lake-actions'
+
 /**
  * Possible functions in the MAVLink `MANUAL_CONTROL` message protocol
  */
@@ -17,6 +19,8 @@ export enum CockpitActionsFunction {
   start_recording_all_streams = 'start_recording_all_streams',
   stop_recording_all_streams = 'stop_recording_all_streams',
   hold_to_confirm = 'hold_to_confirm',
+  set_camera_zoom = 'set_camera_zoom',
+  set_camera_focus = 'set_camera_focus',
 }
 
 /**
@@ -46,6 +50,8 @@ export const predefinedCockpitActions: { [key in CockpitActionsFunction]: Cockpi
   [CockpitActionsFunction.start_recording_all_streams]: new CockpitAction(CockpitActionsFunction.start_recording_all_streams, 'Start recording all streams'),
   [CockpitActionsFunction.stop_recording_all_streams]: new CockpitAction(CockpitActionsFunction.stop_recording_all_streams, 'Stop recording all streams'),
   [CockpitActionsFunction.hold_to_confirm]: new CockpitAction(CockpitActionsFunction.hold_to_confirm, 'Hold to confirm'),
+  [CockpitActionsFunction.set_camera_zoom]: new CockpitAction(CockpitActionsFunction.set_camera_zoom, 'Set camera zoom'),
+  [CockpitActionsFunction.set_camera_focus]: new CockpitAction(CockpitActionsFunction.set_camera_focus, 'Set camera focus'),
 }
 
 export type CockpitActionCallback = () => void
@@ -129,3 +135,5 @@ export const executeActionCallback = (id: string): void => {
 }
 
 export const availableCockpitActions = cockpitActionsManager.availableActions
+
+setupDataLakeActions()
