@@ -112,7 +112,7 @@
                       borderRadius: '10px',
                     }
                   "
-                  @click="selectSubMenu('config')"
+                  @click="selectSubMenu(availableSubMenusNames.settings)"
                   ><img v-if="!simplifiedMainMenu" :src="SettingsIcon" alt="Settings Icon" />
                 </GlassButton>
                 <GlassButton
@@ -125,13 +125,7 @@
                   :width="buttonSize"
                   :selected="showSubMenu"
                   class="mb-1"
-                  :style="
-                    interfaceStore.highlightedComponent === 'config-menu-item' && {
-                      animation: 'highlightBackground 0.5s alternate 20',
-                      borderRadius: '10px',
-                    }
-                  "
-                  @click="selectSubMenu('tools')"
+                  @click="selectSubMenu(availableSubMenusNames.tools)"
                   ><img v-if="!simplifiedMainMenu" :src="ToolsIcon" alt="Tools Icon" />
                 </GlassButton>
                 <GlassButton
@@ -355,7 +349,7 @@ import GlassButton from './components/GlassButton.vue'
 import MiniWidgetContainer from './components/MiniWidgetContainer.vue'
 import SlideToConfirm from './components/SlideToConfirm.vue'
 import { useSnackbar } from './composables/snackbar'
-import { useAppInterfaceStore } from './stores/appInterface'
+import { availableSubMenusNames, useAppInterfaceStore } from './stores/appInterface'
 import { useMainVehicleStore } from './stores/mainVehicle'
 import { useWidgetManagerStore } from './stores/widgetManager'
 import { SubMenuComponent } from './types/general'
@@ -370,7 +364,6 @@ import ConfigurationUIView from './views/ConfigurationUIView.vue'
 import ConfigurationVideoView from './views/ConfigurationVideoView.vue'
 import ToolsDataLakeView from './views/ToolsDataLakeView.vue'
 import ToolsMAVLinkView from './views/ToolsMAVLinkView.vue'
-
 const { showDialog, closeDialog } = useInteractionDialog()
 const { showSnackbar } = useSnackbar()
 
@@ -380,7 +373,6 @@ const interfaceStore = useAppInterfaceStore()
 
 const showAboutDialog = ref(false)
 const showSubMenu = ref(false)
-const currentSubMenuName = ref<keyof typeof availableSubMenus | null>(null)
 const currentSubMenuComponent = ref<SubMenuComponent>(null)
 const mainMenu = ref()
 
@@ -452,13 +444,13 @@ const toolsMenu = [
 ]
 
 const availableSubMenus = {
-  config: configMenu,
+  settings: configMenu,
   tools: toolsMenu,
 }
 
 const currentSubMenu = computed(() => {
-  if (currentSubMenuName.value === null) return []
-  return availableSubMenus[currentSubMenuName.value]
+  if (interfaceStore.currentSubMenuName === null) return []
+  return availableSubMenus[interfaceStore.currentSubMenuName]
 })
 
 watch(
@@ -469,8 +461,8 @@ watch(
   }
 )
 
-const selectSubMenu = (subMenuName: keyof typeof availableSubMenus): void => {
-  currentSubMenuName.value = subMenuName
+const selectSubMenu = (subMenuName: keyof typeof availableSubMenusNames): void => {
+  interfaceStore.currentSubMenuName = subMenuName
   interfaceStore.mainMenuCurrentStep = 2
 }
 

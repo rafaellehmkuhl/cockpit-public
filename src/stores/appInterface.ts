@@ -1,11 +1,16 @@
 import { useWindowSize } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { watch } from 'vue'
+import { ref, watch } from 'vue'
 
 import { defaultDisplayUnitPreferences } from '@/assets/defaults'
 import { useBlueOsStorage } from '@/composables/settingsSyncer'
 
 const { width: windowWidth, height: windowHeight } = useWindowSize()
+
+export const availableSubMenusNames = {
+  settings: 'settings',
+  tools: 'tools',
+}
 
 export const useAppInterfaceStore = defineStore('responsive', {
   state: () => ({
@@ -25,6 +30,7 @@ export const useAppInterfaceStore = defineStore('responsive', {
     isMainMenuVisible: false,
     mainMenuCurrentStep: 1,
     subMenuComponentName: null,
+    currentSubMenuName: ref<keyof typeof availableSubMenusNames | null>(null),
     isGlassModalAlwaysOnTop: false,
     isTutorialVisible: false,
     userHasSeenTutorial: useBlueOsStorage('cockpit-has-seen-tutorial', false),
