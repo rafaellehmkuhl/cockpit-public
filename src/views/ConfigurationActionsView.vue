@@ -4,7 +4,7 @@
     <template #content>
       <div
         class="flex-col h-full overflow-y-auto ml-[10px] pr-3 -mr-[10px] -mb-[10px]"
-        :class="interfaceStore.isOnSmallScreen ? 'max-w-[80vw] max-h-[90vh]' : 'max-w-[680px] max-h-[85vh]'"
+        :class="interfaceStore.isOnSmallScreen ? 'max-w-[80vw] max-h-[90vh]' : 'max-w-[700px] max-h-[85vh]'"
       >
         <ExpansiblePanel no-top-divider no-bottom-divider :is-expanded="!interfaceStore.isOnPhoneScreen">
           <template #title>Actions</template>
@@ -15,7 +15,7 @@
             <li>JavaScript actions give you full flexibility by allowing you to write custom code.</li>
           </template>
           <template #content>
-            <div class="flex justify-center flex-col ml-2 mb-8 mt-2 w-[640px]">
+            <div class="flex justify-center flex-col ml-2 mb-8 mt-2 w-[660px]">
               <v-data-table
                 :items="allActionConfigs"
                 items-per-page="10"
@@ -50,7 +50,7 @@
                         </p>
                       </div>
                     </td>
-                    <td class="w-[200px] text-right">
+                    <td class="w-[220px] text-right">
                       <div class="flex items-center justify-center">
                         <v-btn
                           variant="outlined"
@@ -58,6 +58,13 @@
                           icon="mdi-pencil"
                           size="x-small"
                           @click="editAction(item)"
+                        />
+                        <v-btn
+                          variant="outlined"
+                          class="rounded-full mx-1"
+                          icon="mdi-link"
+                          size="x-small"
+                          @click="openLinkDialog(item)"
                         />
                         <v-btn
                           variant="outlined"
@@ -140,6 +147,8 @@
           </v-card>
         </v-dialog>
 
+        <ActionLinkConfig ref="linkConfig" />
+
         <!-- Action configuration components with their dialogs -->
         <HttpRequestActionConfig
           ref="httpRequestConfig"
@@ -164,6 +173,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 
+import ActionLinkConfig from '@/components/configuration/ActionLinkConfig.vue'
 import HttpRequestActionConfig from '@/components/configuration/HttpRequestActionConfig.vue'
 import JavascriptActionConfig from '@/components/configuration/JavascriptActionConfig.vue'
 import MavlinkMessageActionConfig from '@/components/configuration/MavlinkMessageActionConfig.vue'
@@ -177,6 +187,7 @@ import {
 import { executeActionCallback } from '@/libs/joystick/protocols/cockpit-actions'
 import { humanizeString } from '@/libs/utils'
 import { useAppInterfaceStore } from '@/stores/appInterface'
+import { ActionConfig, customActionTypes } from '@/types/cockpit-actions'
 
 import BaseConfigurationView from './BaseConfigurationView.vue'
 
@@ -185,43 +196,12 @@ const interfaceStore = useAppInterfaceStore()
 const httpRequestConfig = ref()
 const mavlinkConfig = ref()
 const javascriptConfig = ref()
+const linkConfig = ref()
 
 // Add reactive refs for our action lists
 const httpRequestActions = ref(getAllHttpRequestActionConfigs())
 const mavlinkMessageActions = ref(getAllMavlinkMessageActionConfigs())
 const javascriptActions = ref(getAllJavascriptActionConfigs())
-
-/**
- * Custom action types
- */
-enum customActionTypes {
-  httpRequest = 'http-request',
-  mavlinkMessage = 'mavlink-message',
-  javascript = 'javascript',
-}
-
-/**
- * Action configuration interface
- */
-interface ActionConfig {
-  /**
-   * Action ID
-   */
-  id: string
-  /**
-   * Action name
-   */
-  name: string
-  /**
-   * Action type
-   */
-  type: customActionTypes
-  /**
-   * Action configuration
-   * Specific to the action type
-   */
-  config: any
-}
 
 const allActionConfigs = computed<ActionConfig[]>(() => {
   const configs: ActionConfig[] = []
@@ -388,6 +368,10 @@ const importAction = (): void => {
   }
   input.click()
   input.remove()
+}
+
+const openLinkDialog = (item: ActionConfig): void => {
+  linkConfig.value?.openDialog(item)
 }
 
 onMounted(() => {
