@@ -162,7 +162,7 @@ import {
   getAllMavlinkMessageActionConfigs,
   registerMavlinkMessageActionConfig,
 } from '@/libs/actions/mavlink-message-actions'
-import { executeActionCallback } from '@/libs/joystick/protocols/cockpit-actions'
+import { type ActionConfig, customActionTypes, executeActionCallback } from '@/libs/joystick/protocols/cockpit-actions'
 import { useAppInterfaceStore } from '@/stores/appInterface'
 
 import BaseConfigurationView from './BaseConfigurationView.vue'
@@ -179,44 +179,12 @@ const mavlinkMessageActions = ref(getAllMavlinkMessageActionConfigs())
 const javascriptActions = ref(getAllJavascriptActionConfigs())
 
 /**
- * Custom action types
- */
-enum customActionTypes {
-  httpRequest = 'http-request',
-  mavlinkMessage = 'mavlink-message',
-  javascript = 'javascript',
-}
-
-/**
  * Custom action types names
  */
 const customActionTypesNames: Record<customActionTypes, string> = {
   [customActionTypes.httpRequest]: 'HTTP Request',
   [customActionTypes.mavlinkMessage]: 'MAVLink Message',
   [customActionTypes.javascript]: 'JavaScript',
-}
-
-/**
- * Action configuration interface
- */
-interface ActionConfig {
-  /**
-   * Action ID
-   */
-  id: string
-  /**
-   * Action name
-   */
-  name: string
-  /**
-   * Action type
-   */
-  type: customActionTypes
-  /**
-   * Action configuration
-   * Specific to the action type
-   */
-  config: any
 }
 
 const allActionConfigs = computed<ActionConfig[]>(() => {
