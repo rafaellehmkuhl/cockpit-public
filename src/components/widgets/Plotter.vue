@@ -292,11 +292,17 @@ const renderCanvas = (): void => {
     ctx.beginPath()
     ctx.moveTo(0, canvasHeight / 2)
 
-    valuesHistory.forEach((sample, index) => {
-      const x = index * (canvasWidth / valuesHistory.length)
-      const y = canvasHeight - ((sample - minY) / (maxY - minY)) * canvasHeight
-      ctx.lineTo(x, y)
-    })
+    if (valuesHistory.length === 1) {
+      // Draw a horizontal line at the current value
+      ctx.moveTo(0, canvasHeight / 2)
+      ctx.lineTo(canvasWidth, canvasHeight / 2)
+    } else {
+      valuesHistory.forEach((sample, index) => {
+        const x = index * (canvasWidth / valuesHistory.length)
+        const y = canvasHeight - ((sample - minY) / (maxY - minY)) * canvasHeight
+        ctx.lineTo(x, y)
+      })
+    }
     ctx.stroke()
 
     // Setup text rendering
