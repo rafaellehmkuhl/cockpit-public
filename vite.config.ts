@@ -22,6 +22,10 @@ const baseConfig = {
           vite: {
             build: {
               outDir: 'dist/electron',
+              rollupOptions: {
+                // Explicitly exclude SDL from main process bundling
+                external: ['@kmamal/sdl']
+              }
             },
           },
           onstart: () => {
@@ -67,6 +71,12 @@ const baseConfig = {
       '@': path.resolve(__dirname, 'src'),
     },
   },
+  build: {
+    rollupOptions: {
+      // Exclude the native module from bundling in all builds
+      external: ['@kmamal/sdl']
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',
@@ -74,6 +84,10 @@ const baseConfig = {
   server: {
     host: '0.0.0.0',
   },
+  optimizeDeps: {
+    // Exclude SDL from dependency optimization
+    exclude: ['@kmamal/sdl']
+  }
 }
 
 // Library-specific configuration
@@ -93,7 +107,7 @@ const libraryConfig = {
       },
     },
     rollupOptions: {
-      external: ['vue', 'vuetify'],
+      external: ['vue', 'vuetify', '@kmamal/sdl'],
       output: {
         globals: {
           vue: 'Vue',
