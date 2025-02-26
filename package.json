@@ -20,14 +20,21 @@
     "test:ci": "vitest --coverage --run",
     "test:unit": "vitest",
     "typecheck": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
-    "build:lib": "BUILD_MODE=library vite build"
+    "build:lib": "BUILD_MODE=library vite build",
+    "debug:sdl": "node scripts/test-sdl-node.js",
+    "debug:electron-sdl": "electron scripts/electron-sdl-test.js",
+    "debug:rebuild-sdl": "npm rebuild @kmamal/sdl --update-binary"
   },
+  "trustedDependencies": [
+    "@kmamal/sdl"
+  ],
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^6.4.0",
     "@fortawesome/free-regular-svg-icons": "^6.4.0",
     "@fortawesome/free-solid-svg-icons": "^6.4.0",
     "@fortawesome/vue-fontawesome": "^3.0.3",
     "@j2only/slide-unlock": "^0.5.5",
+    "@kmamal/sdl": "0.10.7",
     "@mdi/font": "^7.4.47",
     "@mdi/js": "^7.4.47",
     "@peermetrics/webrtc-stats": "^5.7.1",
@@ -93,7 +100,7 @@
     "@vue/tsconfig": "^0.1.3",
     "autoprefixer": "^10.4.13",
     "c8": "^7.11.3",
-    "electron": "^29.2.0",
+    "electron": "^34.3.0",
     "electron-builder": "^25.1.8",
     "eslint": "^8.5.0",
     "eslint-plugin-jsdoc": "^43.1.1",
@@ -123,7 +130,9 @@
   },
   "build": {
     "files": [
-      "dist"
+      "dist",
+      "node_modules/@kmamal/sdl/**/*",
+      "scripts/sdl-bridge.js"
     ],
     "appId": "org.bluerobotics.cockpit",
     "productName": "Cockpit",
