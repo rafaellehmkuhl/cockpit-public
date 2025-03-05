@@ -52,7 +52,13 @@ const migrateRenameWidgetTypeOnProfiles = (): void => {
 /**
  * Run all migrations
  */
-export function runMigrations(): void {
+export function runPreLoadMigrations(): void {
   migrateRenameOfLocalStorageKeys()
+}
+
+/**
+ * Run all migrations that are needed after the app has been loaded
+ */
+export function runPostLoadMigrations(): void {
   migrateRenameWidgetTypeOnProfiles()
 }

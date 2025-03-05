@@ -15,7 +15,7 @@ import VueVirtualScroller from 'vue-virtual-scroller'
 
 import { app_version } from '@/libs/cosmos'
 import eventTracker from '@/libs/external-telemetry/event-tracking'
-import { runMigrations } from '@/utils/migrations'
+import { runPostLoadMigrations, runPreLoadMigrations } from '@/utils/migrations'
 
 import App from './App.vue'
 import { setupPostPiniaConnections } from './libs/post-pinia-connections'
@@ -25,7 +25,7 @@ import router from './router'
 import { useOmniscientLoggerStore } from './stores/omniscientLogger'
 
 // Run migrations that are needed for the app to work
-runMigrations()
+runPreLoadMigrations()
 
 library.add(fas, far)
 loadFonts()
@@ -62,3 +62,6 @@ useOmniscientLoggerStore()
 
 // Post-pinia connections setup
 setupPostPiniaConnections()
+
+// Run migrations that are needed for the app to work
+runPostLoadMigrations()
