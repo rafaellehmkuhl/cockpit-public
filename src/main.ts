@@ -1,6 +1,7 @@
 import 'floating-vue/dist/style.css'
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
 import '@/libs/system-logging'
+import './libs/settings-management'
 
 import { library } from '@fortawesome/fontawesome-svg-core'
 import { far } from '@fortawesome/free-regular-svg-icons'
@@ -24,7 +25,6 @@ import vuetify from './plugins/vuetify'
 import { loadFonts } from './plugins/webfontloader'
 import router from './router'
 import { useOmniscientLoggerStore } from './stores/omniscientLogger'
-
 // Run migrations that are needed for the app to work
 runMigrations()
 
