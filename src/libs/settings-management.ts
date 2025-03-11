@@ -1,4 +1,8 @@
 import { getKeyDataFromCockpitVehicleStorage, setKeyDataOnCockpitVehicleStorage } from './blueos'
+import { sleep } from './utils'
+
+// TODO: Create default settings?
+const defaultSettings: VehicleSettings = {}
 
 const localCockpitSettingsKey = 'cockpit-synced-settings'
 const cockpitLastConnectedVehicleKey = 'cockpit-last-connected-vehicle-id'
@@ -45,93 +49,8 @@ export interface LocalSettings {
 }
 
 const localSettings: LocalSettings = {}
-let lastConnectedVehicle: string = nullValue
-let lastConnectedUser: string = nullValue
 let currentUser: string = nullValue
 let currentVehicle: string = nullValue
-
-const validateIndividualSetting = (setting: CockpitSetting): void => {
-  if (setting.epochLastChangedLocally === undefined) {
-    throw new Error('No epoch information for setting.')
-  }
-}
-
-const validateVehicleSettings = (vehicleSettings: VehicleSettings): void => {
-  Object.entries(vehicleSettings).forEach(([key, setting]) => {
-    try {
-      validateIndividualSetting(setting)
-    } catch (error) {
-      console.error(`Could not validate setting for key '${key}'.`, error)
-    }
-  })
-}
-
-const validateUserSettings = (userSettings: UserSettings): void => {
-  Object.entries(userSettings).forEach(([vehicleId, vehicleSettings]) => {
-    try {
-      validateVehicleSettings(vehicleSettings)
-    } catch (error) {
-      console.error(`Could not validate settings for vehicle '${vehicleId}'.`, error)
-    }
-  })
-}
-
-const validateLocalSettings = (settingsToValidate: LocalSettings): void => {
-  Object.entries(settingsToValidate).forEach(([userId, userSettings]) => {
-    try {
-      validateUserSettings(userSettings)
-    } catch (error) {
-      console.error(`Could not validate settings for user '${userId}'.`, error)
-    }
-  })
-}
-
-export const getUserSettings = (userId: string): UserSettings => {
-  return localSettings[userId]
-}
-
-export const setUserSettings = (userId: string, settings: UserSettings): void => {
-  console.log(`Setting user settings for user '${userId}'.`)
-  localSettings[userId] = settings
-  saveLocalSettings()
-}
-
-export const getVehicleSettings = (userId: string, vehicleId: string): VehicleSettings => {
-  return localSettings[userId][vehicleId]
-}
-
-export const setVehicleSettings = (userId: string, vehicleId: string, settings: VehicleSettings): void => {
-  console.log(`Setting vehicle settings for user '${userId}' and vehicle '${vehicleId}'.`)
-  if (!localSettings[userId]) {
-    localSettings[userId] = {}
-  }
-  localSettings[userId][vehicleId] = settings
-  saveLocalSettings()
-}
-
-export const setCurrentUser = (userId: string): void => {
-  console.log('Setting current user to:', userId)
-  currentUser = userId
-  setLastConnectedUser(userId)
-}
-
-export const setCurrentVehicle = (vehicleId: string): void => {
-  console.log('Setting current vehicle to:', vehicleId)
-  currentVehicle = vehicleId
-  setLastConnectedVehicle(vehicleId)
-}
-
-export const setLastConnectedUser = (userId: string): void => {
-  console.log('Setting last connected user to:', userId)
-  lastConnectedUser = userId
-  saveLastConnectedUser(userId)
-}
-
-export const setLastConnectedVehicle = (vehicleId: string): void => {
-  console.log('Setting last connected vehicle to:', vehicleId)
-  lastConnectedVehicle = vehicleId
-  saveLastConnectedVehicle(vehicleId)
-}
 
 export const getCurrentUser = (): string => {
   return currentUser
@@ -141,15 +60,7 @@ export const getCurrentVehicle = (): string => {
   return currentVehicle
 }
 
-export const getLastConnectedUser = (): string => {
-  return lastConnectedUser
-}
-
-export const getLastConnectedVehicle = (): string => {
-  return lastConnectedVehicle
-}
-
-export const getLocalSettings = (): LocalSettings => {
+export const getCurrentLocalSettings = (): LocalSettings => {
   return localSettings
 }
 
@@ -192,21 +103,29 @@ export const deleteKeyValue = (userId: string, vehicleId: string, key: string): 
   saveLocalSettings()
 }
 
-export const getUsersIds = (): string[] => {
-  return Object.keys(localSettings)
-}
-
-export const getVehiclesIds = (userId: string): string[] => {
-  return Object.keys(localSettings[userId])
-}
-
 export const getKeysValues = (userId: string, vehicleId: string): [string, any][] => {
   return Object.entries(localSettings[userId][vehicleId])
+}
+
+const retrieveLocalSettings = (): LocalSettings => {
+  const storedLocalSettings = localStorage.getItem(localCockpitSettingsKey)
+  if (storedLocalSettings) {
+    return JSON.parse(storedLocalSettings)
+  }
+  return {}
 }
 
 const saveLocalSettings = (): void => {
   console.log('Saving local settings.')
   localStorage.setItem(localCockpitSettingsKey, JSON.stringify(localSettings))
+}
+
+const retrieveLastConnectedUser = (): string => {
+  return localStorage.getItem(cockpitLastConnectedUserKey) || nullValue
+}
+
+const retrieveLastConnectedVehicle = (): string => {
+  return localStorage.getItem(cockpitLastConnectedVehicleKey) || nullValue
 }
 
 const saveLastConnectedUser = (userId: string): void => {
@@ -221,27 +140,13 @@ const saveLastConnectedVehicle = (vehicleId: string): void => {
 
 const loadLocalSettings = (): void => {
   console.log('Loading local settings.')
-  const storedLocalSettings = JSON.parse(localStorage.getItem(localCockpitSettingsKey) || '{}')
+  const storedLocalSettings = retrieveLocalSettings()
   console.log('Setting local settings to:', storedLocalSettings)
   setLocalSettings(storedLocalSettings)
 }
 
-const loadLastConnectedVehicle = (): void => {
-  console.log('Loading last connected vehicle.')
-  const storedLastConnectedVehicle = localStorage.getItem(cockpitLastConnectedVehicleKey) || nullValue
-  console.log('Setting last connected vehicle to:', storedLastConnectedVehicle)
-  setLastConnectedVehicle(storedLastConnectedVehicle)
-}
-
-const loadLastConnectedUser = (): void => {
-  console.log('Loading last connected user.')
-  const storedLastConnectedUser = localStorage.getItem(cockpitLastConnectedUserKey) || nullValue
-  console.log('Setting last connected user to:', storedLastConnectedUser)
-  setLastConnectedUser(storedLastConnectedUser)
-}
-
 window.addEventListener('storage', () => {
-  const newSettings = JSON.parse(localStorage.getItem(localCockpitSettingsKey) || '{}')
+  const newSettings = retrieveLocalSettings()
   if (newSettings === localSettings) {
     return
   }
@@ -289,7 +194,7 @@ declare global {
  * Checks if settings 2.0 format exists
  * @returns {boolean} True if settings 2.0 format exists, false otherwise
  */
-const hasSettings2FormatLocally = (): boolean => {
+const hasSettings2Locally = (): boolean => {
   return Object.keys(localSettings).length > 0
 }
 
@@ -321,6 +226,20 @@ const copySettings = (fromUserId: string, fromVehicleId: string, toUserId: strin
     localSettings[toUserId][toVehicleId] = JSON.parse(JSON.stringify(localSettings[fromUserId][fromVehicleId]))
     saveLocalSettings()
   }
+}
+
+/**
+ * Copies default settings to a user/vehicle
+ * @param {string} userId - The user ID to copy settings to
+ * @param {string} vehicleId - The vehicle ID to copy settings to
+ */
+const copyDefaultSettings = (userId: string, vehicleId: string): void => {
+  console.log(`Copying default settings to user=${userId}/vehicle=${vehicleId}`)
+  if (!localSettings[userId]) {
+    localSettings[userId] = {}
+  }
+  localSettings[userId][vehicleId] = defaultSettings
+  saveLocalSettings()
 }
 
 /**
@@ -435,39 +354,73 @@ const syncSettingsWithVehicle = async (userId: string, vehicleId: string, vehicl
   await setKeyDataOnCockpitVehicleStorage(vehicleAddress, 'settings', mergedSettings)
 }
 
+const handleChangingCurrentUserOrVehicle = (): void => {
+  // Load local settings from storage
+  if (localSettings === undefined || localSettings === null || Object.keys(localSettings).length === 0) {
+    loadLocalSettings()
+  }
+
+  const storedLastConnectedUser = retrieveLastConnectedUser()
+  const storedLastConnectedVehicle = retrieveLastConnectedVehicle()
+
+  // Check if we have settings 2.0
+  if (!hasSettings2Locally()) {
+    // No settings 2.0, migrate from settings 1.0
+    migrateSettings1To2(currentUser, currentVehicle)
+  } else {
+    // Have settings 2.0, check if we have settings for current user/vehicle
+    if (hasSettingsForUserAndVehicle(currentUser, currentVehicle)) {
+      // We are good to go
+    } else {
+      // No settings for current user/vehicle, copy from last connected
+      if (hasSettingsForUserAndVehicle(storedLastConnectedUser, storedLastConnectedVehicle)) {
+        copySettings(storedLastConnectedUser, storedLastConnectedVehicle, currentUser, currentVehicle)
+      } else {
+        // No settings for last connected user/vehicle, copy default settings
+        copyDefaultSettings(currentUser, currentVehicle)
+      }
+    }
+    // Update last connected to current
+    saveLastConnectedUser(currentUser)
+    saveLastConnectedVehicle(currentVehicle)
+  }
+}
+
 /**
  * Initialize local settings and set up the state based on the flowchart
  */
 export const initLocalSettings = (): void => {
-  // Load settings and last connected user/vehicle from storage
-  loadLocalSettings()
-  loadLastConnectedUser()
-  loadLastConnectedVehicle()
+  // Load last connected user from storage
+  console.log('Retrieving last connected user.')
+  const storedLastConnectedUser = retrieveLastConnectedUser()
+  console.log('Setting current user to:', storedLastConnectedUser)
+  currentUser = storedLastConnectedUser
 
-  console.log(`Last connected user: ${lastConnectedUser}, Last connected vehicle: ${lastConnectedVehicle}`)
+  // Load last connected vehicle from storage
+  console.log('Retrieving last connected vehicle.')
+  const storedLastConnectedVehicle = retrieveLastConnectedVehicle()
+  console.log('Setting current vehicle to:', storedLastConnectedVehicle)
+  currentVehicle = storedLastConnectedVehicle
 
-  // Check if we have settings 2.0
-  if (!hasSettings2FormatLocally()) {
-    // No settings 2.0, migrate from settings 1.0
-    if (currentUser && currentVehicle) {
-      migrateSettings1To2(currentUser, currentVehicle)
-    }
-  } else if (currentUser && currentVehicle) {
-    // Have settings 2.0, check if we have settings for current user/vehicle
-    if (!hasSettingsForUserAndVehicle(currentUser, currentVehicle)) {
-      // No settings for current user/vehicle, copy from last connected
-      if (
-        lastConnectedUser &&
-        lastConnectedVehicle &&
-        hasSettingsForUserAndVehicle(lastConnectedUser, lastConnectedVehicle)
-      ) {
-        copySettings(lastConnectedUser, lastConnectedVehicle, currentUser, currentVehicle)
+  console.log(`Current user: ${currentUser} / Current vehicle: ${currentVehicle}`)
+
+  handleChangingCurrentUserOrVehicle()
+}
+
+const getVehicleIdFromVehicle = async (vehicleAddress: string): Promise<string> => {
+  let vehicleId = undefined
+  while (vehicleId === undefined) {
+    sleep(1000)
+    try {
+      vehicleId = await getKeyDataFromCockpitVehicleStorage(vehicleAddress, 'cockpit-vehicle-id')
+      if (vehicleId && typeof vehicleId === 'string') {
+        break
       }
+    } catch (error) {
+      console.error(`Failed to get vehicle ID from remote storage for vehicle '${vehicleAddress}'.`, error)
     }
-    // Update last connected to current
-    setLastConnectedUser(currentUser)
-    setLastConnectedVehicle(currentVehicle)
   }
+  return vehicleId
 }
 
 /**
@@ -478,17 +431,16 @@ window.addEventListener('vehicle-online', async (event: VehicleOnlineEvent) => {
   console.log('Vehicle online!')
 
   // Get ID of the connected vehicle
-  const vehicleId = await getKeyDataFromCockpitVehicleStorage(event.detail.vehicleAddress, 'cockpit-vehicle-id')
+  const vehicleId = await getVehicleIdFromVehicle(event.detail.vehicleAddress)
   console.log('Vehicle ID:', vehicleId)
   if (vehicleId && typeof vehicleId === 'string') {
-    setCurrentVehicle(vehicleId)
-
-    // Sync settings if we have a current user
-    const userId = getCurrentUser()
-    if (userId) {
-      await syncSettingsWithVehicle(userId, vehicleId, event.detail.vehicleAddress)
-    }
+    await syncSettingsWithVehicle(currentUser, vehicleId, event.detail.vehicleAddress)
   }
+
+  // Update current vehicle
+  currentVehicle = vehicleId
+
+  handleChangingCurrentUserOrVehicle()
 })
 
 /**
@@ -497,19 +449,101 @@ window.addEventListener('vehicle-online', async (event: VehicleOnlineEvent) => {
  */
 window.addEventListener('user-changed', (event: UserChangedEvent) => {
   console.log('User changed:', event.detail.username)
-  setCurrentUser(event.detail.username)
+  currentUser = event.detail.username
 
-  // Handle user change according to flowchart
-  const vehicle = getCurrentVehicle()
-  if (vehicle && hasSettings2FormatLocally()) {
-    // Check if we have settings for the new user and current vehicle
-    if (!hasSettingsForUserAndVehicle(event.detail.username, vehicle)) {
-      const lastUser = getLastConnectedUser()
-      if (lastUser && hasSettingsForUserAndVehicle(lastUser, vehicle)) {
-        copySettings(lastUser, vehicle, event.detail.username, vehicle)
-      }
+  // Handle user change
+  // Check if we have settings for the new user and current vehicle
+  if (!hasSettingsForUserAndVehicle(currentUser, currentVehicle)) {
+    const lastUser = retrieveLastConnectedUser()
+    if (lastUser && hasSettingsForUserAndVehicle(lastUser, currentVehicle)) {
+      copySettings(lastUser, currentVehicle, currentUser, currentVehicle)
     }
   }
+
+  handleChangingCurrentUserOrVehicle()
 })
 
 initLocalSettings()
+
+// const validateIndividualSetting = (setting: CockpitSetting): void => {
+//   if (setting.epochLastChangedLocally === undefined) {
+//     throw new Error('No epoch information for setting.')
+//   }
+// }
+
+// const validateVehicleSettings = (vehicleSettings: VehicleSettings): void => {
+//   Object.entries(vehicleSettings).forEach(([key, setting]) => {
+//     try {
+//       validateIndividualSetting(setting)
+//     } catch (error) {
+//       console.error(`Could not validate setting for key '${key}'.`, error)
+//     }
+//   })
+// }
+
+// const validateUserSettings = (userSettings: UserSettings): void => {
+//   Object.entries(userSettings).forEach(([vehicleId, vehicleSettings]) => {
+//     try {
+//       validateVehicleSettings(vehicleSettings)
+//     } catch (error) {
+//       console.error(`Could not validate settings for vehicle '${vehicleId}'.`, error)
+//     }
+//   })
+// }
+
+// const validateLocalSettings = (settingsToValidate: LocalSettings): void => {
+//   Object.entries(settingsToValidate).forEach(([userId, userSettings]) => {
+//     try {
+//       validateUserSettings(userSettings)
+//     } catch (error) {
+//       console.error(`Could not validate settings for user '${userId}'.`, error)
+//     }
+//   })
+// }
+
+// export const getUserSettings = (userId: string): UserSettings => {
+//   return localSettings[userId]
+// }
+
+// export const setUserSettings = (userId: string, settings: UserSettings): void => {
+//   console.log(`Setting user settings for user '${userId}'.`)
+//   localSettings[userId] = settings
+//   saveLocalSettings()
+// }
+
+// export const getVehicleSettings = (userId: string, vehicleId: string): VehicleSettings => {
+//   return localSettings[userId][vehicleId]
+// }
+
+// export const setVehicleSettings = (userId: string, vehicleId: string, settings: VehicleSettings): void => {
+//   console.log(`Setting vehicle settings for user '${userId}' and vehicle '${vehicleId}'.`)
+//   if (!localSettings[userId]) {
+//     localSettings[userId] = {}
+//   }
+//   localSettings[userId][vehicleId] = settings
+//   saveLocalSettings()
+// }
+
+// export const setCurrentUser = (userId: string): void => {
+//   console.log('Setting current user to:', userId)
+//   currentUser = userId
+//   setLastConnectedUser(userId)
+// }
+
+// export const setCurrentVehicle = (vehicleId: string): void => {
+//   console.log('Setting current vehicle to:', vehicleId)
+//   currentVehicle = vehicleId
+//   setLastConnectedVehicle(vehicleId)
+// }
+
+// export const setLastConnectedUser = (userId: string): void => {
+//   console.log('Setting last connected user to:', userId)
+//   lastConnectedUser = userId
+//   saveLastConnectedUser(userId)
+// }
+
+// export const setLastConnectedVehicle = (vehicleId: string): void => {
+//   console.log('Setting last connected vehicle to:', vehicleId)
+//   lastConnectedVehicle = vehicleId
+//   saveLastConnectedVehicle(vehicleId)
+// }
