@@ -1,8 +1,10 @@
 import { getKeyDataFromCockpitVehicleStorage, setKeyDataOnCockpitVehicleStorage } from './blueos'
 
 const localCockpitSettingsKey = 'cockpit-synced-settings'
-const cockpitLastConnectedVehicleKey = 'cockpit-last-connected-vehicle'
-const cockpitLastLoggedUserKey = 'cockpit-last-logged-user'
+const cockpitLastConnectedVehicleKey = 'cockpit-last-connected-vehicle-id'
+const cockpitLastConnectedUserKey = 'cockpit-last-connected-user'
+
+const nullValue = 'null'
 
 export type OldCockpitSetting = any
 
@@ -43,10 +45,10 @@ export interface LocalSettings {
 }
 
 const localSettings: LocalSettings = {}
-let lastConnectedVehicle: string | undefined | null = undefined
-let lastLoggedUser: string | undefined | null = undefined
-let currentUser: string | undefined | null = undefined
-let currentVehicle: string | undefined | null = undefined
+let lastConnectedVehicle: string = nullValue
+let lastConnectedUser: string = nullValue
+let currentUser: string = nullValue
+let currentVehicle: string = nullValue
 
 const validateIndividualSetting = (setting: CockpitSetting): void => {
   if (setting.epochLastChangedLocally === undefined) {
@@ -107,45 +109,43 @@ export const setVehicleSettings = (userId: string, vehicleId: string, settings: 
   saveLocalSettings()
 }
 
-export const setCurrentUser = (userId: string | null): void => {
+export const setCurrentUser = (userId: string): void => {
   console.log('Setting current user to:', userId)
   currentUser = userId
-  setLastLoggedUser(userId)
+  setLastConnectedUser(userId)
 }
 
-export const setCurrentVehicle = (vehicleId: string | null): void => {
+export const setCurrentVehicle = (vehicleId: string): void => {
   console.log('Setting current vehicle to:', vehicleId)
   currentVehicle = vehicleId
   setLastConnectedVehicle(vehicleId)
 }
 
-export const setLastLoggedUser = (userId: string | null): void => {
-  console.log('Setting last user to:', userId)
-  lastLoggedUser = userId
-  saveLastLoggedUser(userId)
-  saveLocalSettings()
+export const setLastConnectedUser = (userId: string): void => {
+  console.log('Setting last connected user to:', userId)
+  lastConnectedUser = userId
+  saveLastConnectedUser(userId)
 }
 
-export const setLastConnectedVehicle = (vehicleId: string | null): void => {
+export const setLastConnectedVehicle = (vehicleId: string): void => {
   console.log('Setting last connected vehicle to:', vehicleId)
   lastConnectedVehicle = vehicleId
   saveLastConnectedVehicle(vehicleId)
-  saveLocalSettings()
 }
 
-export const getCurrentUser = (): string | undefined | null => {
+export const getCurrentUser = (): string => {
   return currentUser
 }
 
-export const getCurrentVehicle = (): string | undefined | null => {
+export const getCurrentVehicle = (): string => {
   return currentVehicle
 }
 
-export const getLastLoggedUser = (): string | undefined | null => {
-  return lastLoggedUser
+export const getLastConnectedUser = (): string => {
+  return lastConnectedUser
 }
 
-export const getLastConnectedVehicle = (): string | undefined | null => {
+export const getLastConnectedVehicle = (): string => {
   return lastConnectedVehicle
 }
 
@@ -209,28 +209,35 @@ const saveLocalSettings = (): void => {
   localStorage.setItem(localCockpitSettingsKey, JSON.stringify(localSettings))
 }
 
-const saveLastLoggedUser = (userId: string | null): void => {
-  console.log('Saving last logged user:', userId)
-  localStorage.setItem(cockpitLastLoggedUserKey, userId || '')
+const saveLastConnectedUser = (userId: string): void => {
+  console.log('Saving last connected user:', userId)
+  localStorage.setItem(cockpitLastConnectedUserKey, userId)
 }
 
-const saveLastConnectedVehicle = (vehicleId: string | null): void => {
+const saveLastConnectedVehicle = (vehicleId: string): void => {
   console.log('Saving last connected vehicle:', vehicleId)
-  localStorage.setItem(cockpitLastConnectedVehicleKey, vehicleId || '')
+  localStorage.setItem(cockpitLastConnectedVehicleKey, vehicleId)
 }
 
 const loadLocalSettings = (): void => {
-  const settings = JSON.parse(localStorage.getItem(localCockpitSettingsKey) || '{}')
-  console.log('Loading local settings:', settings)
-  setLocalSettings(settings)
-  if (settings.lastConnectedVehicle) {
-    console.log('Setting last connected vehicle to:', settings.lastConnectedVehicle)
-    setLastConnectedVehicle(settings.lastConnectedVehicle)
-  }
-  if (settings.lastLoggedUser) {
-    console.log('Setting last user to:', settings.lastLoggedUser)
-    setLastLoggedUser(settings.lastLoggedUser)
-  }
+  console.log('Loading local settings.')
+  const storedLocalSettings = JSON.parse(localStorage.getItem(localCockpitSettingsKey) || '{}')
+  console.log('Setting local settings to:', storedLocalSettings)
+  setLocalSettings(storedLocalSettings)
+}
+
+const loadLastConnectedVehicle = (): void => {
+  console.log('Loading last connected vehicle.')
+  const storedLastConnectedVehicle = localStorage.getItem(cockpitLastConnectedVehicleKey) || nullValue
+  console.log('Setting last connected vehicle to:', storedLastConnectedVehicle)
+  setLastConnectedVehicle(storedLastConnectedVehicle)
+}
+
+const loadLastConnectedUser = (): void => {
+  console.log('Loading last connected user.')
+  const storedLastConnectedUser = localStorage.getItem(cockpitLastConnectedUserKey) || nullValue
+  console.log('Setting last connected user to:', storedLastConnectedUser)
+  setLastConnectedUser(storedLastConnectedUser)
 }
 
 window.addEventListener('storage', () => {
@@ -249,8 +256,6 @@ type VehicleOnlineEvent = CustomEvent<{
    */
   vehicleAddress: string
 }>
-
-type VehicleOfflineEvent = Event
 
 type UserChangedEvent = CustomEvent<{
   /**
@@ -273,10 +278,6 @@ declare global {
     // eslint-disable-next-line jsdoc/require-jsdoc
     'vehicle-online': VehicleOnlineEvent
     /**
-     * Event triggered when a vehicle goes offline
-     */
-    'vehicle-offline': VehicleOfflineEvent
-    /**
      * Event triggered when the user changes
      */
     // eslint-disable-next-line jsdoc/require-jsdoc
@@ -288,7 +289,7 @@ declare global {
  * Checks if settings 2.0 format exists
  * @returns {boolean} True if settings 2.0 format exists, false otherwise
  */
-const hasSettings2Format = (): boolean => {
+const hasSettings2FormatLocally = (): boolean => {
   return Object.keys(localSettings).length > 0
 }
 
@@ -333,7 +334,7 @@ const migrateSettings1To2 = (userId: string, vehicleId: string): void => {
   const cockpitKeys = Object.keys(localStorage).filter((key) => key.startsWith('cockpit'))
 
   // Skip the keys we already use for settings 2.0
-  const ignoredKeys = [localCockpitSettingsKey, cockpitLastConnectedVehicleKey, cockpitLastLoggedUserKey]
+  const ignoredKeys = [localCockpitSettingsKey, cockpitLastConnectedVehicleKey, cockpitLastConnectedUserKey]
   const oldSettingsKeys = cockpitKeys.filter((key) => !ignoredKeys.includes(key))
 
   // Create empty settings if they don't exist
@@ -431,7 +432,6 @@ const syncSettingsWithVehicle = async (userId: string, vehicleId: string, vehicl
   localSettings[userId][vehicleId] = mergedSettings
   saveLocalSettings()
 
-  // TODO: Save merged settings back to vehicle
   await setKeyDataOnCockpitVehicleStorage(vehicleAddress, 'settings', mergedSettings)
 }
 
@@ -441,24 +441,13 @@ const syncSettingsWithVehicle = async (userId: string, vehicleId: string, vehicl
 export const initLocalSettings = (): void => {
   // Load settings and last connected user/vehicle from storage
   loadLocalSettings()
+  loadLastConnectedUser()
+  loadLastConnectedVehicle()
 
-  // Get last connected user and vehicle
-  lastLoggedUser = localStorage.getItem(cockpitLastLoggedUserKey) || null
-  lastConnectedVehicle = localStorage.getItem(cockpitLastConnectedVehicleKey) || null
-
-  console.log(`Last logged user: ${lastLoggedUser}, Last connected vehicle: ${lastConnectedVehicle}`)
-
-  // Set current user and vehicle to last connected
-  if (lastLoggedUser) {
-    setCurrentUser(lastLoggedUser)
-  }
-
-  if (lastConnectedVehicle) {
-    setCurrentVehicle(lastConnectedVehicle)
-  }
+  console.log(`Last connected user: ${lastConnectedUser}, Last connected vehicle: ${lastConnectedVehicle}`)
 
   // Check if we have settings 2.0
-  if (!hasSettings2Format()) {
+  if (!hasSettings2FormatLocally()) {
     // No settings 2.0, migrate from settings 1.0
     if (currentUser && currentVehicle) {
       migrateSettings1To2(currentUser, currentVehicle)
@@ -468,15 +457,15 @@ export const initLocalSettings = (): void => {
     if (!hasSettingsForUserAndVehicle(currentUser, currentVehicle)) {
       // No settings for current user/vehicle, copy from last connected
       if (
-        lastLoggedUser &&
+        lastConnectedUser &&
         lastConnectedVehicle &&
-        hasSettingsForUserAndVehicle(lastLoggedUser, lastConnectedVehicle)
+        hasSettingsForUserAndVehicle(lastConnectedUser, lastConnectedVehicle)
       ) {
-        copySettings(lastLoggedUser, lastConnectedVehicle, currentUser, currentVehicle)
+        copySettings(lastConnectedUser, lastConnectedVehicle, currentUser, currentVehicle)
       }
     }
     // Update last connected to current
-    setLastLoggedUser(currentUser)
+    setLastConnectedUser(currentUser)
     setLastConnectedVehicle(currentVehicle)
   }
 }
@@ -503,14 +492,6 @@ window.addEventListener('vehicle-online', async (event: VehicleOnlineEvent) => {
 })
 
 /**
- * Event handler for when a vehicle goes offline
- */
-window.addEventListener('vehicle-offline', () => {
-  console.log('Vehicle offline!')
-  setCurrentVehicle(null)
-})
-
-/**
  * Event handler for when the user changes
  * @param event - The custom event containing username
  */
@@ -520,10 +501,10 @@ window.addEventListener('user-changed', (event: UserChangedEvent) => {
 
   // Handle user change according to flowchart
   const vehicle = getCurrentVehicle()
-  if (vehicle && hasSettings2Format()) {
+  if (vehicle && hasSettings2FormatLocally()) {
     // Check if we have settings for the new user and current vehicle
     if (!hasSettingsForUserAndVehicle(event.detail.username, vehicle)) {
-      const lastUser = getLastLoggedUser()
+      const lastUser = getLastConnectedUser()
       if (lastUser && hasSettingsForUserAndVehicle(lastUser, vehicle)) {
         copySettings(lastUser, vehicle, event.detail.username, vehicle)
       }
