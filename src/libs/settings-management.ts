@@ -345,6 +345,11 @@ const syncSettingsWithVehicle = async (userId: string, vehicleId: string, vehicl
     } else {
       mergedSettings[key] = localSetting
     }
+
+    // If the epochLastChangedLocally is undefined, set it to the current time
+    if (mergedSettings[key].epochLastChangedLocally === undefined) {
+      mergedSettings[key].epochLastChangedLocally = Date.now()
+    }
   })
 
   // Update local settings with merged settings
@@ -413,6 +418,7 @@ const getVehicleIdFromVehicle = async (vehicleAddress: string): Promise<string> 
     sleep(1000)
     try {
       vehicleId = await getKeyDataFromCockpitVehicleStorage(vehicleAddress, 'cockpit-vehicle-id')
+      console.log('Vehicle ID:', vehicleId)
       if (vehicleId && typeof vehicleId === 'string') {
         break
       }
