@@ -1,8 +1,10 @@
-import { getKeyDataFromCockpitVehicleStorage } from './blueos'
+import { getKeyDataFromCockpitVehicleStorage, setKeyDataOnCockpitVehicleStorage } from './blueos'
 
 const localCockpitSettingsKey = 'cockpit-synced-settings'
 const cockpitLastConnectedVehicleKey = 'cockpit-last-connected-vehicle'
 const cockpitLastLoggedUserKey = 'cockpit-last-logged-user'
+
+export type OldCockpitSetting = any
 
 /**
  * An individual setting for a vehicle/user pair
@@ -327,8 +329,12 @@ const copySettings = (fromUserId: string, fromVehicleId: string, toUserId: strin
  */
 const migrateSettings1To2 = (userId: string, vehicleId: string): void => {
   console.log(`Migrating settings 1.0 to 2.0 for user=${userId}/vehicle=${vehicleId}`)
-  // TODO: Implement the actual migration logic from settings 1.0
-  // This is a placeholder for the actual migration logic
+  // Get all keys from localStorage that start with "cockpit-"
+  const cockpitKeys = Object.keys(localStorage).filter((key) => key.startsWith('cockpit'))
+
+  // Skip the keys we already use for settings 2.0
+  const ignoredKeys = [localCockpitSettingsKey, cockpitLastConnectedVehicleKey, cockpitLastLoggedUserKey]
+  const oldSettingsKeys = cockpitKeys.filter((key) => !ignoredKeys.includes(key))
 
   // Create empty settings if they don't exist
   if (!localSettings[userId]) {
@@ -336,6 +342,25 @@ const migrateSettings1To2 = (userId: string, vehicleId: string): void => {
   }
   if (!localSettings[userId][vehicleId]) {
     localSettings[userId][vehicleId] = {}
+  }
+
+  // For each settings key, migrate it to the new format
+  for (const key of oldSettingsKeys) {
+    try {
+      const value = JSON.parse(localStorage.getItem(key) || '')
+      if (value) {
+        // Create a new setting with current epoch time
+        const newSetting: CockpitSetting = {
+          epochLastChangedLocally: Date.now(),
+          value: value,
+        }
+
+        // Add to the user/vehicle settings
+        localSettings[userId][vehicleId][key] = newSetting
+      }
+    } catch (error) {
+      console.error(`Failed to migrate setting ${key}:`, error)
+    }
   }
 
   saveLocalSettings()
@@ -353,6 +378,7 @@ const syncSettingsWithVehicle = async (userId: string, vehicleId: string, vehicl
 
   // Get settings from vehicle
   const vehicleSettings = await getKeyDataFromCockpitVehicleStorage(vehicleAddress, 'settings')
+
   if (!vehicleSettings) {
     console.error(`No settings found on vehicle '${vehicleId}'.`)
     return
@@ -372,28 +398,32 @@ const syncSettingsWithVehicle = async (userId: string, vehicleId: string, vehicl
   }
 
   const localUserVehicleSettings = localSettings[userId][vehicleId]
+
   // Cast vehicleUserSettings to the right type since we don't know its exact structure
-  const vehicleUserSettings = vehicleSettings[userId] as Record<string, CockpitSetting>
+  const vehicleUserSettings = vehicleSettings[userId] as Record<string, CockpitSetting | OldCockpitSetting>
 
   // Merge settings, keeping the most recent based on epoch time
   const mergedSettings: VehicleSettings = {}
 
   // Process all keys from local settings
-  Object.entries(localUserVehicleSettings).forEach(([key, localSetting]) => {
+  Object.entries({ ...localUserVehicleSettings, ...vehicleUserSettings }).forEach(([key, localSetting]) => {
     const vehicleSetting = vehicleUserSettings[key]
-    if (vehicleSetting && vehicleSetting.epochLastChangedLocally > localSetting.epochLastChangedLocally) {
-      // Vehicle setting is newer
+    // If one of the settings is undefined, we use the other one
+    // Otherwise, if the local setting is in the new type and the vehicle setting is in the old type, we use the local setting
+    // Otherwise, if the local setting is in the old type and the vehicle setting is in the new type, we use the vehicle setting
+    // Otherwise, if both settings are defined and in the new type, we use the one with the most recent epoch time
+    if (vehicleSetting === undefined) {
+      mergedSettings[key] = localSetting
+    } else if (localSetting === undefined) {
+      mergedSettings[key] = vehicleSetting
+    } else if (
+      vehicleSetting !== undefined &&
+      vehicleSetting.epochLastChangedLocally &&
+      vehicleSetting.epochLastChangedLocally > localSetting.epochLastChangedLocally
+    ) {
       mergedSettings[key] = vehicleSetting
     } else {
-      // Local setting is newer or vehicle doesn't have this setting
       mergedSettings[key] = localSetting
-    }
-  })
-
-  // Process keys from vehicle settings that are not in local settings
-  Object.entries(vehicleUserSettings).forEach(([key, vehicleSetting]) => {
-    if (!localUserVehicleSettings[key]) {
-      mergedSettings[key] = vehicleSetting
     }
   })
 
@@ -402,6 +432,7 @@ const syncSettingsWithVehicle = async (userId: string, vehicleId: string, vehicl
   saveLocalSettings()
 
   // TODO: Save merged settings back to vehicle
+  await setKeyDataOnCockpitVehicleStorage(vehicleAddress, 'settings', mergedSettings)
 }
 
 /**
