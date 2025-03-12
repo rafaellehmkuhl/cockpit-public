@@ -2,6 +2,7 @@ import { createRouter, createWebHashHistory, createWebHistory } from 'vue-router
 
 import AboutViewVue from '../views/AboutView.vue'
 import MissionPlanningView from '../views/MissionPlanningView.vue'
+import SettingsTestView from '../views/SettingsTestView.vue'
 import WidgetsView from '../views/WidgetsView.vue'
 
 const router = createRouter({
@@ -23,6 +24,11 @@ const router = createRouter({
       path: '/about',
       name: 'about',
       component: AboutViewVue,
+    },
+    {
+      path: '/settings-test',
+      name: 'settings-sync-test',
+      component: SettingsTestView,
     },
   ],
 })
