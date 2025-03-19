@@ -316,6 +316,7 @@
   <ActionDiscoveryModal auto-check-on-mount />
   <UpdateNotification v-if="isElectron()" />
   <SnackbarContainer />
+  <LocalStorageMonitor />
 </template>
 
 <script setup lang="ts">
@@ -333,6 +334,7 @@ import SettingsIcon from '@/assets/icons/settings.svg'
 import ToolsIcon from '@/assets/icons/tools.svg'
 import ActionDiscoveryModal from '@/components/ActionDiscoveryModal.vue'
 import GlassModal from '@/components/GlassModal.vue'
+import LocalStorageMonitor from '@/components/LocalStorageMonitor.vue'
 import SnackbarContainer from '@/components/SnackbarContainer.vue'
 import Tutorial from '@/components/Tutorial.vue'
 import UpdateNotification from '@/components/UpdateNotification.vue'
