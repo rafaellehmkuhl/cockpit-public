@@ -105,6 +105,12 @@ export const useMissionStore = defineStore('mission', () => {
     return waypointIndex !== -1 ? waypointIndex + 1 : ''
   }
 
+  watch(
+    username,
+    () => window.dispatchEvent(new CustomEvent('user-changed', { detail: { username: username.value } })),
+    { immediate: true }
+  )
+
   return {
     username,
     lastConnectedUser,

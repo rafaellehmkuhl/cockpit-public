@@ -160,6 +160,11 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
   })
 
   watch(isVehicleOnline, (isOnline) => {
+    if (isOnline) {
+      dispatchEvent(new CustomEvent('vehicle-online', { detail: { vehicleAddress: globalAddress.value } }))
+    } else {
+      dispatchEvent(new CustomEvent('vehicle-offline'))
+    }
     if (isOnline) return
     currentlyConnectedVehicleId.value = undefined
   })
