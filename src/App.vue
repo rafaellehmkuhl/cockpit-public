@@ -315,6 +315,7 @@
   <VehicleDiscoveryDialog v-model="showDiscoveryDialog" show-auto-search-option />
   <UpdateNotification v-if="isElectron()" />
   <SnackbarContainer />
+  <LocalStorageMonitor />
 </template>
 
 <script setup lang="ts">
@@ -331,6 +332,7 @@ import MissionPlanningIcon from '@/assets/icons/mission-planning.svg'
 import SettingsIcon from '@/assets/icons/settings.svg'
 import ToolsIcon from '@/assets/icons/tools.svg'
 import GlassModal from '@/components/GlassModal.vue'
+import LocalStorageMonitor from '@/components/LocalStorageMonitor.vue'
 import SnackbarContainer from '@/components/SnackbarContainer.vue'
 import Tutorial from '@/components/Tutorial.vue'
 import UpdateNotification from '@/components/UpdateNotification.vue'
