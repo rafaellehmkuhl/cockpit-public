@@ -1,4 +1,6 @@
 import { type RemovableRef, useStorage } from '@vueuse/core'
+import { diff } from 'jest-diff'
+import { format as prettyFormat } from 'pretty-format'
 import { type MaybeRef, ref, unref, watch } from 'vue'
 
 import { getKeyDataFromCockpitVehicleStorage } from '@/libs/blueos'
@@ -42,42 +44,59 @@ const getVehicleAddress = async (): Promise<string> => {
  * @returns { RemovableRef<T> }
  */
 export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): RemovableRef<T> {
-  const primitiveDefaultValue = unref(defaultValue)
-  const currentValue = ref<T | undefined>(undefined)
+  const unrefedDefaultValue = unref(defaultValue)
   const valueOnLocalStorage = getKeyValue(key)
+  let watchUpdaterTimeout: ReturnType<typeof setTimeout> | undefined = undefined
+  let valueToBeUsedOnStart: T | undefined = undefined
 
   if (valueOnLocalStorage === undefined) {
-    setKeyValue(key, primitiveDefaultValue)
-    currentValue.value = primitiveDefaultValue as T
+    setKeyValue(key, unrefedDefaultValue)
+    valueToBeUsedOnStart = unrefedDefaultValue as T
   } else {
-    currentValue.value = valueOnLocalStorage as T
+    valueToBeUsedOnStart = valueOnLocalStorage as T
   }
 
-  watch(
-    currentValue,
-    async (newValue, oldValue) => {
-      if (isEqual(newValue, oldValue)) return
+  let oldRefedValue: T | undefined = JSON.parse(JSON.stringify(valueToBeUsedOnStart))
+  const refedValue = ref<T | undefined>(valueToBeUsedOnStart)
 
-      const stringValue = JSON.stringify(newValue, null, 2)
-      console.log(`settingsSyncer: Key ${key} changed on watch. New value is ${stringValue}.`)
-      setKeyValue(key, newValue)
+  watch(
+    refedValue,
+    () => {
+      const isTheSameObject = Object.is(refedValue.value, oldRefedValue)
+      const hasTheSameSerialization = prettyFormat(refedValue.value) === prettyFormat(oldRefedValue)
+
+      if (isTheSameObject || hasTheSameSerialization) {
+        console.log(`settingsSyncer: Watch for key ${key} activated, but no changes in the value were detected.`)
+        return
+      }
+
+      if (watchUpdaterTimeout) {
+        clearTimeout(watchUpdaterTimeout)
+      }
+
+      watchUpdaterTimeout = setTimeout(() => {
+        const diffInValue = diff(oldRefedValue, refedValue.value, { expand: false, contextLines: 3 })
+        console.log(`settingsSyncer: Key ${key} changed on watch:\n${diffInValue}.`)
+        setKeyValue(key, refedValue.value)
+        oldRefedValue = JSON.parse(JSON.stringify(refedValue.value)) as T
+      }, 2000)
     },
     { deep: true }
   )
 
   registerListener(key, () => {
     const newValue = getKeyValue(key)
-    if (newValue === currentValue.value) return
-
-    if (newValue === undefined) {
-      setKeyValue(key, primitiveDefaultValue)
-      currentValue.value = primitiveDefaultValue as T
-    } else {
-      currentValue.value = newValue as T
+    if (isEqual(newValue, refedValue.value)) {
+      console.log(`settingsSyncer: Listener for key ${key} activated, but no changes in the value were detected.`)
+      return
     }
+
+    setKeyValue(key, newValue)
+    refedValue.value = newValue as T
+    oldRefedValue = JSON.parse(JSON.stringify(refedValue.value)) as T
   })
 
-  return currentValue as RemovableRef<T>
+  return refedValue as RemovableRef<T>
 }
 
 export const getSettingsUsernamesFromBlueOS = async (): Promise<string[]> => {
