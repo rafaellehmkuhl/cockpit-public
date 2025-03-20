@@ -7,7 +7,7 @@ import { useAppInterfaceStore } from '@/stores/appInterface'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 import { useMissionStore } from '@/stores/mission'
 
-import { getKeyValue } from './settings-management'
+import { getKeyValue, setKeyValue } from './settings-management'
 import { unitAbbreviation } from './units'
 import { degrees } from './utils'
 /**
@@ -33,6 +33,10 @@ export enum DatalogVariable {
 
 const logDateFormat = 'LLL dd, yyyy'
 const { showDialog } = useInteractionDialog()
+
+const telemetryDisplayDataKey = 'cockpit-datalogger-overlay-grid'
+const telemetryDisplayOptionsKey = 'cockpit-datalogger-overlay-options'
+const logIntervalKey = 'cockpit-datalogger-log-interval'
 
 /**
  * Data for VeryGenericIndicator variables
@@ -199,9 +203,8 @@ class DataLogger {
   datetimeLastLogPoint: Date | null = null
   variablesBeingUsed: DatalogVariable[] = []
   veryGenericIndicators: VeryGenericData[] = []
-  telemetryDisplayData = (getKeyValue('cockpit-datalogger-overlay-grid') ||
-    defaultSensorDataloggerProfile) as OverlayGrid
-  telemetryDisplayOptions = (getKeyValue('cockpit-datalogger-overlay-options') || {
+  telemetryDisplayData = (getKeyValue(telemetryDisplayDataKey) || defaultSensorDataloggerProfile) as OverlayGrid
+  telemetryDisplayOptions = (getKeyValue(telemetryDisplayOptionsKey) || {
     fontSize: 30,
     fontColor: '#FFFFFFFF',
     backgroundColor: '#000000FF',
@@ -214,7 +217,7 @@ class DataLogger {
     fontUnderline: false,
     fontStrikeout: false,
   }) as OverlayOptions
-  logInterval = (getKeyValue('cockpit-datalogger-log-interval') || 1000) as number
+  logInterval = (getKeyValue(logIntervalKey) || 1000) as number
 
   cockpitLogsDB = localforage.createInstance({
     driver: localforage.INDEXEDDB,
@@ -350,10 +353,7 @@ class DataLogger {
    * @returns {boolean}
    */
   logging(): boolean {
-    return (
-      this.datetimeLastLogPoint !== null &&
-      this.datetimeLastLogPoint > new Date(Date.now() - this.logInterval * 2)
-    )
+    return this.datetimeLastLogPoint !== null && this.datetimeLastLogPoint > new Date(Date.now() - this.logInterval * 2)
   }
 
   /**
@@ -367,6 +367,15 @@ class DataLogger {
     }
 
     this.logInterval = interval
+    setKeyValue(logIntervalKey, interval)
+  }
+
+  /**
+   * Get the frequency of log points
+   * @returns {number} The frequency in hertz
+   */
+  getFrequency(): number {
+    return 1000 / this.logInterval
   }
 
   /**
@@ -380,6 +389,24 @@ class DataLogger {
     }
 
     this.setInterval(1000 / frequency)
+  }
+
+  /**
+   * Update the telemetry display data
+   * @param {OverlayGrid} data - The new data
+   */
+  updateTelemetryDisplayData(data: OverlayGrid): void {
+    this.telemetryDisplayData = data
+    setKeyValue(telemetryDisplayDataKey, data)
+  }
+
+  /**
+   * Update the telemetry display options
+   * @param {OverlayOptions} options - The new options
+   */
+  updateTelemetryDisplayOptions(options: OverlayOptions): void {
+    this.telemetryDisplayOptions = options
+    setKeyValue(telemetryDisplayOptionsKey, options)
   }
 
   /**
