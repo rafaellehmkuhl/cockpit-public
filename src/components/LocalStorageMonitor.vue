@@ -4,9 +4,24 @@
       <h2>LocalStorage Monitor: cockpit-synced-settings</h2>
       <div class="version-info">
         <span>Total versions: {{ versions.length }}</span>
-        <span class="monitor-note">(Persisted between app boots)</span>
-        <v-btn density="compact" @click="clearVersions">Clear Versions</v-btn>
-        <v-btn density="compact" color="warning" @click="clearAllHistory">Clear History</v-btn>
+        <span class="monitor-note">(Persisted between app boots using IndexedDB)</span>
+        <v-btn
+          density="compact"
+          @click="clearVersions"
+          :loading="isLoading"
+          :disabled="isLoading"
+        >
+          Clear Versions
+        </v-btn>
+        <v-btn
+          density="compact"
+          color="warning"
+          @click="clearAllHistory"
+          :loading="isLoading"
+          :disabled="isLoading"
+        >
+          Clear History
+        </v-btn>
         <v-btn density="compact" color="error" @click="isOpen = false">Close</v-btn>
       </div>
     </div>
@@ -40,6 +55,11 @@
 
     <div v-else class="no-changes">
       <p>No changes detected yet. Waiting for localStorage updates...</p>
+    </div>
+
+    <div v-if="isLoading" class="loading-overlay">
+      <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
+      <p>Loading data...</p>
     </div>
   </div>
 
@@ -78,6 +98,7 @@ export default defineComponent({
   setup() {
     const isOpen = ref(false) // Initially closed
     const isCollapsed = reactive<Record<number, boolean>>({}) // Track collapsed state of each diff
+    const isLoading = ref(false) // Loading state for async operations
 
     /**
      * Reversed list of versions for display (excluding the initial version)
@@ -163,10 +184,33 @@ export default defineComponent({
 
     /**
      * Clear all version history including from persistent storage
+     * Now uses IndexedDB instead of localStorage
      */
-    const clearAllHistory = (): void => {
+    const clearAllHistory = async (): Promise<void> => {
       if (confirm('Are you sure you want to clear all version history? This cannot be undone.')) {
-        clearAllVersionsHistory()
+        isLoading.value = true
+        try {
+          await clearAllVersionsHistory()
+        } catch (error) {
+          console.error('Error clearing all version history:', error)
+        } finally {
+          isLoading.value = false
+        }
+      }
+    }
+
+    /**
+     * Clear versions but keep current value as initial version
+     * Now uses IndexedDB instead of localStorage
+     */
+    const handleClearVersions = async (): Promise<void> => {
+      isLoading.value = true
+      try {
+        await clearVersions()
+      } catch (error) {
+        console.error('Error clearing versions:', error)
+      } finally {
+        isLoading.value = false
       }
     }
 
@@ -200,11 +244,12 @@ export default defineComponent({
       getVersionDiff,
       getVersionChangeCount,
       toggleCollapse,
-      clearVersions,
+      clearVersions: handleClearVersions,
       clearAllHistory,
       formatTimestamp,
       formatDiff,
-      isOpen
+      isOpen,
+      isLoading
     }
   }
 })
@@ -344,6 +389,21 @@ export default defineComponent({
   height: 200px;
   background-color: #1e1e1e;
   border-radius: 4px;
+}
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  gap: 20px;
 }
 
 .open-button-container {

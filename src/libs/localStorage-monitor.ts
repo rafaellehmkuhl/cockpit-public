@@ -13,11 +13,17 @@ export interface VersionData {
    * Timestamp when this version was recorded
    */
   timestamp: number
+  /**
+   * Unique ID for the version in IndexedDB
+   */
+  id?: number
 }
 
 // Constants
 const LOCAL_STORAGE_KEY = 'cockpit-synced-settings'
-const VERSIONS_STORAGE_KEY = 'cockpit-synced-settings-versions'
+const DB_NAME = 'cockpit-monitor-db'
+const DB_VERSION = 1
+const VERSIONS_STORE_NAME = 'versions'
 
 // Reactive state that stores all versions
 export const versions = ref<VersionData[]>([])
@@ -28,28 +34,81 @@ export const diffCache = reactive<Record<number, string>>({})
 // Cache for change counts
 export const changeCountCache = reactive<Record<number, { additions: number; removals: number }>>({})
 
+// IndexedDB instance
+let db: IDBDatabase | null = null
+
 // Interval ID for cleanup
 let checkIntervalId: ReturnType<typeof setInterval> | null = null
 let diffCalculationTimeoutId: ReturnType<typeof setTimeout> | null = null
 
 /**
- * Loads versions from localStorage
+ * Opens the IndexedDB database
+ * @returns Promise that resolves when the database is open
  */
-const loadVersionsFromStorage = (): void => {
+const openDatabase = (): Promise<IDBDatabase> => {
+  return new Promise((resolve, reject) => {
+    if (db) {
+      resolve(db)
+      return
+    }
+
+    const request = indexedDB.open(DB_NAME, DB_VERSION)
+
+    request.onerror = (event) => {
+      console.error('Error opening IndexedDB:', event)
+      reject(new Error('Could not open IndexedDB'))
+    }
+
+    request.onsuccess = (event) => {
+      db = (event.target as IDBOpenDBRequest).result
+      resolve(db)
+    }
+
+    request.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result
+
+      // Create object store for versions if it doesn't exist
+      if (!db.objectStoreNames.contains(VERSIONS_STORE_NAME)) {
+        // Use auto-incrementing key for ID
+        const store = db.createObjectStore(VERSIONS_STORE_NAME, { keyPath: 'id', autoIncrement: true })
+
+        // Create an index on timestamp for quick retrieval
+        store.createIndex('timestamp', 'timestamp', { unique: false })
+
+        console.log('Created versions object store in IndexedDB')
+      }
+    }
+  })
+}
+
+/**
+ * Loads versions from IndexedDB
+ */
+const loadVersionsFromDB = async (): Promise<void> => {
   try {
-    const storedVersions = localStorage.getItem(VERSIONS_STORAGE_KEY)
-    if (storedVersions) {
-      const parsedVersions = JSON.parse(storedVersions) as VersionData[]
-      // Only set if we have valid versions
-      if (Array.isArray(parsedVersions) && parsedVersions.length > 0) {
-        versions.value = parsedVersions
-        console.log(`Loaded ${parsedVersions.length} versions from localStorage`)
+    const database = await openDatabase()
+    const transaction = database.transaction(VERSIONS_STORE_NAME, 'readonly')
+    const store = transaction.objectStore(VERSIONS_STORE_NAME)
+
+    // Get all versions ordered by timestamp
+    const index = store.index('timestamp')
+    const request = index.getAll()
+
+    request.onsuccess = () => {
+      const loadedVersions = request.result as VersionData[]
+      if (Array.isArray(loadedVersions) && loadedVersions.length > 0) {
+        versions.value = loadedVersions
+        console.log(`Loaded ${loadedVersions.length} versions from IndexedDB`)
         // Schedule diff calculations to be done in the background
         scheduleBackgroundDiffCalculations()
       }
     }
+
+    request.onerror = (event) => {
+      console.error('Error loading versions from IndexedDB:', event)
+    }
   } catch (error) {
-    console.error('Failed to load versions from localStorage:', error)
+    console.error('Failed to load versions from IndexedDB:', error)
   }
 }
 
@@ -115,28 +174,45 @@ const precalculateAllDiffs = (): void => {
 }
 
 /**
- * Saves versions to localStorage
+ * Saves a version to IndexedDB
+ * @param version - The version to save
+ * @returns Promise that resolves when the version is saved
  */
-const saveVersionsToStorage = (): void => {
+const saveVersionToDB = async (version: VersionData): Promise<void> => {
   try {
-    localStorage.setItem(VERSIONS_STORAGE_KEY, JSON.stringify(versions.value))
+    const database = await openDatabase()
+    const transaction = database.transaction(VERSIONS_STORE_NAME, 'readwrite')
+    const store = transaction.objectStore(VERSIONS_STORE_NAME)
+
+    // Store the version in IndexedDB
+    const request = store.add(version)
+
+    request.onsuccess = () => {
+      // Update the version with the generated ID
+      version.id = request.result as number
+    }
+
+    request.onerror = (event) => {
+      console.error('Error saving version to IndexedDB:', event)
+    }
   } catch (error) {
-    console.error('Failed to save versions to localStorage:', error)
+    console.error('Failed to save version to IndexedDB:', error)
   }
 }
 
 /**
- * Add a new version to the versions array
+ * Add a new version to the versions array and save to IndexedDB
  * @param value - The value to add as a new version
  */
-export const addNewVersion = (value: any): void => {
+export const addNewVersion = async (value: any): Promise<void> => {
   const newVersion: VersionData = {
     value,
-    timestamp: Date.now(),
+    timestamp: Date.now()
   }
 
   // If it's the first time, add the initial version too
   if (versions.value.length === 0) {
+    await saveVersionToDB({...newVersion})
     versions.value.push({...newVersion})
   }
 
@@ -148,8 +224,10 @@ export const addNewVersion = (value: any): void => {
   }
 
   const previousIndex = versions.value.length - 1
+
+  // Save to IndexedDB and update local state
+  await saveVersionToDB(newVersion)
   versions.value.push(newVersion)
-  saveVersionsToStorage()
 
   // Calculate diff for the new version immediately
   try {
@@ -166,45 +244,94 @@ export const addNewVersion = (value: any): void => {
 }
 
 /**
- * Clear all versions but keep the current value as first version
+ * Clear all versions from IndexedDB but keep the current value as the first version
  */
-export const clearVersions = (): void => {
-  versions.value = []
+export const clearVersions = async (): Promise<void> => {
+  try {
+    // Get the current value first
+    const currentValue = localStorage.getItem(LOCAL_STORAGE_KEY)
+    let parsedValue = null
 
-  // Clear diff cache
-  Object.keys(diffCache).forEach(key => delete diffCache[Number(key)])
-  Object.keys(changeCountCache).forEach(key => delete changeCountCache[Number(key)])
-
-  // Get the current value and add it as the first version
-  const currentValue = localStorage.getItem(LOCAL_STORAGE_KEY)
-  if (currentValue) {
-    try {
-      addNewVersion(JSON.parse(currentValue))
-    } catch (error) {
-      console.error('Failed to parse localStorage value:', error)
+    if (currentValue) {
+      try {
+        parsedValue = JSON.parse(currentValue)
+      } catch (error) {
+        console.error('Failed to parse localStorage value:', error)
+      }
     }
+
+    // Clear the versions store
+    const database = await openDatabase()
+    const transaction = database.transaction(VERSIONS_STORE_NAME, 'readwrite')
+    const store = transaction.objectStore(VERSIONS_STORE_NAME)
+
+    const clearRequest = store.clear()
+
+    clearRequest.onsuccess = async () => {
+      // Clear local state
+      versions.value = []
+
+      // Clear diff cache
+      Object.keys(diffCache).forEach(key => delete diffCache[Number(key)])
+      Object.keys(changeCountCache).forEach(key => delete changeCountCache[Number(key)])
+
+      // Add the current value as the first version if available
+      if (parsedValue) {
+        await addNewVersion(parsedValue)
+      }
+    }
+
+    clearRequest.onerror = (event) => {
+      console.error('Error clearing versions from IndexedDB:', event)
+    }
+  } catch (error) {
+    console.error('Failed to clear versions:', error)
   }
 }
 
 /**
- * Clear all versions including persistent storage
+ * Clear all versions from IndexedDB including persistent storage
  */
-export const clearAllVersionsHistory = (): void => {
-  versions.value = []
-  localStorage.removeItem(VERSIONS_STORAGE_KEY)
+export const clearAllVersionsHistory = async (): Promise<void> => {
+  try {
+    // Get the current value first
+    const currentValue = localStorage.getItem(LOCAL_STORAGE_KEY)
+    let parsedValue = null
 
-  // Clear diff cache
-  Object.keys(diffCache).forEach(key => delete diffCache[Number(key)])
-  Object.keys(changeCountCache).forEach(key => delete changeCountCache[Number(key)])
-
-  // Re-initialize with current value
-  const currentValue = localStorage.getItem(LOCAL_STORAGE_KEY)
-  if (currentValue) {
-    try {
-      addNewVersion(JSON.parse(currentValue))
-    } catch (error) {
-      console.error('Failed to parse localStorage value:', error)
+    if (currentValue) {
+      try {
+        parsedValue = JSON.parse(currentValue)
+      } catch (error) {
+        console.error('Failed to parse localStorage value:', error)
+      }
     }
+
+    // Delete the entire database
+    const deleteRequest = indexedDB.deleteDatabase(DB_NAME)
+
+    deleteRequest.onsuccess = async () => {
+      // Reset database reference
+      db = null
+
+      // Clear local state
+      versions.value = []
+
+      // Clear diff cache
+      Object.keys(diffCache).forEach(key => delete diffCache[Number(key)])
+      Object.keys(changeCountCache).forEach(key => delete changeCountCache[Number(key)])
+
+      // Re-initialize database and add current value as first version
+      if (parsedValue) {
+        await openDatabase()
+        await addNewVersion(parsedValue)
+      }
+    }
+
+    deleteRequest.onerror = (event) => {
+      console.error('Error deleting IndexedDB database:', event)
+    }
+  } catch (error) {
+    console.error('Failed to clear all version history:', error)
   }
 }
 
@@ -348,49 +475,53 @@ export const countChangesInDiff = (diffString: string | null): { additions: numb
     }
   }
 
-  return { additions: additions - 1, removals: removals - 1 }
+  return { additions, removals }
 }
 
 /**
  * Initialize the localStorage monitor
  */
-export const initLocalStorageMonitor = (): void => {
-  // Load previously saved versions
-  loadVersionsFromStorage()
+export const initLocalStorageMonitor = async (): Promise<void> => {
+  try {
+    // Load previously saved versions from IndexedDB
+    await loadVersionsFromDB()
 
-  // Register the storage event listener
-  window.addEventListener('storage', handleStorageChange)
+    // Register the storage event listener
+    window.addEventListener('storage', handleStorageChange)
 
-  // If we don't have any versions yet, get the initial value from localStorage
-  if (versions.value.length === 0) {
-    const initialValue = localStorage.getItem(LOCAL_STORAGE_KEY)
-    if (initialValue) {
-      try {
-        addNewVersion(JSON.parse(initialValue))
-      } catch (error) {
-        console.error('Failed to parse initial localStorage value:', error)
-      }
-    }
-  }
-
-  // Also check every second for changes that happen within the same tab
-  // as the 'storage' event only fires for changes from other tabs
-  checkIntervalId = setInterval(() => {
-    const currentValue = localStorage.getItem(LOCAL_STORAGE_KEY)
-    if (currentValue && versions.value.length > 0) {
-      try {
-        const parsedValue = JSON.parse(currentValue)
-        const lastVersion = versions.value[versions.value.length - 1].value
-
-        // Simple deep comparison - good enough for this use case
-        if (JSON.stringify(parsedValue) !== JSON.stringify(lastVersion)) {
-          addNewVersion(parsedValue)
+    // If we don't have any versions yet, get the initial value from localStorage
+    if (versions.value.length === 0) {
+      const initialValue = localStorage.getItem(LOCAL_STORAGE_KEY)
+      if (initialValue) {
+        try {
+          await addNewVersion(JSON.parse(initialValue))
+        } catch (error) {
+          console.error('Failed to parse initial localStorage value:', error)
         }
-      } catch (error) {
-        console.error('Error checking for localStorage changes:', error)
       }
     }
-  }, 1000)
+
+    // Also check every second for changes that happen within the same tab
+    // as the 'storage' event only fires for changes from other tabs
+    checkIntervalId = setInterval(() => {
+      const currentValue = localStorage.getItem(LOCAL_STORAGE_KEY)
+      if (currentValue && versions.value.length > 0) {
+        try {
+          const parsedValue = JSON.parse(currentValue)
+          const lastVersion = versions.value[versions.value.length - 1].value
+
+          // Simple deep comparison - good enough for this use case
+          if (JSON.stringify(parsedValue) !== JSON.stringify(lastVersion)) {
+            addNewVersion(parsedValue)
+          }
+        } catch (error) {
+          console.error('Error checking for localStorage changes:', error)
+        }
+      }
+    }, 1000)
+  } catch (error) {
+    console.error('Error initializing localStorage monitor:', error)
+  }
 }
 
 /**
@@ -409,6 +540,12 @@ export const cleanupLocalStorageMonitor = (): void => {
   if (diffCalculationTimeoutId !== null) {
     clearTimeout(diffCalculationTimeoutId)
     diffCalculationTimeoutId = null
+  }
+
+  // Close the database
+  if (db) {
+    db.close()
+    db = null
   }
 }
 
