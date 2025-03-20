@@ -1,5 +1,5 @@
 <template>
-  <div class="draggable-container" @dragover.prevent="handleDragOver">
+  <div id="draggable-container" @dragover.prevent="handleDragOver">
     <BaseConfigurationView>
       <template #help-icon>
         <GlassButton
