@@ -10,7 +10,11 @@ const cockpitLastConnectedUserKey = 'cockpit-last-connected-user'
 
 const listeners: Record<string, SettingsListener> = {}
 
+const keyValueUpdateTimeouts: Record<string, ReturnType<typeof setTimeout>> = {}
+
 const nullValue = 'null'
+
+const keyValueUpdateDebounceTime = 2000
 
 export type OldCockpitSetting = any
 
@@ -97,12 +101,17 @@ export const setKeyValue = (key: string, value: any, userId?: string, vehicleId?
   if (vehicleId === undefined) {
     vehicleId = currentVehicle
   }
-  console.log(`Setting key '${key}' for user '${userId}' and vehicle '${vehicleId}'.`)
-  localSettings[userId][vehicleId][key] = {
-    epochLastChangedLocally: Date.now(),
-    value: value,
+  if (keyValueUpdateTimeouts[key]) {
+    clearTimeout(keyValueUpdateTimeouts[key])
   }
-  saveLocalSettings()
+  keyValueUpdateTimeouts[key] = setTimeout(() => {
+    console.log(`Setting key '${key}' for user '${userId}' and vehicle '${vehicleId}'.`)
+    localSettings[userId][vehicleId][key] = {
+      epochLastChangedLocally: Date.now(),
+      value: value,
+    }
+    saveLocalSettings()
+  }, keyValueUpdateDebounceTime)
 }
 
 export const getKeyValue = (key: string, userId?: string, vehicleId?: string): any => {
