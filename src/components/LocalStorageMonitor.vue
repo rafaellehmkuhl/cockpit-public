@@ -12,22 +12,27 @@
     </div>
 
     <div v-if="versions.length > 1" class="versions-container">
-      <div v-for="(version, index) in versions.slice(1)" :key="index" class="version-card">
-        <div class="version-header" @click="toggleCollapse(index)">
+      <div v-for="(version, displayIndex) in reversedVersions" :key="displayIndex" class="version-card">
+        <div class="version-header" @click="toggleCollapse(displayIndex)">
           <div class="version-title">
-            <h3>Version {{ index + 1 }}</h3>
-            <span class="change-count" v-if="changeCount[index]">
-              +{{ changeCount[index].additions }} / -{{ changeCount[index].removals }}
+            <h3>Version {{ versions.length - displayIndex - 1 }}</h3>
+            <span
+              class="change-count"
+              v-if="getVersionChangeCount(displayIndex)"
+              :title="`${getVersionChangeCount(displayIndex)?.additions} additions, ${getVersionChangeCount(displayIndex)?.removals} removals`"
+            >
+              <span class="additions">+{{ getVersionChangeCount(displayIndex)?.additions }}</span> /
+              <span class="removals">-{{ getVersionChangeCount(displayIndex)?.removals }}</span>
             </span>
           </div>
           <div class="version-controls">
             <span class="timestamp">{{ formatTimestamp(version.timestamp) }}</span>
-            <v-icon :icon="isCollapsed[index] ? 'mdi-chevron-down' : 'mdi-chevron-up'" size="small" />
+            <v-icon :icon="isVersionCollapsed(displayIndex) ? 'mdi-chevron-down' : 'mdi-chevron-up'" size="small" />
           </div>
         </div>
         <transition name="collapse-expand">
-          <div class="diff-content" v-show="!isCollapsed[index]">
-            <pre v-html="formatDiff(consecutiveDiffs[index])"></pre>
+          <div class="diff-content" v-show="!isVersionCollapsed(displayIndex)">
+            <pre v-html="formatDiff(getVersionDiff(displayIndex))"></pre>
           </div>
         </transition>
       </div>
@@ -63,8 +68,8 @@ import { format } from 'date-fns'
 import {
   clearAllVersionsHistory,
   clearVersions,
-  countChangesInDiff,
-  generateConsecutiveDiffs,
+  getChangeCount,
+  getConsecutiveDiff,
   versions
 } from '@/libs/localStorage-monitor'
 
@@ -74,38 +79,86 @@ export default defineComponent({
     const isOpen = ref(false) // Initially closed
     const isCollapsed = reactive<Record<number, boolean>>({}) // Track collapsed state of each diff
 
-    // Get consecutive diffs from the localStorage monitor
-    const consecutiveDiffs = computed(() => generateConsecutiveDiffs())
+    /**
+     * Reversed list of versions for display (excluding the initial version)
+     * Latest versions will appear at the top of the list
+     */
+    const reversedVersions = computed(() => {
+      return [...versions.value.slice(1)].reverse()
+    })
+
+    /**
+     * Map to convert display index to actual version index
+     * @param displayIndex - The index in the reversed display list
+     * @returns The actual version index in the original list
+     */
+    const getVersionIndex = (displayIndex: number): number => {
+      // Calculate the corresponding index in the original array
+      // versions.length - 2 is the last index of versions.slice(1)
+      // Then we subtract displayIndex to get the reverse mapping
+      return versions.value.length - 2 - displayIndex
+    }
 
     /**
      * Watch for new versions and initialize their collapsed state
      * This ensures that new versions are initially displayed expanded
      */
     watch(versions, (newVersions) => {
-      for (let i = 1; i < newVersions.length; i++) {
-        if (isCollapsed[i-1] === undefined) {
-          isCollapsed[i-1] = false // Initialize as expanded
-        }
+      if (newVersions.length > 1) {
+        // Make sure the newest version is always expanded
+        const latestVersionIndex = newVersions.length - 2
+        isCollapsed[latestVersionIndex] = false
       }
     }, { immediate: true })
 
-    // Compute change counts for each version
+    // Compute change counts for each version using the pre-calculated values
     const changeCount = computed(() => {
       const counts: Record<number, { additions: number; removals: number }> = {}
 
-      consecutiveDiffs.value.forEach((diff, index) => {
-        counts[index] = countChangesInDiff(diff)
-      })
+      for (let i = 0; i < versions.value.length - 1; i++) {
+        counts[i] = getChangeCount(i)
+      }
 
       return counts
     })
 
     /**
      * Toggle the collapsed state of a diff section
-     * @param index - The index of the diff to toggle
+     * @param displayIndex - The display index of the diff to toggle
      */
-    const toggleCollapse = (index: number): void => {
-      isCollapsed[index] = !isCollapsed[index]
+    const toggleCollapse = (displayIndex: number): void => {
+      const versionIndex = getVersionIndex(displayIndex)
+      isCollapsed[versionIndex] = !isCollapsed[versionIndex]
+    }
+
+    /**
+     * Get the collapsed state for a version by its display index
+     * @param displayIndex - The display index of the version
+     * @returns Whether the version is collapsed
+     */
+    const isVersionCollapsed = (displayIndex: number): boolean => {
+      const versionIndex = getVersionIndex(displayIndex)
+      return !!isCollapsed[versionIndex]
+    }
+
+    /**
+     * Get the diff for a version by its display index
+     * @param displayIndex - The display index of the version
+     * @returns The diff string
+     */
+    const getVersionDiff = (displayIndex: number): string | null => {
+      const versionIndex = getVersionIndex(displayIndex)
+      return getConsecutiveDiff(versionIndex)
+    }
+
+    /**
+     * Get the change count for a version by its display index
+     * @param displayIndex - The display index of the version
+     * @returns The additions and removals count
+     */
+    const getVersionChangeCount = (displayIndex: number): { additions: number; removals: number } | undefined => {
+      const versionIndex = getVersionIndex(displayIndex)
+      return changeCount.value[versionIndex]
     }
 
     /**
@@ -142,9 +195,10 @@ export default defineComponent({
 
     return {
       versions,
-      consecutiveDiffs,
-      changeCount,
-      isCollapsed,
+      reversedVersions,
+      isVersionCollapsed,
+      getVersionDiff,
+      getVersionChangeCount,
       toggleCollapse,
       clearVersions,
       clearAllHistory,
@@ -228,11 +282,25 @@ export default defineComponent({
 }
 
 .change-count {
-  background-color: rgba(33, 150, 243, 0.2);
+  background-color: rgba(33, 150, 243, 0.1);
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 0.8em;
-  color: #2196f3;
+  color: #d0d0d0;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  cursor: help;
+}
+
+.additions {
+  color: #4caf50;
+  font-weight: bold;
+}
+
+.removals {
+  color: #f44336;
+  font-weight: bold;
 }
 
 .timestamp {
