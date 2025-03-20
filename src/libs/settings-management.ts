@@ -69,7 +69,6 @@ export const getCurrentLocalSettings = (): LocalSettings => {
 }
 
 export const setLocalSettings = (settings: LocalSettings): void => {
-  console.log('Updating local settings to:', settings)
   Object.assign(localSettings, settings)
 }
 

@@ -3,6 +3,7 @@ import { type MaybeRef, ref, unref, watch } from 'vue'
 
 import { getKeyDataFromCockpitVehicleStorage } from '@/libs/blueos'
 import { getKeyValue, registerListener, setKeyValue } from '@/libs/settings-management'
+import { isEqual } from '@/libs/utils'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 
 export const resetJustMadeKey = 'cockpit-reset-just-made'
@@ -52,15 +53,21 @@ export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): Rem
     currentValue.value = valueOnLocalStorage as T
   }
 
-  watch(currentValue, async (newValue) => {
-    setKeyValue(key, newValue)
-  })
+  watch(
+    currentValue,
+    async (newValue, oldValue) => {
+      if (isEqual(newValue, oldValue)) return
+
+      const stringValue = JSON.stringify(newValue, null, 2)
+      console.log(`settingsSyncer: Key ${key} changed on watch. New value is ${stringValue}.`)
+      setKeyValue(key, newValue)
+    },
+    { deep: true }
+  )
 
   registerListener(key, () => {
     const newValue = getKeyValue(key)
-    if (newValue === currentValue.value) {
-      return
-    }
+    if (newValue === currentValue.value) return
 
     if (newValue === undefined) {
       setKeyValue(key, primitiveDefaultValue)
@@ -70,7 +77,7 @@ export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): Rem
     }
   })
 
-  return currentValue
+  return currentValue as RemovableRef<T>
 }
 
 export const getSettingsUsernamesFromBlueOS = async (): Promise<string[]> => {
