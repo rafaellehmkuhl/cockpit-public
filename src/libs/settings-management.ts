@@ -97,7 +97,7 @@ export const setKeyValue = (key: string, value: any, userId?: string, vehicleId?
   if (vehicleId === undefined) {
     vehicleId = currentVehicle
   }
-  console.log(`Setting key '${key}' for user '${userId}' and vehicle '${vehicleId}' to '${value}'.`)
+  console.log(`Setting key '${key}' for user '${userId}' and vehicle '${vehicleId}'.`)
   localSettings[userId][vehicleId][key] = {
     epochLastChangedLocally: Date.now(),
     value: value,
