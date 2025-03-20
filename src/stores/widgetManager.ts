@@ -700,6 +700,7 @@ export const useWidgetManagerStore = defineStore('widget-manager', () => {
   }
 
   // If the user does not have it's own profiles yet, create default ones
+  console.log('savedProfiles.value', savedProfiles.value)
   if (savedProfiles.value.isEmpty()) {
     widgetProfiles.forEach((profile) => {
       const userProfile = structuredClone(profile)

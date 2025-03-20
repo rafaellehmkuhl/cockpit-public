@@ -8,6 +8,8 @@ const localCockpitSettingsKey = 'cockpit-synced-settings'
 const cockpitLastConnectedVehicleKey = 'cockpit-last-connected-vehicle-id'
 const cockpitLastConnectedUserKey = 'cockpit-last-connected-user'
 
+const listeners: Record<string, SettingsListener> = {}
+
 const nullValue = 'null'
 
 export type OldCockpitSetting = any
@@ -48,6 +50,8 @@ export interface LocalSettings {
   [key: string]: UserSettings
 }
 
+export type SettingsListener = (newSettings: LocalSettings) => void
+
 const localSettings: LocalSettings = {}
 let currentUser: string = nullValue
 let currentVehicle: string = nullValue
@@ -87,24 +91,47 @@ export const clearVehicleSettings = (userId: string, vehicleId: string): void =>
   saveLocalSettings()
 }
 
-export const setKeyValue = (userId: string, vehicleId: string, key: string, value: any): void => {
+export const setKeyValue = (key: string, value: any, userId?: string, vehicleId?: string): void => {
+  if (userId === undefined) {
+    userId = currentUser
+  }
+  if (vehicleId === undefined) {
+    vehicleId = currentVehicle
+  }
   console.log(`Setting key '${key}' for user '${userId}' and vehicle '${vehicleId}' to '${value}'.`)
-  localSettings[userId][vehicleId][key] = value
+  localSettings[userId][vehicleId][key] = {
+    epochLastChangedLocally: Date.now(),
+    value: value,
+  }
   saveLocalSettings()
 }
 
-export const getKeyValue = (userId: string, vehicleId: string, key: string): any => {
-  return localSettings[userId][vehicleId][key]
+export const getKeyValue = (key: string, userId?: string, vehicleId?: string): any => {
+  if (userId === undefined) {
+    userId = currentUser
+  }
+
+  if (vehicleId === undefined) {
+    vehicleId = currentVehicle
+  }
+
+  if (localSettings[userId][vehicleId][key] === undefined) {
+    return undefined
+  }
+
+  return localSettings[userId][vehicleId][key].value
 }
 
-export const deleteKeyValue = (userId: string, vehicleId: string, key: string): void => {
+export const deleteKeyValue = (key: string, userId?: string, vehicleId?: string): void => {
+  if (userId === undefined) {
+    userId = currentUser
+  }
+  if (vehicleId === undefined) {
+    vehicleId = currentVehicle
+  }
   console.log(`Deleting key '${key}' for user '${userId}' and vehicle '${vehicleId}'.`)
   delete localSettings[userId][vehicleId][key]
   saveLocalSettings()
-}
-
-export const getKeysValues = (userId: string, vehicleId: string): [string, any][] => {
-  return Object.entries(localSettings[userId][vehicleId])
 }
 
 const retrieveLocalSettings = (): LocalSettings => {
@@ -153,7 +180,22 @@ window.addEventListener('storage', () => {
 
   console.log('Local settings changed externally!')
   setLocalSettings(newSettings)
+  notifyListeners(newSettings)
 })
+
+export const registerListener = (key: string, callback: SettingsListener): void => {
+  listeners[key] = callback
+}
+
+export const unregisterListener = (key: string): void => {
+  delete listeners[key]
+}
+
+const notifyListeners = (newSettings: LocalSettings): void => {
+  Object.entries(listeners).forEach(([, callback]) => {
+    callback(newSettings)
+  })
+}
 
 type VehicleOnlineEvent = CustomEvent<{
   /**
