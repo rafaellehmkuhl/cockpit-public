@@ -143,7 +143,7 @@ export const tryOrAlert = async (tryFunction: () => Promise<void>): Promise<void
  * Wait till the next tick to reload Cockpit
  * @param {number} timeout The time to wait before reloading, in milliseconds. Default value is 500 ms.
  */
-export const reloadCockpit = (timeout = 500): void => {
+export const reloadCockpit = (timeout = 20000): void => {
   const restartMessage = `Restarting Cockpit in ${timeout / 1000} seconds...`
   console.log(restartMessage)
   showDialog({ message: restartMessage, variant: 'info', timer: timeout })

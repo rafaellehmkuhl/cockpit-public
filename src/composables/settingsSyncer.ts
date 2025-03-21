@@ -50,13 +50,16 @@ export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): Rem
   let valueToBeUsedOnStart: T | undefined = undefined
 
   if (valueOnLocalStorage === undefined) {
-    setKeyValue(key, unrefedDefaultValue)
+    // If the value is not yet defined here, set to the default value
+    // Set the epoch to 0 so it's considered old till changed by the user
+    setKeyValue(key, unrefedDefaultValue, 0)
     valueToBeUsedOnStart = unrefedDefaultValue as T
   } else {
     valueToBeUsedOnStart = valueOnLocalStorage as T
   }
 
-  let oldRefedValue: T | undefined = JSON.parse(JSON.stringify(valueToBeUsedOnStart))
+  let oldRefedValue: T | undefined =
+    valueToBeUsedOnStart !== undefined ? JSON.parse(JSON.stringify(valueToBeUsedOnStart)) : undefined
   const refedValue = ref<T | undefined>(valueToBeUsedOnStart)
 
   watch(
@@ -75,8 +78,18 @@ export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): Rem
       }
 
       watchUpdaterTimeout = setTimeout(() => {
-        const diffInValue = diff(oldRefedValue, refedValue.value, { expand: false, contextLines: 3 })
-        console.log(`settingsSyncer: Key ${key} changed on watch:\n${diffInValue}.`)
+        const diffInValue = diff(oldRefedValue, refedValue.value, {
+          expand: false,
+          contextLines: 3,
+          includeChangeCounts: true,
+        })
+        if (diffInValue && diffInValue.split('\n').length > 15) {
+          const diffLines = diffInValue.split('\n')
+          const truncatedDiff = diffLines.slice(0, 14).join('\n') + '\n...'
+          console.log(`settingsSyncer: Key ${key} changed on watch:\n${truncatedDiff}.`)
+        } else {
+          console.log(`settingsSyncer: Key ${key} changed on watch:\n${diffInValue}.`)
+        }
         setKeyValue(key, refedValue.value)
         oldRefedValue = JSON.parse(JSON.stringify(refedValue.value)) as T
       }, 2000)
