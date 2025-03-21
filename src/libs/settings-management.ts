@@ -19,6 +19,64 @@ const keyValueUpdateDebounceTime = 2000
 export type OldCockpitSetting = any
 
 /**
+ * A queue of key value updates for a vehicle
+ * Only the most recent change is stored for each vehicle/user/key combination
+ */
+interface KeyValueVehicleUpdateQueue {
+  [vehicleId: string]: {
+    [userId: string]: {
+      [key: string]: {
+        /**
+         * The new value of the setting
+         */
+        value: any
+        /**
+         * The epoch to be written to the setting
+         */
+        epochChange: number
+      }
+    }
+  }
+}
+
+const pushKeyValueUpdateToVehicleUpdateQueue = (
+  vehicleId: string,
+  userId: string,
+  key: string,
+  value: any,
+  epochChange: number
+): void => {
+  if (!keyValueVehicleUpdateQueue[vehicleId]) {
+    keyValueVehicleUpdateQueue[vehicleId] = {}
+  }
+  if (!keyValueVehicleUpdateQueue[vehicleId][userId]) {
+    keyValueVehicleUpdateQueue[vehicleId][userId] = {}
+  }
+  keyValueVehicleUpdateQueue[vehicleId][userId][key] = { value, epochChange }
+}
+
+const sendKeyValueUpdatesToVehicle = async (vehicleAddress: string, vehicleId: string): Promise<void> => {
+  if (!keyValueVehicleUpdateQueue[vehicleId] || Object.keys(keyValueVehicleUpdateQueue[vehicleId]).length === 0) {
+    return
+  }
+
+  const updatesForVehicle = Object.entries(keyValueVehicleUpdateQueue[vehicleId])
+  for (const [userId, updatesForUser] of updatesForVehicle) {
+    for (const [key, update] of Object.entries(updatesForUser)) {
+      console.log(`Sending new value of key '${key}' for user '${userId}' to vehicle '${vehicleId}'.`)
+      await setKeyDataOnCockpitVehicleStorage(vehicleAddress, `settings/${userId}/${key}`, update.value)
+      delete keyValueVehicleUpdateQueue[vehicleId][userId][key]
+    }
+  }
+}
+
+/**
+ * A queue of key value updates for a vehicle
+ * The keys are the IDs of the vehicles those updates are intended for
+ */
+const keyValueVehicleUpdateQueue: KeyValueVehicleUpdateQueue = {}
+
+/**
  * An individual setting for a vehicle/user pair
  * Stores the value as well as the epoch time of the last change. The epoch is used to compare with remote values and determine which one is newer.
  */
@@ -94,23 +152,33 @@ export const clearVehicleSettings = (userId: string, vehicleId: string): void =>
   saveLocalSettings()
 }
 
-export const setKeyValue = (key: string, value: any, userId?: string, vehicleId?: string): void => {
-  if (userId === undefined) {
-    userId = currentUser
+export const setKeyValue = async (
+  key: string,
+  value: any,
+  epochChange?: number,
+  userId?: string,
+  vehicleId?: string
+): Promise<void> => {
+  if (userId === undefined || userId === null || userId === '') {
+    userId = currentUser || nullValue
   }
-  if (vehicleId === undefined) {
-    vehicleId = currentVehicle
+  if (vehicleId === undefined || vehicleId === null || vehicleId === '') {
+    vehicleId = currentVehicle || nullValue
   }
   if (keyValueUpdateTimeouts[key]) {
     clearTimeout(keyValueUpdateTimeouts[key])
   }
-  keyValueUpdateTimeouts[key] = setTimeout(() => {
-    console.log(`Setting key '${key}' for user '${userId}' and vehicle '${vehicleId}'.`)
-    localSettings[userId][vehicleId][key] = {
-      epochLastChangedLocally: Date.now(),
+  keyValueUpdateTimeouts[key] = setTimeout(async () => {
+    const newEpoch = epochChange !== undefined ? epochChange : Date.now()
+    console.log(`Updating value of key '${key}' for user '${userId}' and vehicle '${vehicleId}'.`)
+    const newSetting = {
+      epochLastChangedLocally: newEpoch,
       value: value,
     }
+    localSettings[userId][vehicleId][key] = newSetting
     saveLocalSettings()
+
+    pushKeyValueUpdateToVehicleUpdateQueue(vehicleId, userId, key, value, newEpoch)
   }, keyValueUpdateDebounceTime)
 }
 
@@ -346,6 +414,14 @@ const migrateSettings1To2 = (userId: string, vehicleId: string): void => {
 const syncSettingsWithVehicle = async (userId: string, vehicleId: string, vehicleAddress: string): Promise<void> => {
   console.log(`Syncing settings for user=${userId}/vehicle=${vehicleId}`)
 
+  if (userId === undefined || userId === null || userId === '') {
+    userId = currentUser || nullValue
+  }
+
+  if (vehicleId === undefined || vehicleId === null || vehicleId === '') {
+    vehicleId = currentVehicle || nullValue
+  }
+
   // Get settings from vehicle
   let vehicleSettings = await getKeyDataFromCockpitVehicleStorage(vehicleAddress, 'settings')
 
@@ -375,70 +451,73 @@ const syncSettingsWithVehicle = async (userId: string, vehicleId: string, vehicl
   // Merge settings, keeping the most recent based on epoch time
   const mergedSettings: VehicleSettings = {}
 
-  // Process all keys from local settings
-  Object.entries({ ...localUserVehicleSettings, ...vehicleUserSettings }).forEach(([key, localSetting]) => {
-    const vehicleSetting = vehicleUserSettings[key]
-    // If one of the settings is undefined, we use the other one
-    // Otherwise, if the local setting is in the new type and the vehicle setting is in the old type, we use the local setting
-    // Otherwise, if the local setting is in the old type and the vehicle setting is in the new type, we use the vehicle setting
-    // Otherwise, if both settings are defined and in the new type, we use the one with the most recent epoch time
-    if (vehicleSetting === undefined && localSetting === undefined) {
-      // TODO: Decide what to do in this case
-    } else if (vehicleSetting === undefined && localSetting !== undefined) {
-      if (localSetting.value !== undefined && localSetting.epochLastChangedLocally !== undefined) {
-        console.log(`Setting key '${key}' to local setting.`)
-        mergedSettings[key] = localSetting
-      } else {
-        console.log(`Setting key '${key}' to local setting (no epoch was found thought).`)
-        mergedSettings[key] = {
-          epochLastChangedLocally: Date.now(),
-          value: localSetting,
-        }
-      }
-    } else if (vehicleSetting !== undefined && localSetting === undefined) {
-      if (vehicleSetting.value !== undefined && vehicleSetting.epochLastChangedLocally !== undefined) {
-        console.log(`Setting key '${key}' to vehicle setting.`)
-        mergedSettings[key] = vehicleSetting
-      } else {
-        console.log(`Setting key '${key}' to vehicle setting (no epoch was found thought).`)
-        mergedSettings[key] = {
-          epochLastChangedLocally: Date.now(),
-          value: vehicleSetting,
-        }
-      }
-    } else if (
-      vehicleSetting !== undefined &&
-      localSetting !== undefined &&
-      vehicleSetting.value !== undefined &&
-      localSetting.value !== undefined &&
-      vehicleSetting.epochLastChangedLocally !== undefined &&
-      localSetting.epochLastChangedLocally !== undefined
-    ) {
-      if (vehicleSetting.epochLastChangedLocally > localSetting.epochLastChangedLocally) {
-        console.log(`Setting key '${key}' to vehicle setting (epoch is newer).`)
-        mergedSettings[key] = vehicleSetting
-      } else {
-        console.log(`Setting key '${key}' to local setting (epoch is newer).`)
-        mergedSettings[key] = localSetting
-      }
-    } else {
-      if (vehicleSetting.value !== undefined && vehicleSetting.epochLastChangedLocally !== undefined) {
-        console.log(`Setting key '${key}' to vehicle setting (no local epoch was found thought).`)
-        mergedSettings[key] = vehicleSetting
-      } else {
-        console.log(`Setting key '${key}' to vehicle setting (no local epoch was found thought).`)
-        mergedSettings[key] = {
-          epochLastChangedLocally: Date.now(),
-          value: vehicleSetting,
-        }
-      }
-    }
+  if (vehicleUserSettings === undefined || Object.keys(vehicleUserSettings).length === 0) {
+    console.log('User settings on vehicle are undefined or empty. Using local settings.')
+    Object.assign(mergedSettings, localUserVehicleSettings)
+  } else {
+    Object.entries({ ...localUserVehicleSettings, ...vehicleUserSettings }).forEach(([key, localSetting]) => {
+      console.log(`Comparing key '${key}'.`)
+      const vehicleSetting = vehicleUserSettings[key]
 
-    // If the epochLastChangedLocally is undefined, set it to the current time
-    if (mergedSettings[key].epochLastChangedLocally === undefined) {
-      mergedSettings[key].epochLastChangedLocally = Date.now()
-    }
-  })
+      /* eslint-disable vue/max-len, prettier/prettier, max-len */
+      const hasVehicleSettings = vehicleSetting !== undefined
+      const hasNewVehicleSettings = hasVehicleSettings && vehicleSetting.value !== undefined && vehicleSetting.epochLastChangedLocally !== undefined
+      const hasOldVehicleSettings = hasVehicleSettings && (vehicleSetting.value === undefined || vehicleSetting.epochLastChangedLocally === undefined)
+      const hasLocalSettings = localSetting !== undefined
+      const hasNewLocalSettings = hasLocalSettings && localSetting.value !== undefined && localSetting.epochLastChangedLocally !== undefined
+      const hasOldLocalSettings = hasLocalSettings && (localSetting.value === undefined || localSetting.epochLastChangedLocally === undefined)
+      const bothSettingsAreNew = hasNewLocalSettings && hasNewVehicleSettings
+      const localSettingsIsNewer = bothSettingsAreNew && localSetting.epochLastChangedLocally > vehicleSetting.epochLastChangedLocally
+      const vehicleSettingsIsNewer = bothSettingsAreNew && vehicleSetting.epochLastChangedLocally > localSetting.epochLastChangedLocally
+      const bothSettingsAreOld = hasOldLocalSettings && hasOldVehicleSettings
+      /* eslint-enable vue/max-len, prettier/prettier, max-len */
+
+      switch (true) {
+        case !hasLocalSettings && !hasVehicleSettings:
+          console.log('Both local and vehicle settings are undefined.')
+          console.log(`Setting key '${key}' to undefined.`)
+          mergedSettings[key] = {
+            epochLastChangedLocally: Date.now(),
+            value: undefined,
+          }
+          break
+        case hasNewLocalSettings && !hasNewVehicleSettings:
+          console.log('Local setting is defined and vehicle setting is undefined or old.')
+          console.log(`Setting key '${key}' to local setting.`)
+          mergedSettings[key] = localSetting
+          break
+        case !hasNewLocalSettings && hasNewVehicleSettings:
+          console.log('Vehicle setting is defined and local setting is undefined or old.')
+          console.log(`Setting key '${key}' to vehicle setting.`)
+          mergedSettings[key] = vehicleSetting
+          break
+        case localSettingsIsNewer:
+          console.log('Both settings are defined but local setting is newer than vehicle setting.')
+          console.log(`Setting key '${key}' to local setting.`)
+          mergedSettings[key] = localSetting
+          break
+        case vehicleSettingsIsNewer:
+          console.log('Both settings are defined but vehicle setting is newer than local setting.')
+          console.log(`Setting key '${key}' to vehicle setting.`)
+          mergedSettings[key] = vehicleSetting
+          break
+        case bothSettingsAreOld:
+          console.log('Both settings are defined but both are old.')
+          console.log(`Setting key '${key}' to vehicle setting.`)
+          mergedSettings[key] = vehicleSetting
+          break
+      }
+
+      // If the epochLastChangedLocally is undefined, set it to the current time
+      if (
+        mergedSettings[key] !== undefined &&
+        mergedSettings[key].value !== undefined &&
+        mergedSettings[key].epochLastChangedLocally === undefined
+      ) {
+        mergedSettings[key].epochLastChangedLocally = Date.now()
+      }
+    })
+  }
 
   // Update local settings with merged settings
   localSettings[userId][vehicleId] = mergedSettings
@@ -506,7 +585,6 @@ const getVehicleIdFromVehicle = async (vehicleAddress: string): Promise<string> 
     sleep(1000)
     try {
       vehicleId = await getKeyDataFromCockpitVehicleStorage(vehicleAddress, 'cockpit-vehicle-id')
-      console.log('Vehicle ID:', vehicleId)
       if (vehicleId && typeof vehicleId === 'string') {
         break
       }
@@ -524,17 +602,21 @@ const getVehicleIdFromVehicle = async (vehicleAddress: string): Promise<string> 
 window.addEventListener('vehicle-online', async (event: VehicleOnlineEvent) => {
   console.log('Vehicle online!')
 
+  const vehicleAddress = event.detail.vehicleAddress
+
   // Get ID of the connected vehicle
-  const vehicleId = await getVehicleIdFromVehicle(event.detail.vehicleAddress)
+  const vehicleId = await getVehicleIdFromVehicle(vehicleAddress)
   console.log('Vehicle ID:', vehicleId)
-  if (vehicleId && typeof vehicleId === 'string') {
-    await syncSettingsWithVehicle(currentUser, vehicleId, event.detail.vehicleAddress)
+  if (vehicleId && typeof vehicleId === 'string' && currentUser !== undefined && currentUser !== '') {
+    await syncSettingsWithVehicle(currentUser, vehicleId, vehicleAddress)
   }
 
-  // Update current vehicle
-  currentVehicle = vehicleId
-
   handleChangingCurrentUserOrVehicle()
+
+  // Start update loop
+  setInterval(async () => {
+    await sendKeyValueUpdatesToVehicle(vehicleAddress, currentVehicle)
+  }, 1000)
 })
 
 /**
@@ -558,86 +640,3 @@ window.addEventListener('user-changed', (event: UserChangedEvent) => {
 })
 
 initLocalSettings()
-
-// const validateIndividualSetting = (setting: CockpitSetting): void => {
-//   if (setting.epochLastChangedLocally === undefined) {
-//     throw new Error('No epoch information for setting.')
-//   }
-// }
-
-// const validateVehicleSettings = (vehicleSettings: VehicleSettings): void => {
-//   Object.entries(vehicleSettings).forEach(([key, setting]) => {
-//     try {
-//       validateIndividualSetting(setting)
-//     } catch (error) {
-//       console.error(`Could not validate setting for key '${key}'.`, error)
-//     }
-//   })
-// }
-
-// const validateUserSettings = (userSettings: UserSettings): void => {
-//   Object.entries(userSettings).forEach(([vehicleId, vehicleSettings]) => {
-//     try {
-//       validateVehicleSettings(vehicleSettings)
-//     } catch (error) {
-//       console.error(`Could not validate settings for vehicle '${vehicleId}'.`, error)
-//     }
-//   })
-// }
-
-// const validateLocalSettings = (settingsToValidate: LocalSettings): void => {
-//   Object.entries(settingsToValidate).forEach(([userId, userSettings]) => {
-//     try {
-//       validateUserSettings(userSettings)
-//     } catch (error) {
-//       console.error(`Could not validate settings for user '${userId}'.`, error)
-//     }
-//   })
-// }
-
-// export const getUserSettings = (userId: string): UserSettings => {
-//   return localSettings[userId]
-// }
-
-// export const setUserSettings = (userId: string, settings: UserSettings): void => {
-//   console.log(`Setting user settings for user '${userId}'.`)
-//   localSettings[userId] = settings
-//   saveLocalSettings()
-// }
-
-// export const getVehicleSettings = (userId: string, vehicleId: string): VehicleSettings => {
-//   return localSettings[userId][vehicleId]
-// }
-
-// export const setVehicleSettings = (userId: string, vehicleId: string, settings: VehicleSettings): void => {
-//   console.log(`Setting vehicle settings for user '${userId}' and vehicle '${vehicleId}'.`)
-//   if (!localSettings[userId]) {
-//     localSettings[userId] = {}
-//   }
-//   localSettings[userId][vehicleId] = settings
-//   saveLocalSettings()
-// }
-
-// export const setCurrentUser = (userId: string): void => {
-//   console.log('Setting current user to:', userId)
-//   currentUser = userId
-//   setLastConnectedUser(userId)
-// }
-
-// export const setCurrentVehicle = (vehicleId: string): void => {
-//   console.log('Setting current vehicle to:', vehicleId)
-//   currentVehicle = vehicleId
-//   setLastConnectedVehicle(vehicleId)
-// }
-
-// export const setLastConnectedUser = (userId: string): void => {
-//   console.log('Setting last connected user to:', userId)
-//   lastConnectedUser = userId
-//   saveLastConnectedUser(userId)
-// }
-
-// export const setLastConnectedVehicle = (vehicleId: string): void => {
-//   console.log('Setting last connected vehicle to:', vehicleId)
-//   lastConnectedVehicle = vehicleId
-//   saveLastConnectedVehicle(vehicleId)
-// }
