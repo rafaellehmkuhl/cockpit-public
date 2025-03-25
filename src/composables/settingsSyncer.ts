@@ -4,7 +4,7 @@ import { format as prettyFormat } from 'pretty-format'
 import { type MaybeRef, ref, unref, watch } from 'vue'
 
 import { getKeyDataFromCockpitVehicleStorage } from '@/libs/blueos'
-import { getKeyValue, registerListener, setKeyValue } from '@/libs/settings-management'
+import { settingsManager } from '@/libs/settings-management'
 import { isEqual } from '@/libs/utils'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 
@@ -45,14 +45,14 @@ const getVehicleAddress = async (): Promise<string> => {
  */
 export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): RemovableRef<T> {
   const unrefedDefaultValue = unref(defaultValue)
-  const valueOnLocalStorage = getKeyValue(key)
+  const valueOnLocalStorage = settingsManager.getKeyValue(key)
   let watchUpdaterTimeout: ReturnType<typeof setTimeout> | undefined = undefined
   let valueToBeUsedOnStart: T | undefined = undefined
 
   if (valueOnLocalStorage === undefined) {
     // If the value is not yet defined here, set to the default value
     // Set the epoch to 0 so it's considered old till changed by the user
-    setKeyValue(key, unrefedDefaultValue, 0)
+    settingsManager.setKeyValue(key, unrefedDefaultValue, 0)
     valueToBeUsedOnStart = unrefedDefaultValue as T
   } else {
     valueToBeUsedOnStart = valueOnLocalStorage as T
@@ -90,21 +90,21 @@ export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): Rem
         } else {
           console.log(`settingsSyncer: Key ${key} changed on watch:\n${diffInValue}.`)
         }
-        setKeyValue(key, refedValue.value)
+        settingsManager.setKeyValue(key, refedValue.value)
         oldRefedValue = JSON.parse(JSON.stringify(refedValue.value)) as T
       }, 2000)
     },
     { deep: true }
   )
 
-  registerListener(key, () => {
-    const newValue = getKeyValue(key)
+  settingsManager.registerListener(key, () => {
+    const newValue = settingsManager.getKeyValue(key)
     if (isEqual(newValue, refedValue.value)) {
       console.log(`settingsSyncer: Listener for key ${key} activated, but no changes in the value were detected.`)
       return
     }
 
-    setKeyValue(key, newValue)
+    settingsManager.setKeyValue(key, newValue)
     refedValue.value = newValue as T
     oldRefedValue = JSON.parse(JSON.stringify(refedValue.value)) as T
   })
