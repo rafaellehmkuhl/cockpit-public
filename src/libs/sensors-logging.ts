@@ -7,7 +7,7 @@ import { useAppInterfaceStore } from '@/stores/appInterface'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 import { useMissionStore } from '@/stores/mission'
 
-import { getKeyValue, setKeyValue } from './settings-management'
+import { settingsManager } from './settings-management'
 import { unitAbbreviation } from './units'
 import { degrees } from './utils'
 /**
@@ -203,8 +203,8 @@ class DataLogger {
   datetimeLastLogPoint: Date | null = null
   variablesBeingUsed: DatalogVariable[] = []
   veryGenericIndicators: VeryGenericData[] = []
-  telemetryDisplayData = (getKeyValue(telemetryDisplayDataKey) || defaultSensorDataloggerProfile) as OverlayGrid
-  telemetryDisplayOptions = (getKeyValue(telemetryDisplayOptionsKey) || {
+  telemetryDisplayData = (settingsManager.getKeyValue(telemetryDisplayDataKey) || defaultSensorDataloggerProfile) as OverlayGrid
+  telemetryDisplayOptions = (settingsManager.getKeyValue(telemetryDisplayOptionsKey) || {
     fontSize: 30,
     fontColor: '#FFFFFFFF',
     backgroundColor: '#000000FF',
@@ -217,7 +217,7 @@ class DataLogger {
     fontUnderline: false,
     fontStrikeout: false,
   }) as OverlayOptions
-  logInterval = (getKeyValue(logIntervalKey) || 1000) as number
+  logInterval = (settingsManager.getKeyValue(logIntervalKey) || 1000) as number
 
   cockpitLogsDB = localforage.createInstance({
     driver: localforage.INDEXEDDB,
@@ -367,7 +367,7 @@ class DataLogger {
     }
 
     this.logInterval = interval
-    setKeyValue(logIntervalKey, interval)
+    settingsManager.setKeyValue(logIntervalKey, interval)
   }
 
   /**
@@ -397,7 +397,7 @@ class DataLogger {
    */
   updateTelemetryDisplayData(data: OverlayGrid): void {
     this.telemetryDisplayData = data
-    setKeyValue(telemetryDisplayDataKey, data)
+    settingsManager.setKeyValue(telemetryDisplayDataKey, data)
   }
 
   /**
@@ -406,7 +406,7 @@ class DataLogger {
    */
   updateTelemetryDisplayOptions(options: OverlayOptions): void {
     this.telemetryDisplayOptions = options
-    setKeyValue(telemetryDisplayOptionsKey, options)
+    settingsManager.setKeyValue(telemetryDisplayOptionsKey, options)
   }
 
   /**
