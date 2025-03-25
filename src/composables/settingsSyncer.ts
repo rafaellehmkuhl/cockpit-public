@@ -50,9 +50,17 @@ export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): Rem
   let valueToBeUsedOnStart: T | undefined = undefined
 
   if (valueOnLocalStorage === undefined) {
-    // If the value is not yet defined here, set to the default value
-    // Set the epoch to 0 so it's considered old till changed by the user
-    settingsManager.setKeyValue(key, unrefedDefaultValue, 0)
+    console.log(`settingsSyncer: Key ${key} not found on settings manager. Checking for old style value.`)
+    const oldStyleValue = localStorage.getItem(key)
+    if (oldStyleValue) {
+      console.log(`settingsSyncer: Key ${key} found on old style. Migrating to new style.`)
+      // If the value is not yet defined here, set to the default value
+      // Set the epoch to 0 so it's considered old till changed by the user
+      settingsManager.setKeyValue(key, JSON.parse(oldStyleValue), 0)
+    } else {
+      console.log(`settingsSyncer: Key ${key} not found on old style. Setting to default value.`)
+      settingsManager.setKeyValue(key, unrefedDefaultValue, 0)
+    }
     valueToBeUsedOnStart = unrefedDefaultValue as T
   } else {
     valueToBeUsedOnStart = valueOnLocalStorage as T
