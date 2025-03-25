@@ -20,7 +20,23 @@ const nullValue = 'null'
 const keyValueUpdateDebounceTime = 2000
 
 /**
+ * Manager for synced settings
  *
+ * This class is responsible for managing the synced settings on Cockpit.
+ * It is responsible for syncing settings between the local storage and the vehicle storage.
+ *
+ * The settings are stored in the local storage under the key `cockpit-synced-settings`.
+ * The key is a JSON object that maps user IDs to vehicle IDs, which in turn map to key-value pairs.
+ *
+ * The settings are synced to the vehicle storage under the path `settings/{userId}/{key}`.
+ *
+ * The key-value pair contain an epoch time of when the setting was last changed locally.
+ *
+ * When a setting is changed, the change is pushed to the vehicle update queue.
+ * When the vehicle comes online, the settings are synced with the vehicle.
+ *
+ * When the topside (local storage) and the vehicle have different values for the same setting, the value with the
+ * newest epoch is preferred. If the epochs are the same, the value from the vehicle are preferred.
  */
 class SettingsManager {
   private listeners: Record<string, SettingsListener> = {}
@@ -31,7 +47,7 @@ class SettingsManager {
   private keyValueVehicleUpdateQueue: KeyValueVehicleUpdateQueue = {}
 
   /**
-   *
+   * Constructor for the SettingsManager
    */
   constructor() {
     this.initLocalSettings()
