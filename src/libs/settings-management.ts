@@ -10,7 +10,7 @@ import {
 } from '@/types/settings-management'
 
 import { getKeyDataFromCockpitVehicleStorage, setKeyDataOnCockpitVehicleStorage } from './blueos'
-import { sleep } from './utils'
+import { deserialize, sleep } from './utils'
 
 const defaultSettings: VehicleSettings = {}
 const syncedSettingsKey = 'cockpit-synced-settings'
@@ -18,7 +18,7 @@ const cockpitLastConnectedVehicleKey = 'cockpit-last-connected-vehicle-id'
 const cockpitLastConnectedUserKey = 'cockpit-last-connected-user'
 const nullValue = 'null'
 const keyValueUpdateDebounceTime = 2000
-
+const oldStyleSettingsKey = 'cockpit-old-style-settings'
 /**
  * Manager for synced settings
  *
@@ -206,8 +206,30 @@ class SettingsManager {
   private loadLocalSettings = (): void => {
     console.log('[SettingsManager]', 'Loading local settings.')
     const storedLocalSettings = this.retrieveLocalSettings()
+
+    if (!localStorage.getItem(oldStyleSettingsKey)) {
+      console.log('[SettingsManager]', 'No backup for old-style settings found. Creating one.')
+      this.backupOldStyleSettings()
+    }
+
     console.log('[SettingsManager]', 'Setting local settings to:', storedLocalSettings)
     this.setLocalSettings(storedLocalSettings)
+  }
+
+  /**
+   * Backs up old-style settings
+   * @returns {void}
+   */
+  private backupOldStyleSettings = (): void => {
+    // Store all local storage key-value pairs under the key 'cockpit-old-style-settings'
+    const oldStyleSettings: Record<string, any> = {}
+    for (const key of Object.keys(localStorage).filter((k) => k !== syncedSettingsKey && k !== oldStyleSettingsKey)) {
+      const value = localStorage.getItem(key)
+      if (value) {
+        oldStyleSettings[key] = deserialize(value)
+      }
+    }
+    localStorage.setItem(oldStyleSettingsKey, JSON.stringify(oldStyleSettings))
   }
 
   /**
