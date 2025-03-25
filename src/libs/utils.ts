@@ -275,3 +275,11 @@ export const getUnindentedString = (str: string): string => {
 
   return unindentedLines.join('\n')
 }
+
+export const deserialize = (serialized: string): any => {
+  try {
+    return JSON.parse(serialized)
+  } catch (error) {
+    return serialized
+  }
+}

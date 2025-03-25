@@ -5,7 +5,7 @@ import { type MaybeRef, ref, unref, watch } from 'vue'
 
 import { getKeyDataFromCockpitVehicleStorage } from '@/libs/blueos'
 import { settingsManager } from '@/libs/settings-management'
-import { isEqual } from '@/libs/utils'
+import { deserialize, isEqual } from '@/libs/utils'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 
 export const resetJustMadeKey = 'cockpit-reset-just-made'
@@ -56,7 +56,7 @@ export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): Rem
       console.log(`settingsSyncer: Key ${key} found on old style. Migrating to new style.`)
       // If the value is not yet defined here, set to the default value
       // Set the epoch to 0 so it's considered old till changed by the user
-      settingsManager.setKeyValue(key, JSON.parse(JSON.stringify(oldStyleValue)), 0)
+      settingsManager.setKeyValue(key, deserialize(oldStyleValue), 0)
     } else {
       console.log(`settingsSyncer: Key ${key} not found on old style. Setting to default value.`)
       settingsManager.setKeyValue(key, unrefedDefaultValue, 0)
