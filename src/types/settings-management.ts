@@ -24,10 +24,10 @@ export interface UserSettings {
 }
 
 /**
- * LocalSettings is a map with the settings for different users.
+ * LocalSyncedSettings is a map with the settings for different users.
  * The keys are the user ids and the values are the user settings.
  */
-export interface LocalSettings {
+export interface LocalSyncedSettings {
   /**
    * The settings for different users
    */
@@ -42,7 +42,7 @@ export type OldCockpitSetting = any
 /**
  * SettingsListener is the type of the listener for the settings manager.
  */
-export type SettingsListener = (newSettings: LocalSettings) => void
+export type SettingsListener = (newSettings: LocalSyncedSettings) => void
 
 /**
  * A queue of key value updates for a vehicle
