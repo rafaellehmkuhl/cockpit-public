@@ -44,6 +44,7 @@ class SettingsManager {
   private localSyncedSettings: LocalSyncedSettings = {}
   private currentUser: string = nullValue
   private currentVehicle: string = nullValue
+  private currentVehicleAddress: string = nullValue
   private keyValueVehicleUpdateQueue: KeyValueVehicleUpdateQueue = {}
 
   /**
@@ -649,6 +650,10 @@ class SettingsManager {
   public handleVehicleGettingOnline = async (vehicleAddress: string): Promise<void> => {
     console.log('[SettingsManager]', 'Vehicle online!')
 
+    // Set the current vehicle address
+    console.log(`[SettingsManager] Setting current vehicle address to: '${vehicleAddress}'`)
+    this.currentVehicleAddress = vehicleAddress
+
     // Get ID of the connected vehicle
     const vehicleId = await this.getVehicleIdFromVehicle(vehicleAddress)
     console.log('[SettingsManager]', 'Vehicle ID:', vehicleId)
@@ -662,7 +667,7 @@ class SettingsManager {
    * Handles a user changing
    * @param {string} username - The new username
    */
-  public handleUserChanging = (username: string): void => {
+  public handleUserChanging = async (username: string): Promise<void> => {
     console.log('[SettingsManager]', `User changed to '${username}'.`)
     this.currentUser = username || nullValue
 
@@ -675,6 +680,9 @@ class SettingsManager {
       }
     }
 
+    if (this.currentVehicleAddress !== nullValue) {
+      await this.syncSettingsWithVehicle(this.currentUser, this.currentVehicle, this.currentVehicleAddress)
+    }
     this.handleChangingCurrentUserOrVehicle(this.currentUser, this.currentVehicle)
   }
 
