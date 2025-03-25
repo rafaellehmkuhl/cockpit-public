@@ -63,10 +63,8 @@ class SettingsManager {
     }
     this.keyValueUpdateTimeouts[key] = setTimeout(async () => {
       const newEpoch = epochChange !== undefined ? epochChange : Date.now()
-      console.log(
-        '[SettingsManager]',
-        `Updating value of key '${key}' for user '${userId}' and vehicle '${vehicleId}'.`
-      )
+      const msg = `[SettingsManager] Updating value of key '${key}' for user '${userId}' and vehicle '${vehicleId}'.`
+      console.log(msg)
       const newSetting = {
         epochLastChangedLocally: newEpoch,
         value: value,

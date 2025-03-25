@@ -91,13 +91,13 @@ export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): Rem
           contextLines: 3,
           includeChangeCounts: true,
         })
+        let diffToPrint = diffInValue
         if (diffInValue && diffInValue.split('\n').length > 15) {
           const diffLines = diffInValue.split('\n')
           const truncatedDiff = diffLines.slice(0, 14).join('\n') + '\n...'
-          console.log(`settingsSyncer: Key ${key} changed on watch:\n${truncatedDiff}.`)
-        } else {
-          console.log(`settingsSyncer: Key ${key} changed on watch:\n${diffInValue}.`)
+          diffToPrint = truncatedDiff
         }
+        console.log(`settingsSyncer: Key ${key} changed on watch:\n${diffToPrint}.`)
         settingsManager.setKeyValue(key, refedValue.value)
         oldRefedValue = JSON.parse(JSON.stringify(refedValue.value)) as T
       }, 2000)
