@@ -501,13 +501,15 @@ class SettingsManager {
 
     // Push all key-value updates to the vehicle update queue
     Object.entries(mergedSettings).forEach(([key, setting]) => {
-      this.pushKeyValueUpdateToVehicleUpdateQueue(
-        vehicleId,
-        userId,
-        key,
-        setting.value,
-        setting.epochLastChangedLocally
-      )
+      if (vehicleUserSettings && vehicleUserSettings[key] && !isEqual(vehicleUserSettings[key], setting)) {
+        this.pushKeyValueUpdateToVehicleUpdateQueue(
+          vehicleId,
+          userId,
+          key,
+          setting.value,
+          setting.epochLastChangedLocally
+        )
+      }
     })
 
     await this.sendKeyValueUpdatesToVehicle(vehicleAddress, vehicleId)
@@ -615,6 +617,7 @@ class SettingsManager {
     console.log('[SettingsManager]', 'Vehicle ID:', vehicleId)
     if (vehicleId && typeof vehicleId === 'string' && this.currentUser !== undefined && this.currentUser !== '') {
       await this.syncSettingsWithVehicle(this.currentUser, vehicleId, vehicleAddress)
+      this.handleChangingCurrentUserOrVehicle(this.currentUser, vehicleId)
     }
   }
 
