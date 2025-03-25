@@ -208,14 +208,6 @@ class SettingsManager {
   }
 
   /**
-   * Checks if settings 2.0 format exists
-   * @returns {boolean} True if settings 2.0 format exists, false otherwise
-   */
-  private hasSettings2Locally = (): boolean => {
-    return Object.keys(this.localSyncedSettings).length > 0
-  }
-
-  /**
    * Checks if settings exist for the specified user and vehicle
    * @param {string} userId - The user ID to check
    * @param {string} vehicleId - The vehicle ID to check
@@ -259,50 +251,6 @@ class SettingsManager {
       this.localSyncedSettings[userId] = {}
     }
     this.localSyncedSettings[userId][vehicleId] = defaultSettings
-    this.saveLocalSettings()
-  }
-
-  /**
-   * Migrates settings from 1.0 format to 2.0 format
-   * @param {string} userId - The user ID to migrate settings for
-   * @param {string} vehicleId - The vehicle ID to migrate settings for
-   */
-  private migrateSettings1To2 = (userId: string, vehicleId: string): void => {
-    console.log('[SettingsManager]', `Migrating settings 1.0 to 2.0 for user=${userId}/vehicle=${vehicleId}`)
-    // Get all keys from localStorage that start with "cockpit-"
-    const cockpitKeys = Object.keys(localStorage).filter((key) => key.startsWith('cockpit'))
-
-    // Skip the keys we already use for settings 2.0
-    const ignoredKeys = [syncedSettingsKey, cockpitLastConnectedVehicleKey, cockpitLastConnectedUserKey]
-    const oldSettingsKeys = cockpitKeys.filter((key) => !ignoredKeys.includes(key))
-
-    // Create empty settings if they don't exist
-    if (!this.localSyncedSettings[userId]) {
-      this.localSyncedSettings[userId] = {}
-    }
-    if (!this.localSyncedSettings[userId][vehicleId]) {
-      this.localSyncedSettings[userId][vehicleId] = {}
-    }
-
-    // For each settings key, migrate it to the new format
-    for (const key of oldSettingsKeys) {
-      try {
-        const value = JSON.parse(localStorage.getItem(key) || '')
-        if (value) {
-          // Create a new setting with current epoch time
-          const newSetting: CockpitSetting = {
-            epochLastChangedLocally: Date.now(),
-            value: value,
-          }
-
-          // Add to the user/vehicle settings
-          this.localSyncedSettings[userId][vehicleId][key] = newSetting
-        }
-      } catch (error) {
-        console.error(`Failed to migrate setting ${key}:`, error)
-      }
-    }
-
     this.saveLocalSettings()
   }
 
@@ -515,35 +463,27 @@ class SettingsManager {
     console.log('[SettingsManager]', `Stored last connected user: ${storedLastConnectedUser}`)
     console.log('[SettingsManager]', `Stored last connected vehicle: ${storedLastConnectedVehicle}`)
 
-    // Check if we have settings 2.0
-    if (!this.hasSettings2Locally()) {
-      // No settings 2.0, migrate from settings 1.0
-      console.log('[SettingsManager]', 'No settings 2.0, migrating from settings 1.0.')
-      this.migrateSettings1To2(this.currentUser, this.currentVehicle)
+    // Check if we have settings for current user/vehicle
+    if (this.hasSettingsForUserAndVehicle(this.currentUser, this.currentVehicle)) {
+      // We are good to go
+      console.log('[SettingsManager]', 'We have settings for current user/vehicle. No need for migrations.')
     } else {
-      // Have settings 2.0, check if we have settings for current user/vehicle
-      console.log('[SettingsManager]', 'Have settings 2.0, checking if we have settings for current user/vehicle.')
-      if (this.hasSettingsForUserAndVehicle(this.currentUser, this.currentVehicle)) {
-        // We are good to go
-        console.log('[SettingsManager]', 'We have settings for current user/vehicle. No need for migrations.')
+      // No settings for current user/vehicle, copy from last connected
+      if (this.hasSettingsForUserAndVehicle(storedLastConnectedUser, storedLastConnectedVehicle)) {
+        console.log(
+          '[SettingsManager]',
+          'No settings for current user/vehicle. Copying settings from last connected user/vehicle.'
+        )
+        this.copySettings(storedLastConnectedUser, storedLastConnectedVehicle, this.currentUser, this.currentVehicle)
       } else {
-        // No settings for current user/vehicle, copy from last connected
-        if (this.hasSettingsForUserAndVehicle(storedLastConnectedUser, storedLastConnectedVehicle)) {
-          console.log(
-            '[SettingsManager]',
-            'No settings for current user/vehicle. Copying settings from last connected user/vehicle.'
-          )
-          this.copySettings(storedLastConnectedUser, storedLastConnectedVehicle, this.currentUser, this.currentVehicle)
-        } else {
-          // No settings for last connected user/vehicle, copy default settings
-          console.log('[SettingsManager]', 'No settings for last connected user/vehicle, copying default settings.')
-          this.copyDefaultSettings(this.currentUser, this.currentVehicle)
-        }
+        // No settings for last connected user/vehicle, copy default settings
+        console.log('[SettingsManager]', 'No settings for last connected user/vehicle, copying default settings.')
+        this.copyDefaultSettings(this.currentUser, this.currentVehicle)
       }
-      // Update last connected to current
-      this.saveLastConnectedUser(this.currentUser)
-      this.saveLastConnectedVehicle(this.currentVehicle)
     }
+    // Update last connected to current
+    this.saveLastConnectedUser(this.currentUser)
+    this.saveLastConnectedVehicle(this.currentVehicle)
   }
 
   /**
