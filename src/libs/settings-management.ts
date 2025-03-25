@@ -430,21 +430,14 @@ class SettingsManager {
 
         /* eslint-disable vue/max-len, prettier/prettier, max-len */
         const hasVehicleSettings = vehicleSetting !== undefined
-        const hasNewVehicleSettings =
-          hasVehicleSettings && vehicleSetting.value !== undefined && vehicleSetting.epochLastChangedLocally !== undefined
-        const hasOldVehicleSettings =
-          hasVehicleSettings &&
-          (vehicleSetting.value === undefined || vehicleSetting.epochLastChangedLocally === undefined)
+        const hasNewVehicleSettings = hasVehicleSettings && vehicleSetting.value !== undefined && vehicleSetting.epochLastChangedLocally !== undefined
+        const hasOldVehicleSettings = hasVehicleSettings && (vehicleSetting.value === undefined || vehicleSetting.epochLastChangedLocally === undefined)
         const hasLocalSettings = localSetting !== undefined
-        const hasNewLocalSettings =
-          hasLocalSettings && localSetting.value !== undefined && localSetting.epochLastChangedLocally !== undefined
-        const hasOldLocalSettings =
-          hasLocalSettings && (localSetting.value === undefined || localSetting.epochLastChangedLocally === undefined)
+        const hasNewLocalSettings = hasLocalSettings && localSetting.value !== undefined && localSetting.epochLastChangedLocally !== undefined
+        const hasOldLocalSettings = hasLocalSettings && (localSetting.value === undefined || localSetting.epochLastChangedLocally === undefined)
         const bothSettingsAreNew = hasNewLocalSettings && hasNewVehicleSettings
-        const localSettingsIsNewer =
-          bothSettingsAreNew && localSetting.epochLastChangedLocally > vehicleSetting.epochLastChangedLocally
-        const vehicleSettingsIsNewer =
-          bothSettingsAreNew && vehicleSetting.epochLastChangedLocally > localSetting.epochLastChangedLocally
+        const localSettingsIsNewer = bothSettingsAreNew && localSetting.epochLastChangedLocally > vehicleSetting.epochLastChangedLocally
+        const vehicleSettingsIsNewer = bothSettingsAreNew && vehicleSetting.epochLastChangedLocally > localSetting.epochLastChangedLocally
         const bothSettingsAreOld = hasOldLocalSettings && hasOldVehicleSettings
         /* eslint-enable vue/max-len, prettier/prettier, max-len */
 
@@ -513,7 +506,11 @@ class SettingsManager {
 
     // Push all key-value updates to the vehicle update queue
     Object.entries(mergedSettings).forEach(([key, setting]) => {
-      if (vehicleUserSettings && vehicleUserSettings[key] && !isEqual(vehicleUserSettings[key], setting)) {
+      if (
+        vehicleUserSettings !== undefined &&
+        vehicleUserSettings[key] !== undefined &&
+        !isEqual(vehicleUserSettings[key], setting)
+      ) {
         this.pushKeyValueUpdateToVehicleUpdateQueue(
           vehicleId,
           userId,
@@ -638,7 +635,7 @@ class SettingsManager {
    * @param {string} username - The new username
    */
   public handleUserChanging = (username: string): void => {
-    console.log('[SettingsManager]', 'User changed:', username)
+    console.log('[SettingsManager]', `User changed to '${username}'.`)
     this.currentUser = username || nullValue
 
     // Handle user change
