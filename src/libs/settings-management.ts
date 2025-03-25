@@ -9,7 +9,7 @@ import {
   VehicleSettings,
 } from '@/types/settings-management'
 
-import { getKeyDataFromCockpitVehicleStorage, setKeyDataOnCockpitVehicleStorage } from './blueos'
+import { getKeyDataFromCockpitVehicleStorage, NoPathInBlueOsErrorName, setKeyDataOnCockpitVehicleStorage } from './blueos'
 import { deserialize, isEqual, sleep } from './utils'
 
 const defaultSettings: VehicleSettings = {}
@@ -353,6 +353,31 @@ class SettingsManager {
   }
 
   /**
+   * Backs up the current vehicle settings
+   * @param {string} vehicleAddress - The address of the vehicle to backup settings for
+   */
+  private backupOldStyleVehicleSettingsIfNeeded = async (vehicleAddress: string): Promise<void> => {
+    let oldStyleSettings = undefined
+    try {
+      oldStyleSettings = await getKeyDataFromCockpitVehicleStorage(vehicleAddress, 'old-style-settings')
+    } catch (oldStyleSettingFetchError) {
+      if (!(oldStyleSettingFetchError instanceof Error) || oldStyleSettingFetchError.name !== NoPathInBlueOsErrorName) {
+        return
+      }
+    }
+
+    if (oldStyleSettings === undefined || Object.keys(oldStyleSettings).length === 0) {
+      console.warn(`No old-style settings found on vehicle. Backing up current settings.`)
+      try {
+        const vehicleSettings = await getKeyDataFromCockpitVehicleStorage(vehicleAddress, 'settings')
+        await setKeyDataOnCockpitVehicleStorage(vehicleAddress, 'old-style-settings', vehicleSettings)
+      } catch (backupError) {
+        console.error(`Error backing up current vehicle settings for vehicle '${vehicleAddress}'.`, backupError)
+      }
+    }
+  }
+
+  /**
    * Syncs local settings with vehicle settings, keeping the most recent based on epoch time
    * @param {string} userId - The user ID to sync settings for
    * @param {string} vehicleId - The vehicle ID to sync settings for
@@ -376,6 +401,9 @@ class SettingsManager {
 
     // Get settings from vehicle
     let vehicleSettings = await getKeyDataFromCockpitVehicleStorage(vehicleAddress, 'settings')
+
+    // Back up current vehicle settings
+    this.backupOldStyleVehicleSettingsIfNeeded(vehicleAddress)
 
     if (!vehicleSettings) {
       console.warn(`No settings found on vehicle '${vehicleId}'.`)
