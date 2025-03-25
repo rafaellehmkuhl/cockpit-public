@@ -408,8 +408,20 @@ class SettingsManager {
       if (localUserVehicleSettings !== undefined && Object.keys(localUserVehicleSettings).length > 0) {
         Object.assign(mergedSettings, localUserVehicleSettings)
       } else {
-        console.log('[SettingsManager]', 'No local settings found. Using default settings.')
-        Object.assign(mergedSettings, defaultSettings)
+        console.log('[SettingsManager]', 'No local settings found. Using settings for null vehicle.')
+        const nullVehicleSettings = this.localSyncedSettings[userId][nullValue]
+        if (nullVehicleSettings !== undefined && Object.keys(nullVehicleSettings).length > 0) {
+          Object.assign(mergedSettings, nullVehicleSettings)
+        } else {
+          console.log('[SettingsManager]', 'No settings found for null vehicle. Using settings for null user.')
+          const nullUserSettings = this.localSyncedSettings[nullValue][nullValue]
+          if (nullUserSettings !== undefined && Object.keys(nullUserSettings).length > 0) {
+            Object.assign(mergedSettings, nullUserSettings)
+          } else {
+            console.log('[SettingsManager]', 'No settings found for null user. Using default settings.')
+            Object.assign(mergedSettings, defaultSettings)
+          }
+        }
       }
     } else {
       Object.entries({ ...localUserVehicleSettings, ...vehicleUserSettings }).forEach(([key, localSetting]) => {
