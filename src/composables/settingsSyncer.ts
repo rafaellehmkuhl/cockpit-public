@@ -7,6 +7,7 @@ import { getKeyDataFromCockpitVehicleStorage } from '@/libs/blueos'
 import { settingsManager } from '@/libs/settings-management'
 import { deserialize, isEqual } from '@/libs/utils'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
+import type { CockpitSetting } from '@/types/settings-management'
 
 export const resetJustMadeKey = 'cockpit-reset-just-made'
 const resetJustMade = useStorage(resetJustMadeKey, false)
@@ -105,8 +106,8 @@ export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): Rem
     { deep: true }
   )
 
-  settingsManager.registerListener(key, () => {
-    const newValue = settingsManager.getKeyValue(key)
+  settingsManager.registerListener(key, (newSetting: CockpitSetting) => {
+    const newValue = newSetting.value
     if (isEqual(newValue, refedValue.value)) {
       console.log(`settingsSyncer: Listener for key ${key} activated, but no changes in the value were detected.`)
       return

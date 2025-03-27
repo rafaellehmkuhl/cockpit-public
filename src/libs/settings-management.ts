@@ -1,9 +1,12 @@
+import { v4 as uuidv4 } from 'uuid'
+
 import {
   CockpitSetting,
   KeyValueVehicleUpdateQueue,
   LocalSyncedSettings,
   OldCockpitSetting,
   SettingsListener,
+  SettingsListeners,
   UserChangedEvent,
   VehicleOnlineEvent,
   VehicleSettings,
@@ -15,7 +18,6 @@ import {
   setKeyDataOnCockpitVehicleStorage,
 } from './blueos'
 import { deserialize, isEqual, sleep } from './utils'
-
 const defaultSettings: VehicleSettings = {}
 const syncedSettingsKey = 'cockpit-synced-settings'
 const cockpitLastConnectedVehicleKey = 'cockpit-last-connected-vehicle-id'
@@ -43,7 +45,7 @@ const oldStyleSettingsKey = 'cockpit-old-style-settings'
  * newest epoch is preferred. If the epochs are the same, the value from the vehicle are preferred.
  */
 class SettingsManager {
-  private listeners: Record<string, SettingsListener> = {}
+  private listeners: SettingsListeners = {}
   private keyValueUpdateTimeouts: Record<string, ReturnType<typeof setTimeout>> = {}
   private lastLocalSyncedSettingsForComparison: LocalSyncedSettings = {}
   private currentUser: string = nullValue
@@ -95,6 +97,8 @@ class SettingsManager {
       this.setLocalSettings(localSettings)
 
       this.pushKeyValueUpdateToVehicleUpdateQueue(vehicleId, userId, key, value, newEpoch)
+
+      this.notifyListeners(key)
     }, keyValueUpdateDebounceTime)
   }
 
@@ -127,19 +131,30 @@ class SettingsManager {
    * Registers a listener for local settings changes
    * @param {string} key - The key of the setting to listen for
    * @param {SettingsListener} callback - The callback to call when the setting changes
-   * @returns {void}
+   * @returns {string} The key of the setting that was listened to
    */
-  public registerListener = (key: string, callback: SettingsListener): void => {
-    this.listeners[key] = callback
+  public registerListener = (key: string, callback: SettingsListener): string => {
+    const listenerId = uuidv4()
+    console.log('[SettingsManager]', `Registering listener ${listenerId} for key '${key}'.`)
+    if (!this.listeners[key]) {
+      this.listeners[key] = []
+    }
+    this.listeners[key].push({ id: listenerId, callback })
+    return listenerId
   }
 
   /**
    * Unregisters a listener for local settings changes
    * @param {string} key - The key of the setting to unregister the listener for
+   * @param {string} listenerId - The id of the listener to unregister
    * @returns {void}
    */
-  public unregisterListener = (key: string): void => {
-    delete this.listeners[key]
+  public unregisterListener = (key: string, listenerId: string): void => {
+    console.log('[SettingsManager]', `Unregistering listener ${listenerId} for key '${key}'.`)
+    if (!this.listeners[key]) {
+      return
+    }
+    this.listeners[key] = this.listeners[key].filter((listener) => listener.id !== listenerId)
   }
 
   /**
@@ -218,12 +233,20 @@ class SettingsManager {
 
   /**
    * Notifies listeners of local settings changes
-   * @param {LocalSyncedSettings} newSettings - The new local settings
+   * @param {string} key - The key of the setting that changed
    * @returns {void}
    */
-  private notifyListeners = (newSettings: LocalSyncedSettings): void => {
-    Object.entries(this.listeners).forEach(([, callback]) => {
-      callback(newSettings)
+  private notifyListeners = (key: string): void => {
+    const userId = this.currentUser
+    const vehicleId = this.currentVehicle
+    const newSettings = this.getLocalSettings()
+    const listeners = this.listeners[key]
+    if (!listeners) {
+      return
+    }
+    listeners.forEach((listener) => {
+      console.log('[SettingsManager]', `Notifying listener ${listener.id} for key '${key}'.`)
+      listener.callback(newSettings[userId][vehicleId][key])
     })
   }
 
@@ -679,7 +702,12 @@ class SettingsManager {
     }
 
     console.log('[SettingsManager]', 'Local settings changed externally!')
-    this.notifyListeners(newSettings)
+    Object.keys(newSettings).forEach((key) => {
+      if (newSettings[key] !== this.lastLocalSyncedSettingsForComparison[key]) {
+        console.log('[SettingsManager]', `Notifying listeners for key '${key}'.`)
+        this.notifyListeners(key)
+      }
+    })
   }
 }
 
