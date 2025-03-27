@@ -468,16 +468,20 @@ class SettingsManager {
         const vehicleSetting = vehicleUserSettings[key]
 
         /* eslint-disable vue/max-len, prettier/prettier, max-len */
-        const hasVehicleSettings = vehicleSetting !== undefined
-        const hasNewVehicleSettings = hasVehicleSettings && vehicleSetting.value !== undefined && vehicleSetting.epochLastChangedLocally !== undefined
-        const hasOldVehicleSettings = hasVehicleSettings && (vehicleSetting.value === undefined || vehicleSetting.epochLastChangedLocally === undefined)
         const hasLocalSettings = localSetting !== undefined
+        const hasVehicleSettings = vehicleSetting !== undefined
+
         const hasNewLocalSettings = hasLocalSettings && localSetting.value !== undefined && localSetting.epochLastChangedLocally !== undefined
+        const hasNewVehicleSettings = hasVehicleSettings && vehicleSetting.value !== undefined && vehicleSetting.epochLastChangedLocally !== undefined
+
         const hasOldLocalSettings = hasLocalSettings && (localSetting.value === undefined || localSetting.epochLastChangedLocally === undefined)
+        const hasOldVehicleSettings = hasVehicleSettings && (vehicleSetting.value === undefined || vehicleSetting.epochLastChangedLocally === undefined)
+
         const bothSettingsAreNew = hasNewLocalSettings && hasNewVehicleSettings
+        const bothSettingsAreOld = hasOldLocalSettings && hasOldVehicleSettings
+
         const localSettingsIsNewer = bothSettingsAreNew && localSetting.epochLastChangedLocally > vehicleSetting.epochLastChangedLocally
         const vehicleSettingsIsNewer = bothSettingsAreNew && vehicleSetting.epochLastChangedLocally > localSetting.epochLastChangedLocally
-        const bothSettingsAreOld = hasOldLocalSettings && hasOldVehicleSettings
         /* eslint-enable vue/max-len, prettier/prettier, max-len */
 
         switch (true) {
