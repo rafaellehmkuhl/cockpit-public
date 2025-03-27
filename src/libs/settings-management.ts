@@ -681,6 +681,10 @@ class SettingsManager {
    */
   public handleUserChanging = async (username: string): Promise<void> => {
     console.log('[SettingsManager]', `User changed to '${username}'.`)
+    // TODO: when the user is changing, we are not using the settings we already have for the new user, but instead
+    // keeping the values we have for the previous user, wrongly overwriting the new user's settings.
+    // We should use the settings we have for the new user, and only overwrite them if we don't have settings for the
+    // new user neither locally nor on the vehicle.
     this.currentUser = username || nullValue
 
     // Handle user change
