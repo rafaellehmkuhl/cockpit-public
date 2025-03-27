@@ -317,6 +317,14 @@
   <UpdateNotification v-if="isElectron()" />
   <SnackbarContainer />
   <LocalStorageMonitor />
+  <v-btn
+    icon="mdi-cog"
+    size="small"
+    class="settings-inspection-btn"
+    variant="text"
+    @click="showSettingsInspectionDialog = true"
+  />
+  <SettingsInspectionDialog ref="settingsInspectionDialog" v-model:show="showSettingsInspectionDialog" />
 </template>
 
 <script setup lang="ts">
@@ -353,6 +361,7 @@ import AltitudeSlider from './components/AltitudeSlider.vue'
 import EditMenu from './components/EditMenu.vue'
 import GlassButton from './components/GlassButton.vue'
 import MiniWidgetContainer from './components/MiniWidgetContainer.vue'
+import SettingsInspectionDialog from '@/components/SettingsInspectionDialog.vue'
 import SlideToConfirm from './components/SlideToConfirm.vue'
 import { useSnackbar } from './composables/snackbar'
 import { SubMenuComponentName, SubMenuName, useAppInterfaceStore } from './stores/appInterface'
@@ -780,6 +789,8 @@ onMounted(() => {
     }, 6000)
   }
 })
+
+const showSettingsInspectionDialog = ref(false)
 </script>
 
 <style>
@@ -903,5 +914,33 @@ body.hide-cursor {
 
 .top-bar-hamburger {
   outline: none;
+}
+
+.app-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.settings-inspection-btn {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  background-color: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(5px);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.settings-inspection-btn:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  transform: translate(-50%, -50%) scale(1.1);
 }
 </style>
