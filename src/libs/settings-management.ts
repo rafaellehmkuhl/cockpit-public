@@ -9,7 +9,11 @@ import {
   VehicleSettings,
 } from '@/types/settings-management'
 
-import { getKeyDataFromCockpitVehicleStorage, NoPathInBlueOsErrorName, setKeyDataOnCockpitVehicleStorage } from './blueos'
+import {
+  getKeyDataFromCockpitVehicleStorage,
+  NoPathInBlueOsErrorName,
+  setKeyDataOnCockpitVehicleStorage,
+} from './blueos'
 import { deserialize, isEqual, sleep } from './utils'
 
 const defaultSettings: VehicleSettings = {}
@@ -41,7 +45,7 @@ const oldStyleSettingsKey = 'cockpit-old-style-settings'
 class SettingsManager {
   private listeners: Record<string, SettingsListener> = {}
   private keyValueUpdateTimeouts: Record<string, ReturnType<typeof setTimeout>> = {}
-  private localSyncedSettings: LocalSyncedSettings = {}
+  private lastLocalSyncedSettingsForComparison: LocalSyncedSettings = {}
   private currentUser: string = nullValue
   private currentVehicle: string = nullValue
   private currentVehicleAddress: string = nullValue
@@ -86,8 +90,9 @@ class SettingsManager {
         epochLastChangedLocally: newEpoch,
         value: value,
       }
-      this.localSyncedSettings[userId][vehicleId][key] = newSetting
-      this.saveLocalSettings()
+      const localSettings = this.getLocalSettings()
+      localSettings[userId][vehicleId][key] = newSetting
+      this.setLocalSettings(localSettings)
 
       this.pushKeyValueUpdateToVehicleUpdateQueue(vehicleId, userId, key, value, newEpoch)
     }, keyValueUpdateDebounceTime)
@@ -109,11 +114,13 @@ class SettingsManager {
       vehicleId = this.currentVehicle
     }
 
-    if (this.localSyncedSettings[userId][vehicleId][key] === undefined) {
+    const localSettings = this.getLocalSettings()
+
+    if (localSettings[userId][vehicleId][key] === undefined) {
       return undefined
     }
 
-    return this.localSyncedSettings[userId][vehicleId][key].value
+    return localSettings[userId][vehicleId][key].value
   }
 
   /**
@@ -136,18 +143,10 @@ class SettingsManager {
   }
 
   /**
-   * Sets the local settings
-   * @param {LocalSyncedSettings} settings - The new local settings
-   */
-  private setLocalSettings = (settings: LocalSyncedSettings): void => {
-    Object.assign(this.localSyncedSettings, settings)
-  }
-
-  /**
    * Retrieves the current local settings
    * @returns {LocalSyncedSettings} The local settings
    */
-  private retrieveLocalSettings = (): LocalSyncedSettings => {
+  private getLocalSettings = (): LocalSyncedSettings => {
     const storedLocalSettings = localStorage.getItem(syncedSettingsKey)
     if (storedLocalSettings) {
       return JSON.parse(storedLocalSettings)
@@ -156,12 +155,13 @@ class SettingsManager {
   }
 
   /**
-   * Saves the current local settings
-   * @returns {void}
+   * Sets the local settings
+   * @param {LocalSyncedSettings} settings - The new local settings
    */
-  private saveLocalSettings = (): void => {
-    console.log('[SettingsManager]', 'Saving local settings.')
-    localStorage.setItem(syncedSettingsKey, JSON.stringify(this.localSyncedSettings))
+  private setLocalSettings = (settings: LocalSyncedSettings): void => {
+    console.log('[SettingsManager]', 'Setting/saving local settings.')
+    localStorage.setItem(syncedSettingsKey, JSON.stringify(settings))
+    this.lastLocalSyncedSettingsForComparison = settings
   }
 
   /**
@@ -201,23 +201,6 @@ class SettingsManager {
   }
 
   /**
-   * Loads the local settings
-   * @returns {void}
-   */
-  private loadLocalSettings = (): void => {
-    console.log('[SettingsManager]', 'Loading local settings.')
-    const storedLocalSettings = this.retrieveLocalSettings()
-
-    if (!localStorage.getItem(oldStyleSettingsKey)) {
-      console.log('[SettingsManager]', 'No backup for old-style settings found. Creating one.')
-      this.backupOldStyleSettings()
-    }
-
-    console.log('[SettingsManager]', 'Setting local settings to:', storedLocalSettings)
-    this.setLocalSettings(storedLocalSettings)
-  }
-
-  /**
    * Backs up old-style settings
    * @returns {void}
    */
@@ -251,7 +234,8 @@ class SettingsManager {
    * @returns {boolean} True if settings exist for the user/vehicle pair, false otherwise
    */
   private hasSettingsForUserAndVehicle = (userId: string, vehicleId: string): boolean => {
-    return Boolean(this.localSyncedSettings[userId] && this.localSyncedSettings[userId][vehicleId])
+    const localSettings = this.getLocalSettings()
+    return Boolean(localSettings[userId] && localSettings[userId][vehicleId])
   }
 
   /**
@@ -266,14 +250,14 @@ class SettingsManager {
       '[SettingsManager]',
       `Copying settings from user=${fromUserId}/vehicle=${fromVehicleId} to user=${toUserId}/vehicle=${toVehicleId}`
     )
-    if (this.localSyncedSettings[fromUserId] && this.localSyncedSettings[fromUserId][fromVehicleId]) {
-      if (!this.localSyncedSettings[toUserId]) {
-        this.localSyncedSettings[toUserId] = {}
+
+    const localSettings = this.getLocalSettings()
+    if (localSettings[fromUserId] && localSettings[fromUserId][fromVehicleId]) {
+      if (!localSettings[toUserId]) {
+        localSettings[toUserId] = {}
       }
-      this.localSyncedSettings[toUserId][toVehicleId] = JSON.parse(
-        JSON.stringify(this.localSyncedSettings[fromUserId][fromVehicleId])
-      )
-      this.saveLocalSettings()
+      localSettings[toUserId][toVehicleId] = JSON.parse(JSON.stringify(localSettings[fromUserId][fromVehicleId]))
+      this.setLocalSettings(localSettings)
     }
   }
 
@@ -284,11 +268,12 @@ class SettingsManager {
    */
   private copyDefaultSettings = (userId: string, vehicleId: string): void => {
     console.log('[SettingsManager]', `Copying default settings to user=${userId}/vehicle=${vehicleId}`)
-    if (!this.localSyncedSettings[userId]) {
-      this.localSyncedSettings[userId] = {}
+    const localSettings = this.getLocalSettings()
+    if (!localSettings[userId]) {
+      localSettings[userId] = {}
     }
-    this.localSyncedSettings[userId][vehicleId] = defaultSettings
-    this.saveLocalSettings()
+    localSettings[userId][vehicleId] = defaultSettings
+    this.setLocalSettings(localSettings)
   }
 
   /**
@@ -416,15 +401,17 @@ class SettingsManager {
       vehicleSettings[userId] = {}
     }
 
+    const localSettings = this.getLocalSettings()
+
     // Local settings for this user/vehicle
-    if (!this.localSyncedSettings[userId]) {
-      this.localSyncedSettings[userId] = {}
+    if (!localSettings[userId]) {
+      localSettings[userId] = {}
     }
-    if (!this.localSyncedSettings[userId][vehicleId]) {
-      this.localSyncedSettings[userId][vehicleId] = {}
+    if (!localSettings[userId][vehicleId]) {
+      localSettings[userId][vehicleId] = {}
     }
 
-    const localUserVehicleSettings = this.localSyncedSettings[userId][vehicleId]
+    const localUserVehicleSettings = localSettings[userId][vehicleId]
 
     // Cast vehicleUserSettings to the right type since we don't know its exact structure
     const vehicleUserSettings = vehicleSettings[userId] as Record<string, CockpitSetting | OldCockpitSetting>
@@ -438,12 +425,12 @@ class SettingsManager {
         Object.assign(mergedSettings, localUserVehicleSettings)
       } else {
         console.log('[SettingsManager]', 'No local settings found. Using settings for null vehicle.')
-        const nullVehicleSettings = this.localSyncedSettings[userId][nullValue]
+        const nullVehicleSettings = localSettings[userId][nullValue]
         if (nullVehicleSettings !== undefined && Object.keys(nullVehicleSettings).length > 0) {
           Object.assign(mergedSettings, nullVehicleSettings)
         } else {
           console.log('[SettingsManager]', 'No settings found for null vehicle. Using settings for null user.')
-          const nullUserSettings = this.localSyncedSettings[nullValue][nullValue]
+          const nullUserSettings = localSettings[nullValue][nullValue]
           if (nullUserSettings !== undefined && Object.keys(nullUserSettings).length > 0) {
             Object.assign(mergedSettings, nullUserSettings)
           } else {
@@ -530,8 +517,8 @@ class SettingsManager {
     }
 
     // Update local settings with merged settings
-    this.localSyncedSettings[userId][vehicleId] = mergedSettings
-    this.saveLocalSettings()
+    localSettings[userId][vehicleId] = mergedSettings
+    this.setLocalSettings(localSettings)
 
     // Push all key-value updates to the vehicle update queue
     Object.entries(mergedSettings).forEach(([key, setting]) => {
@@ -561,13 +548,9 @@ class SettingsManager {
   private handleChangingCurrentUserOrVehicle = (userId: string, vehicleId: string): void => {
     console.log('[SettingsManager]', 'Handling change of current user or vehicle.')
 
-    // Load local settings from storage
-    if (
-      this.localSyncedSettings === undefined ||
-      this.localSyncedSettings === null ||
-      Object.keys(this.localSyncedSettings).length === 0
-    ) {
-      this.loadLocalSettings()
+    if (!localStorage.getItem(oldStyleSettingsKey)) {
+      console.log('[SettingsManager]', 'No backup for old-style settings found. Creating one.')
+      this.backupOldStyleSettings()
     }
 
     const storedLastConnectedUser = this.retrieveLastConnectedUser()
@@ -690,13 +673,12 @@ class SettingsManager {
    * Handles a storage change
    */
   public handleStorageChanging = (): void => {
-    const newSettings = this.retrieveLocalSettings()
-    if (newSettings === this.localSyncedSettings) {
+    const newSettings = this.getLocalSettings()
+    if (newSettings === this.lastLocalSyncedSettingsForComparison) {
       return
     }
 
     console.log('[SettingsManager]', 'Local settings changed externally!')
-    this.setLocalSettings(newSettings)
     this.notifyListeners(newSettings)
   }
 }
