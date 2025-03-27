@@ -94,6 +94,7 @@ class SettingsManager {
       }
       const localSettings = this.getLocalSettings()
       localSettings[userId][vehicleId][key] = newSetting
+      console.log('[SettingsManager] Calling setLocalSettings from setKeyValue.')
       this.setLocalSettings(localSettings)
 
       this.pushKeyValueUpdateToVehicleUpdateQueue(vehicleId, userId, key, value, newEpoch)
@@ -174,6 +175,13 @@ class SettingsManager {
   private setLocalSettings = (settings: LocalSyncedSettings): void => {
     console.log('[SettingsManager]', 'Setting/saving local settings.')
     localStorage.setItem(syncedSettingsKey, JSON.stringify(settings))
+
+    Object.keys(settings).forEach((key) => {
+      if (settings[key] !== this.lastLocalSyncedSettingsForComparison[key]) {
+        this.notifyListeners(key)
+      }
+    })
+
     this.lastLocalSyncedSettingsForComparison = settings
   }
 
@@ -278,6 +286,7 @@ class SettingsManager {
         localSettings[toUserId] = {}
       }
       localSettings[toUserId][toVehicleId] = JSON.parse(JSON.stringify(localSettings[fromUserId][fromVehicleId]))
+      console.log('[SettingsManager] Calling setLocalSettings from copySettings.')
       this.setLocalSettings(localSettings)
     }
   }
@@ -294,6 +303,7 @@ class SettingsManager {
       localSettings[userId] = {}
     }
     localSettings[userId][vehicleId] = defaultSettings
+    console.log('[SettingsManager] Calling setLocalSettings from copyDefaultSettings.')
     this.setLocalSettings(localSettings)
   }
 
@@ -480,45 +490,37 @@ class SettingsManager {
 
         const localSettingsIsNewer = bothSettingsAreNew && localSetting.epochLastChangedLocally > vehicleSetting.epochLastChangedLocally
         const vehicleSettingsIsNewer = bothSettingsAreNew && vehicleSetting.epochLastChangedLocally > localSetting.epochLastChangedLocally
-        /* eslint-enable vue/max-len, prettier/prettier, max-len */
 
         switch (true) {
           case hasNewLocalSettings && hasNewVehicleSettings && isEqual(localSetting, vehicleSetting):
-            console.log('[SettingsManager] Both local and vehicle settings are defined and equal.')
-            console.log(`[SettingsManager] Setting key '${key}' to local setting.`)
+            console.debug(`[SettingsManager] Setting key '${key}' to local version (both local and vehicle versions are defined and equal).`)
             mergedSettings[key] = localSetting
             break
           case !hasLocalSettings && !hasVehicleSettings:
-            console.log('[SettingsManager] Both local and vehicle settings are undefined.')
-            console.log(`[SettingsManager] Setting key '${key}' to undefined.`)
+            console.log(`[SettingsManager] Setting key '${key}' to undefined (both local and vehicle versions are undefined).`)
             mergedSettings[key] = {
               epochLastChangedLocally: Date.now(),
               value: undefined,
             }
             break
           case hasNewLocalSettings && !hasNewVehicleSettings:
-            console.log('[SettingsManager] Local setting is defined and vehicle setting is undefined or old.')
-            console.log(`[SettingsManager] Setting key '${key}' to local setting.`)
+            console.log(`[SettingsManager] Setting key '${key}' to local version (local version is defined and vehicle version is undefined or old).`)
             mergedSettings[key] = localSetting
             break
           case hasNewVehicleSettings && !hasNewLocalSettings:
-            console.log('[SettingsManager] Vehicle setting is defined and local setting is undefined or old.')
-            console.log(`[SettingsManager] Setting key '${key}' to vehicle setting.`)
+            console.log(`[SettingsManager] Setting key '${key}' to vehicle version (vehicle version is defined and local version is undefined or old).`)
             mergedSettings[key] = vehicleSetting
             break
           case localSettingsIsNewer:
-            console.log('[SettingsManager] Both settings are defined but local setting is newer than vehicle setting.')
-            console.log(`[SettingsManager] Setting key '${key}' to local setting.`)
+            console.log(`[SettingsManager] Setting key '${key}' to local version (local version is newer than vehicle version).`)
             mergedSettings[key] = localSetting
             break
           case vehicleSettingsIsNewer:
-            console.log('[SettingsManager] Both settings are defined but vehicle setting is newer than local setting.')
-            console.log(`[SettingsManager] Setting key '${key}' to vehicle setting.`)
+            console.log(`[SettingsManager] Setting key '${key}' to vehicle version (vehicle version is newer than local version).`)
             mergedSettings[key] = vehicleSetting
             break
           case bothSettingsAreOld:
-            console.log('[SettingsManager] Both settings are defined but both are old.')
-            console.log(`[SettingsManager] Setting key '${key}' to vehicle setting.`)
+            console.log(`[SettingsManager] Setting key '${key}' to vehicle version (both settings are defined but both are old).`)
             mergedSettings[key] = {
               epochLastChangedLocally: 0,
               value: vehicleSetting,
@@ -529,6 +531,7 @@ class SettingsManager {
             console.log(`[SettingsManager] Not setting key '${key}' since it is undefined on both sides.`)
             break
         }
+        /* eslint-enable vue/max-len, prettier/prettier, max-len */
 
         // If the epochLastChangedLocally is undefined, set it to the current time
         if (
@@ -543,6 +546,7 @@ class SettingsManager {
 
     // Update local settings with merged settings
     localSettings[userId][vehicleId] = mergedSettings
+    console.log('[SettingsManager] Calling setLocalSettings from syncSettingsWithVehicle.')
     this.setLocalSettings(localSettings)
 
     // Push all key-value updates to the vehicle update queue
