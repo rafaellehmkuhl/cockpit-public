@@ -225,7 +225,7 @@ class SettingsManager {
    * Backs up old-style settings
    * @returns {void}
    */
-  private backupOldStyleSettings = (): void => {
+  private backupLocalOldStyleSettings = (): void => {
     // Store all local storage key-value pairs under the key 'cockpit-old-style-settings'
     const oldStyleSettings: Record<string, any> = {}
     for (const key of Object.keys(localStorage).filter((k) => k !== syncedSettingsKey && k !== oldStyleSettingsKey)) {
@@ -419,9 +419,6 @@ class SettingsManager {
     // Get settings from vehicle
     let vehicleSettings = await getKeyDataFromCockpitVehicleStorage(vehicleAddress, 'settings')
 
-    // Back up current vehicle settings
-    this.backupOldStyleVehicleSettingsIfNeeded(vehicleAddress)
-
     if (!vehicleSettings) {
       console.warn(`No settings found on vehicle '${vehicleId}'.`)
       vehicleSettings = {}
@@ -577,11 +574,6 @@ class SettingsManager {
   private handleChangingCurrentUserOrVehicle = (userId: string, vehicleId: string): void => {
     console.log('[SettingsManager]', 'Handling change of current user or vehicle.')
 
-    if (!localStorage.getItem(oldStyleSettingsKey)) {
-      console.log('[SettingsManager]', 'No backup for old-style settings found. Creating one.')
-      this.backupOldStyleSettings()
-    }
-
     const storedLastConnectedUser = this.retrieveLastConnectedUser()
     const storedLastConnectedVehicle = this.retrieveLastConnectedVehicle()
 
@@ -617,6 +609,12 @@ class SettingsManager {
    * Initialize local settings and set up the state based on the flowchart
    */
   private initLocalSettings = (): void => {
+    // First of all, backup old-style settings if not done yet
+    if (!localStorage.getItem(oldStyleSettingsKey)) {
+      console.log('[SettingsManager]', 'No backup for old-style settings found. Creating one.')
+      this.backupLocalOldStyleSettings()
+    }
+
     // Load last connected user from storage
     console.log('[SettingsManager]', 'Retrieving last connected user.')
     const storedLastConnectedUser = this.retrieveLastConnectedUser()
@@ -662,6 +660,9 @@ class SettingsManager {
   public handleVehicleGettingOnline = async (vehicleAddress: string): Promise<void> => {
     console.log('[SettingsManager]', 'Vehicle online!')
 
+    // Before anything else, back up old-style vehicle settings if needed
+    this.backupOldStyleVehicleSettingsIfNeeded(vehicleAddress)
+
     // Set the current vehicle address
     console.log(`[SettingsManager] Setting current vehicle address to: '${vehicleAddress}'`)
     this.currentVehicleAddress = vehicleAddress
@@ -690,16 +691,19 @@ class SettingsManager {
     // Handle user change
     // Check if we have settings for the new user and current vehicle
     if (!this.hasSettingsForUserAndVehicle(this.currentUser, this.currentVehicle)) {
+      console.log(`[SettingsManager] No settings for user '${this.currentUser}' and vehicle '${this.currentVehicle}'.`)
       const lastUser = this.retrieveLastConnectedUser()
       if (lastUser && this.hasSettingsForUserAndVehicle(lastUser, this.currentVehicle)) {
+        console.log(`[SettingsManager] Copying settings from user '${lastUser}' to user '${this.currentUser}'.`)
         this.copySettings(lastUser, this.currentVehicle, this.currentUser, this.currentVehicle)
       }
     }
 
+    this.handleChangingCurrentUserOrVehicle(this.currentUser, this.currentVehicle)
+
     if (this.currentVehicleAddress !== nullValue) {
       await this.syncSettingsWithVehicle(this.currentUser, this.currentVehicle, this.currentVehicleAddress)
     }
-    this.handleChangingCurrentUserOrVehicle(this.currentUser, this.currentVehicle)
   }
 
   /**
