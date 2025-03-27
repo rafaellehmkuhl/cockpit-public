@@ -471,9 +471,10 @@ class SettingsManager {
         }
       }
     } else {
-      Object.entries({ ...localUserVehicleSettings, ...vehicleUserSettings }).forEach(([key, localSetting]) => {
+      Object.keys({ ...localUserVehicleSettings, ...vehicleUserSettings }).forEach((key) => {
         console.log('[SettingsManager]', `Comparing key '${key}'.`)
         const vehicleSetting = vehicleUserSettings[key]
+        const localSetting = localUserVehicleSettings[key]
 
         /* eslint-disable vue/max-len, prettier/prettier, max-len */
         const hasLocalSettings = localSetting !== undefined
