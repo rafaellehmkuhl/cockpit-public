@@ -135,7 +135,6 @@ class SettingsManager {
    */
   public registerListener = (key: string, callback: SettingsListener): string => {
     const listenerId = uuidv4()
-    console.log('[SettingsManager]', `Registering listener ${listenerId} for key '${key}'.`)
     if (!this.listeners[key]) {
       this.listeners[key] = []
     }
@@ -150,7 +149,6 @@ class SettingsManager {
    * @returns {void}
    */
   public unregisterListener = (key: string, listenerId: string): void => {
-    console.log('[SettingsManager]', `Unregistering listener ${listenerId} for key '${key}'.`)
     if (!this.listeners[key]) {
       return
     }
