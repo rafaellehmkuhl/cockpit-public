@@ -472,7 +472,7 @@ class SettingsManager {
       }
     } else {
       Object.keys({ ...localUserVehicleSettings, ...vehicleUserSettings }).forEach((key) => {
-        console.log('[SettingsManager]', `Comparing key '${key}'.`)
+        console.debug('[SettingsManager]', `Comparing key '${key}'.`)
         const vehicleSetting = vehicleUserSettings[key]
         const localSetting = localUserVehicleSettings[key]
 
@@ -498,38 +498,37 @@ class SettingsManager {
             mergedSettings[key] = localSetting
             break
           case !hasLocalSettings && !hasVehicleSettings:
-            console.log(`[SettingsManager] Setting key '${key}' to undefined (both local and vehicle versions are undefined).`)
+            console.info(`[SettingsManager] Setting key '${key}' to undefined (both local and vehicle versions are undefined).`)
             mergedSettings[key] = {
               epochLastChangedLocally: Date.now(),
               value: undefined,
             }
             break
           case hasNewLocalSettings && !hasNewVehicleSettings:
-            console.log(`[SettingsManager] Setting key '${key}' to local version (local version is defined and vehicle version is undefined or old).`)
+            console.info(`[SettingsManager] Setting key '${key}' to local version (local version is defined and vehicle version is undefined or old).`)
             mergedSettings[key] = localSetting
             break
           case hasNewVehicleSettings && !hasNewLocalSettings:
-            console.log(`[SettingsManager] Setting key '${key}' to vehicle version (vehicle version is defined and local version is undefined or old).`)
+            console.info(`[SettingsManager] Setting key '${key}' to vehicle version (vehicle version is defined and local version is undefined or old).`)
             mergedSettings[key] = vehicleSetting
             break
           case localSettingsIsNewer:
-            console.log(`[SettingsManager] Setting key '${key}' to local version (local version is newer than vehicle version).`)
+            console.info(`[SettingsManager] Setting key '${key}' to local version (local version is newer than vehicle version).`)
             mergedSettings[key] = localSetting
             break
           case vehicleSettingsIsNewer:
-            console.log(`[SettingsManager] Setting key '${key}' to vehicle version (vehicle version is newer than local version).`)
+            console.info(`[SettingsManager] Setting key '${key}' to vehicle version (vehicle version is newer than local version).`)
             mergedSettings[key] = vehicleSetting
             break
           case bothSettingsAreOld:
-            console.log(`[SettingsManager] Setting key '${key}' to vehicle version (both settings are defined but both are old).`)
+            console.info(`[SettingsManager] Setting key '${key}' to vehicle version (both settings are defined but both are old).`)
             mergedSettings[key] = {
               epochLastChangedLocally: 0,
               value: vehicleSetting,
             }
             break
           default:
-            console.log('[SettingsManager] Unknown case.')
-            console.log(`[SettingsManager] Not setting key '${key}' since it is undefined on both sides.`)
+            console.info(`[SettingsManager] Not setting key '${key}' (unknown case).`)
             break
         }
         /* eslint-enable vue/max-len, prettier/prettier, max-len */
