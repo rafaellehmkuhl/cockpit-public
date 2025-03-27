@@ -242,8 +242,8 @@ class SettingsManager {
     if (!listeners) {
       return
     }
+    console.log('[SettingsManager]', `Notifying ${listeners.length} listeners for key '${key}'.`)
     listeners.forEach((listener) => {
-      console.log('[SettingsManager]', `Notifying listener ${listener.id} for key '${key}'.`)
       listener.callback(newSettings[userId][vehicleId][key])
     })
   }
@@ -706,7 +706,6 @@ class SettingsManager {
     console.log('[SettingsManager]', 'Local settings changed externally!')
     Object.keys(newSettings).forEach((key) => {
       if (newSettings[key] !== this.lastLocalSyncedSettingsForComparison[key]) {
-        console.log('[SettingsManager]', `Notifying listeners for key '${key}'.`)
         this.notifyListeners(key)
       }
     })
