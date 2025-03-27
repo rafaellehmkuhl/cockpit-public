@@ -13,21 +13,18 @@
                   <th class="text-left">Setting Key</th>
                   <th class="text-left">Value</th>
                   <th class="text-left">Last Changed</th>
-                  <th class="text-left">Status</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="(setting, key) in vehicleSettings" :key="key">
                   <td class="text-wrap" style="max-width: 200px">{{ key }}</td>
                   <td class="text-wrap" style="max-width: 200px">{{ formatValue(setting.value) }}</td>
-                  <td>{{ new Date(setting.epochLastChangedLocally).toLocaleString() }}</td>
                   <td>
-                    <v-chip
-                      :color="hasLocalStorageDiff(currentUser, vehicleId, key, setting) ? 'error' : 'success'"
-                      size="small"
-                    >
-                      {{ hasLocalStorageDiff(currentUser, vehicleId, key, setting) ? 'Different' : 'Synced' }}
-                    </v-chip>
+                    <div v-if="setting.epochLastChangedLocally === 0">--</div>
+                    <div v-else>
+                      <div>{{ new Date(setting.epochLastChangedLocally).toLocaleString() }}</div>
+                      <div class="text-caption text-grey">Epoch: {{ setting.epochLastChangedLocally }}</div>
+                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -86,16 +83,15 @@ watch(show, (newValue) => {
 })
 
 const currentUser = computed(() => {
-  // @ts-ignore - accessing private property
   return settingsManager.currentUser
 })
 
 const settings = computed(() => {
-  // @ts-ignore - accessing private property
-  return settingsManager.localSyncedSettings
+  return settingsManager.getLocalSettings()
 })
 
 const currentUserSettings = computed(() => {
+  if (!settings.value || !currentUser.value) return null
   return settings.value[currentUser.value] || null
 })
 
@@ -108,20 +104,6 @@ const formatValue = (value: any): string => {
   if (value === undefined || value === null) return 'undefined'
   if (typeof value === 'object') return '{...}'
   return String(value)
-}
-
-/**
- * Checks if there is a difference between the in-memory setting and the one stored in localStorage
- * @param userId - The ID of the user
- * @param vehicleId - The ID of the vehicle
- * @param key - The setting key
- * @param setting - The current setting value
- * @returns boolean indicating if there is a difference
- */
-const hasLocalStorageDiff = (userId: string, vehicleId: string, key: string, setting: any): boolean => {
-  const storedSettings = JSON.parse(localStorage.getItem('cockpit-synced-settings') || '{}')
-  const storedSetting = storedSettings[userId]?.[vehicleId]?.[key]
-  return !storedSetting || storedSetting.epochLastChangedLocally !== setting.epochLastChangedLocally
 }
 
 /**
@@ -160,6 +142,15 @@ defineExpose({
 .text-wrap {
   white-space: normal !important;
   word-break: break-word !important;
+}
+
+.text-caption {
+  font-size: 0.75rem !important;
+  opacity: 0.7;
+}
+
+.text-grey {
+  color: rgba(255, 255, 255, 0.6) !important;
 }
 
 .v-table tr:hover {
