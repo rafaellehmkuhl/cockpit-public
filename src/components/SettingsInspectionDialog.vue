@@ -100,9 +100,7 @@ watch(show, (newValue) => {
   emit('update:show', newValue)
 })
 
-const currentUser = computed(() => {
-  return settingsManager.currentUser
-})
+const currentUser = ref('')
 
 const settings = computed(() => {
   return settingsData.value
@@ -134,6 +132,10 @@ const handleSettingsChange = (newSetting: CockpitSetting): void => {
   settingsData.value = settingsManager.getLocalSettings()
   updateCounter.value++ // Force table re-render
 }
+
+setInterval(() => {
+  currentUser.value = settingsManager.currentUser
+}, 100)
 
 const listeners: SettingsListener[] = []
 
