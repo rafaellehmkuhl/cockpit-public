@@ -272,22 +272,6 @@ class SettingsManager {
     })
   }
 
-  // private notifyListenersAboutAllKeyChanges = (): void => {
-  //   const userId = this.currentUser
-  //   const vehicleId = this.currentVehicle
-  //   const newSettings = this.getLocalSettings()
-
-  //   Object.keys(newSettings).forEach((key) => {
-  //     const listeners = this.listeners[key]
-  //     if (!listeners) {
-  //       return
-  //     }
-  //     listeners.forEach((listener) => {
-  //       listener.callback(newSettings[userId][vehicleId][key])
-  //     })
-  //   })
-  // }
-
   /**
    * Checks if settings exist for the specified user and vehicle
    * @param {string} userId - The user ID to check
