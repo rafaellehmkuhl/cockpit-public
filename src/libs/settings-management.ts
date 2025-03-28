@@ -752,16 +752,26 @@ class SettingsManager {
    */
   public handleStorageChanging = (): void => {
     const newSettings = this.getLocalSettings()
-    if (newSettings === this.lastLocalUserVehicleSettings) {
+    const userVehicleSettings = this.getSettingsForUserAndVehicle(this.currentUser, this.currentVehicle)
+    if (isEqual(this.lastLocalUserVehicleSettings, userVehicleSettings)) {
       return
     }
 
     console.log('[SettingsManager]', 'Local settings changed externally!')
     Object.keys(newSettings).forEach((key) => {
-      if (newSettings[key] !== this.lastLocalUserVehicleSettings[key]) {
+      if (userVehicleSettings[key] !== this.lastLocalUserVehicleSettings[key]) {
         this.notifyListenersAboutKeyChange(key)
       }
     })
+
+    if (this.currentVehicleAddress) {
+      this.pushSettingsToVehicleUpdateQueue(
+        this.currentUser,
+        this.currentVehicle,
+        this.currentVehicleAddress,
+        userVehicleSettings
+      )
+    }
   }
 }
 
