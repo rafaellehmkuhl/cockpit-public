@@ -18,6 +18,7 @@ import {
   setKeyDataOnCockpitVehicleStorage,
 } from './blueos'
 import { deserialize, isEqual, sleep } from './utils'
+import { diff } from 'jest-diff'
 const defaultSettings: VehicleSettings = {}
 const syncedSettingsKey = 'cockpit-synced-settings'
 const cockpitLastConnectedVehicleKey = 'cockpit-last-connected-vehicle-id'
@@ -47,7 +48,7 @@ const oldStyleSettingsKey = 'cockpit-old-style-settings'
 class SettingsManager {
   private listeners: SettingsListeners = {}
   private keyValueUpdateTimeouts: Record<string, ReturnType<typeof setTimeout>> = {}
-  private lastLocalSyncedSettingsForComparison: LocalSyncedSettings = {}
+  private lastLocalUserVehicleSettings: VehicleSettings = {}
   private currentUser: string = nullValue
   private currentVehicle: string = nullValue
   private currentVehicleAddress: string = nullValue
@@ -99,7 +100,7 @@ class SettingsManager {
 
       this.pushKeyValueUpdateToVehicleUpdateQueue(vehicleId, userId, key, value, newEpoch)
 
-      this.notifyListeners(key)
+      this.notifyListenersAboutKeyChange(key)
     }, keyValueUpdateDebounceTime)
   }
 
@@ -170,19 +171,31 @@ class SettingsManager {
 
   /**
    * Sets the local settings
-   * @param {LocalSyncedSettings} settings - The new local settings
+   * @param {LocalSyncedSettings} newSettings - The new local settings
    */
-  private setLocalSettings = (settings: LocalSyncedSettings): void => {
+  private setLocalSettings = (newSettings: LocalSyncedSettings): void => {
     console.log('[SettingsManager]', 'Setting/saving local settings.')
-    localStorage.setItem(syncedSettingsKey, JSON.stringify(settings))
+    localStorage.setItem(syncedSettingsKey, JSON.stringify(newSettings))
 
-    Object.keys(settings).forEach((key) => {
-      if (settings[key] !== this.lastLocalSyncedSettingsForComparison[key]) {
-        this.notifyListeners(key)
-      }
-    })
+    if (newSettings[this.currentUser] && newSettings[this.currentUser][this.currentVehicle]) {
+      Object.keys(newSettings[this.currentUser][this.currentVehicle]).forEach((key) => {
+        if (!isEqual(newSettings[this.currentUser][this.currentVehicle][key], this.lastLocalUserVehicleSettings[key])) {
+          this.notifyListenersAboutKeyChange(key)
+        }
+      })
+      this.lastLocalUserVehicleSettings = { ...newSettings[this.currentUser][this.currentVehicle] }
+    }
+  }
 
-    this.lastLocalSyncedSettingsForComparison = settings
+  private setLocalSettingsForUserAndVehicle = (userId: string, vehicleId: string, settings: VehicleSettings): void => {
+    const localSettings = this.getLocalSettings()
+
+    if (!localSettings[userId]) {
+      localSettings[userId] = {}
+    }
+
+    localSettings[userId][vehicleId] = settings
+    this.setLocalSettings(localSettings)
   }
 
   /**
@@ -242,7 +255,7 @@ class SettingsManager {
    * @param {string} key - The key of the setting that changed
    * @returns {void}
    */
-  private notifyListeners = (key: string): void => {
+  private notifyListenersAboutKeyChange = (key: string): void => {
     const userId = this.currentUser
     const vehicleId = this.currentVehicle
     const newSettings = this.getLocalSettings()
@@ -256,6 +269,22 @@ class SettingsManager {
     })
   }
 
+  // private notifyListenersAboutAllKeyChanges = (): void => {
+  //   const userId = this.currentUser
+  //   const vehicleId = this.currentVehicle
+  //   const newSettings = this.getLocalSettings()
+
+  //   Object.keys(newSettings).forEach((key) => {
+  //     const listeners = this.listeners[key]
+  //     if (!listeners) {
+  //       return
+  //     }
+  //     listeners.forEach((listener) => {
+  //       listener.callback(newSettings[userId][vehicleId][key])
+  //     })
+  //   })
+  // }
+
   /**
    * Checks if settings exist for the specified user and vehicle
    * @param {string} userId - The user ID to check
@@ -267,44 +296,36 @@ class SettingsManager {
     return Boolean(localSettings[userId] && localSettings[userId][vehicleId])
   }
 
-  /**
-   * Copies settings from one user/vehicle to another
-   * @param {string} fromUserId - Source user ID
-   * @param {string} fromVehicleId - Source vehicle ID
-   * @param {string} toUserId - Destination user ID
-   * @param {string} toVehicleId - Destination vehicle ID
-   */
-  private copySettings = (fromUserId: string, fromVehicleId: string, toUserId: string, toVehicleId: string): void => {
-    console.log(
-      '[SettingsManager]',
-      `Copying settings from user=${fromUserId}/vehicle=${fromVehicleId} to user=${toUserId}/vehicle=${toVehicleId}`
-    )
-
+  private getSettingsForUserAndVehicle = (userId: string, vehicleId: string): VehicleSettings => {
     const localSettings = this.getLocalSettings()
-    if (localSettings[fromUserId] && localSettings[fromUserId][fromVehicleId]) {
-      if (!localSettings[toUserId]) {
-        localSettings[toUserId] = {}
-      }
-      localSettings[toUserId][toVehicleId] = JSON.parse(JSON.stringify(localSettings[fromUserId][fromVehicleId]))
-      console.log('[SettingsManager] Calling setLocalSettings from copySettings.')
-      this.setLocalSettings(localSettings)
+
+    if (!localSettings[userId]) {
+      return {}
     }
+    if (!localSettings[userId][vehicleId]) {
+      return {}
+    }
+
+    return localSettings[userId][vehicleId]
   }
 
-  /**
-   * Copies default settings to a user/vehicle
-   * @param {string} userId - The user ID to copy settings to
-   * @param {string} vehicleId - The vehicle ID to copy settings to
-   */
-  private copyDefaultSettings = (userId: string, vehicleId: string): void => {
-    console.log('[SettingsManager]', `Copying default settings to user=${userId}/vehicle=${vehicleId}`)
-    const localSettings = this.getLocalSettings()
-    if (!localSettings[userId]) {
-      localSettings[userId] = {}
-    }
-    localSettings[userId][vehicleId] = defaultSettings
-    console.log('[SettingsManager] Calling setLocalSettings from copyDefaultSettings.')
-    this.setLocalSettings(localSettings)
+  private getMergedSettings = (settings1: VehicleSettings, settings2: VehicleSettings): VehicleSettings => {
+    const mergedSettings: VehicleSettings = {}
+
+    Object.keys({ ...settings1, ...settings2 }).forEach((key) => {
+      const setting1 = settings1[key]
+      const setting2 = settings2[key]
+
+      if (setting1 && setting2) {
+        mergedSettings[key] = setting1.epochLastChangedLocally > setting2.epochLastChangedLocally ? setting1 : setting2
+      } else if (setting1) {
+        mergedSettings[key] = setting1
+      } else if (setting2) {
+        mergedSettings[key] = setting2
+      }
+    })
+
+    return mergedSettings
   }
 
   /**
@@ -401,21 +422,14 @@ class SettingsManager {
    * @param {string} vehicleAddress - The address of the vehicle to sync with
    * @returns {Promise<void>} A promise that resolves when sync is complete
    */
-  private syncSettingsWithVehicle = async (
+  private getBestUserVehicleSettingsBetweenLocalAndVehicle = async (
     userId: string,
     vehicleId: string,
     vehicleAddress: string
-  ): Promise<void> => {
+  ): Promise<VehicleSettings> => {
     console.log('[SettingsManager]', `Syncing settings for user=${userId}/vehicle=${vehicleId}`)
 
-    if (userId === undefined || userId === null || userId === '') {
-      userId = this.currentUser || nullValue
-    }
-
-    if (vehicleId === undefined || vehicleId === null || vehicleId === '') {
-      vehicleId = this.currentVehicle || nullValue
-    }
-
+    // TODO: Decide about what to do if this getkeydata fails
     // Get settings from vehicle
     let vehicleSettings = await getKeyDataFromCockpitVehicleStorage(vehicleAddress, 'settings')
 
@@ -447,162 +461,99 @@ class SettingsManager {
     // Merge settings, keeping the most recent based on epoch time
     const mergedSettings: VehicleSettings = {}
 
-    if (vehicleUserSettings === undefined || Object.keys(vehicleUserSettings).length === 0) {
-      console.log('[SettingsManager]', 'User settings on vehicle are undefined or empty. Using local settings.')
-      if (localUserVehicleSettings !== undefined && Object.keys(localUserVehicleSettings).length > 0) {
-        Object.assign(mergedSettings, localUserVehicleSettings)
-      } else {
-        console.log('[SettingsManager]', 'No local settings found. Using settings for null vehicle.')
-        const nullVehicleSettings = localSettings[userId][nullValue]
-        if (nullVehicleSettings !== undefined && Object.keys(nullVehicleSettings).length > 0) {
-          Object.assign(mergedSettings, nullVehicleSettings)
-        } else {
-          console.log('[SettingsManager]', 'No settings found for null vehicle. Using settings for null user.')
-          const nullUserSettings = localSettings[nullValue][nullValue]
-          if (nullUserSettings !== undefined && Object.keys(nullUserSettings).length > 0) {
-            Object.assign(mergedSettings, nullUserSettings)
-          } else {
-            console.log('[SettingsManager]', 'No settings found for null user. Using default settings.')
-            Object.assign(mergedSettings, defaultSettings)
+    Object.keys({ ...localUserVehicleSettings, ...vehicleUserSettings }).forEach((key) => {
+      console.debug('[SettingsManager]', `Comparing key '${key}'.`)
+      const vehicleSetting = vehicleUserSettings[key]
+      const localSetting = localUserVehicleSettings[key]
+
+      /* eslint-disable vue/max-len, prettier/prettier, max-len */
+      const hasLocalSettings = localSetting !== undefined
+      const hasVehicleSettings = vehicleSetting !== undefined
+
+      const hasNewLocalSettings = hasLocalSettings && localSetting.value !== undefined && localSetting.epochLastChangedLocally !== undefined
+      const hasNewVehicleSettings = hasVehicleSettings && vehicleSetting.value !== undefined && vehicleSetting.epochLastChangedLocally !== undefined
+
+      const hasOldLocalSettings = hasLocalSettings && (localSetting.value === undefined || localSetting.epochLastChangedLocally === undefined)
+      const hasOldVehicleSettings = hasVehicleSettings && (vehicleSetting.value === undefined || vehicleSetting.epochLastChangedLocally === undefined)
+
+      const bothSettingsAreNew = hasNewLocalSettings && hasNewVehicleSettings
+      const bothSettingsAreOld = hasOldLocalSettings && hasOldVehicleSettings
+
+      const localSettingsIsNewer = bothSettingsAreNew && localSetting.epochLastChangedLocally > vehicleSetting.epochLastChangedLocally
+      const vehicleSettingsIsNewer = bothSettingsAreNew && vehicleSetting.epochLastChangedLocally > localSetting.epochLastChangedLocally
+
+      switch (true) {
+        case hasNewLocalSettings && hasNewVehicleSettings && isEqual(localSetting, vehicleSetting):
+          console.debug(`[SettingsManager] Setting key '${key}' to local version (both local and vehicle versions are defined and equal).`)
+          mergedSettings[key] = localSetting
+          break
+        case !hasLocalSettings && !hasVehicleSettings:
+          console.info(`[SettingsManager] Setting key '${key}' to undefined (both local and vehicle versions are undefined).`)
+          mergedSettings[key] = {
+            epochLastChangedLocally: Date.now(),
+            value: undefined,
           }
-        }
+          break
+        case hasNewLocalSettings && !hasNewVehicleSettings:
+          console.info(`[SettingsManager] Setting key '${key}' to local version (local version is defined and vehicle version is undefined or old).`)
+          mergedSettings[key] = localSetting
+          break
+        case hasNewVehicleSettings && !hasNewLocalSettings:
+          console.info(`[SettingsManager] Setting key '${key}' to vehicle version (vehicle version is defined and local version is undefined or old).`)
+          mergedSettings[key] = vehicleSetting
+          break
+        case localSettingsIsNewer:
+          console.info(`[SettingsManager] Setting key '${key}' to local version (local version is newer than vehicle version).`)
+          mergedSettings[key] = localSetting
+          break
+        case vehicleSettingsIsNewer:
+          console.info(`[SettingsManager] Setting key '${key}' to vehicle version (vehicle version is newer than local version).`)
+          mergedSettings[key] = vehicleSetting
+          break
+        case bothSettingsAreOld:
+          console.info(`[SettingsManager] Setting key '${key}' to vehicle version (both settings are defined but both are old).`)
+          mergedSettings[key] = {
+            epochLastChangedLocally: 0,
+            value: vehicleSetting,
+          }
+          break
+        default:
+          console.info(`[SettingsManager] Not setting key '${key}' (unknown case).`)
+          break
       }
-    } else {
-      Object.keys({ ...localUserVehicleSettings, ...vehicleUserSettings }).forEach((key) => {
-        console.debug('[SettingsManager]', `Comparing key '${key}'.`)
-        const vehicleSetting = vehicleUserSettings[key]
-        const localSetting = localUserVehicleSettings[key]
+      /* eslint-enable vue/max-len, prettier/prettier, max-len */
 
-        /* eslint-disable vue/max-len, prettier/prettier, max-len */
-        const hasLocalSettings = localSetting !== undefined
-        const hasVehicleSettings = vehicleSetting !== undefined
-
-        const hasNewLocalSettings = hasLocalSettings && localSetting.value !== undefined && localSetting.epochLastChangedLocally !== undefined
-        const hasNewVehicleSettings = hasVehicleSettings && vehicleSetting.value !== undefined && vehicleSetting.epochLastChangedLocally !== undefined
-
-        const hasOldLocalSettings = hasLocalSettings && (localSetting.value === undefined || localSetting.epochLastChangedLocally === undefined)
-        const hasOldVehicleSettings = hasVehicleSettings && (vehicleSetting.value === undefined || vehicleSetting.epochLastChangedLocally === undefined)
-
-        const bothSettingsAreNew = hasNewLocalSettings && hasNewVehicleSettings
-        const bothSettingsAreOld = hasOldLocalSettings && hasOldVehicleSettings
-
-        const localSettingsIsNewer = bothSettingsAreNew && localSetting.epochLastChangedLocally > vehicleSetting.epochLastChangedLocally
-        const vehicleSettingsIsNewer = bothSettingsAreNew && vehicleSetting.epochLastChangedLocally > localSetting.epochLastChangedLocally
-
-        switch (true) {
-          case hasNewLocalSettings && hasNewVehicleSettings && isEqual(localSetting, vehicleSetting):
-            console.debug(`[SettingsManager] Setting key '${key}' to local version (both local and vehicle versions are defined and equal).`)
-            mergedSettings[key] = localSetting
-            break
-          case !hasLocalSettings && !hasVehicleSettings:
-            console.info(`[SettingsManager] Setting key '${key}' to undefined (both local and vehicle versions are undefined).`)
-            mergedSettings[key] = {
-              epochLastChangedLocally: Date.now(),
-              value: undefined,
-            }
-            break
-          case hasNewLocalSettings && !hasNewVehicleSettings:
-            console.info(`[SettingsManager] Setting key '${key}' to local version (local version is defined and vehicle version is undefined or old).`)
-            mergedSettings[key] = localSetting
-            break
-          case hasNewVehicleSettings && !hasNewLocalSettings:
-            console.info(`[SettingsManager] Setting key '${key}' to vehicle version (vehicle version is defined and local version is undefined or old).`)
-            mergedSettings[key] = vehicleSetting
-            break
-          case localSettingsIsNewer:
-            console.info(`[SettingsManager] Setting key '${key}' to local version (local version is newer than vehicle version).`)
-            mergedSettings[key] = localSetting
-            break
-          case vehicleSettingsIsNewer:
-            console.info(`[SettingsManager] Setting key '${key}' to vehicle version (vehicle version is newer than local version).`)
-            mergedSettings[key] = vehicleSetting
-            break
-          case bothSettingsAreOld:
-            console.info(`[SettingsManager] Setting key '${key}' to vehicle version (both settings are defined but both are old).`)
-            mergedSettings[key] = {
-              epochLastChangedLocally: 0,
-              value: vehicleSetting,
-            }
-            break
-          default:
-            console.info(`[SettingsManager] Not setting key '${key}' (unknown case).`)
-            break
-        }
-        /* eslint-enable vue/max-len, prettier/prettier, max-len */
-
-        // If the epochLastChangedLocally is undefined, set it to the current time
-        if (
-          mergedSettings[key] !== undefined &&
-          mergedSettings[key].value !== undefined &&
-          mergedSettings[key].epochLastChangedLocally === undefined
-        ) {
-          mergedSettings[key].epochLastChangedLocally = Date.now()
-        }
-      })
-    }
-
-    // Update local settings with merged settings
-    localSettings[userId][vehicleId] = mergedSettings
-    console.log('[SettingsManager] Calling setLocalSettings from syncSettingsWithVehicle.')
-    this.setLocalSettings(localSettings)
-
-    // Push all key-value updates to the vehicle update queue
-    Object.entries(mergedSettings).forEach(([key, setting]) => {
+      // If the epochLastChangedLocally is undefined, set it to the current time
       if (
-        vehicleUserSettings !== undefined &&
-        vehicleUserSettings[key] !== undefined &&
-        !isEqual(vehicleUserSettings[key], setting)
+        mergedSettings[key] !== undefined &&
+        mergedSettings[key].value !== undefined &&
+        mergedSettings[key].epochLastChangedLocally === undefined
       ) {
-        this.pushKeyValueUpdateToVehicleUpdateQueue(
-          vehicleId,
-          userId,
-          key,
-          setting.value,
-          setting.epochLastChangedLocally
-        )
+        mergedSettings[key].epochLastChangedLocally = Date.now()
       }
     })
 
-    await this.sendKeyValueUpdatesToVehicle(vehicleAddress, vehicleId)
+    return mergedSettings
   }
 
-  /**
-   * Handles changing the current user or vehicle
-   * @param {string} userId - The user ID to set
-   * @param {string} vehicleId - The vehicle ID to set
-   */
-  private handleChangingCurrentUserOrVehicle = (userId: string, vehicleId: string): void => {
-    console.log('[SettingsManager]', 'Handling change of current user or vehicle.')
+  private pushSettingsToVehicleUpdateQueue = async (
+    userId: string,
+    vehicleId: string,
+    vehicleAddress: string,
+    userVehicleSettings: VehicleSettings
+  ): Promise<void> => {
+    // Push all key-value updates to the vehicle update queue
+    Object.entries(userVehicleSettings).forEach(([key, setting]) => {
+      this.pushKeyValueUpdateToVehicleUpdateQueue(
+        vehicleId,
+        userId,
+        key,
+        setting.value,
+        setting.epochLastChangedLocally
+      )
+    })
 
-    const storedLastConnectedUser = this.retrieveLastConnectedUser()
-    const storedLastConnectedVehicle = this.retrieveLastConnectedVehicle()
-
-    console.log('[SettingsManager]', `Stored last connected user: ${storedLastConnectedUser}`)
-    console.log('[SettingsManager]', `Current user: ${this.currentUser}`)
-    console.log('[SettingsManager]', `Stored last connected vehicle: ${storedLastConnectedVehicle}`)
-    console.log('[SettingsManager]', `Current vehicle: ${this.currentVehicle}`)
-
-    // Check if we have settings for current user/vehicle
-    if (this.hasSettingsForUserAndVehicle(userId, vehicleId)) {
-      // We are good to go
-      console.log('[SettingsManager]', 'We have settings for current user/vehicle. No need for migrations.')
-    } else {
-      // No settings for current user/vehicle, copy from last connected
-      if (this.hasSettingsForUserAndVehicle(storedLastConnectedUser, storedLastConnectedVehicle)) {
-        console.log(
-          '[SettingsManager]',
-          'No settings for current user/vehicle. Copying settings from last connected user/vehicle.'
-        )
-        this.copySettings(storedLastConnectedUser, storedLastConnectedVehicle, userId, vehicleId)
-      } else {
-        // No settings for last connected user/vehicle, copy default settings
-        console.log('[SettingsManager]', 'No settings for last connected user/vehicle, copying default settings.')
-        this.copyDefaultSettings(userId, vehicleId)
-      }
-    }
-    // Update last connected to current
-    this.saveLastConnectedUser(userId)
-    this.saveLastConnectedVehicle(vehicleId)
+    await this.sendKeyValueUpdatesToVehicle(vehicleAddress, vehicleId)
   }
 
   /**
@@ -629,7 +580,26 @@ class SettingsManager {
 
     console.log('[SettingsManager]', `Current user: ${this.currentUser} / Current vehicle: ${this.currentVehicle}`)
 
-    this.handleChangingCurrentUserOrVehicle(this.currentUser, this.currentVehicle)
+    // Check if we have settings for current user/vehicle
+    if (this.hasSettingsForUserAndVehicle(this.currentUser, this.currentVehicle)) {
+      // We are good to go
+      console.log('[SettingsManager]', 'We have settings for current user/vehicle. No need for migrations.')
+    } else {
+      console.log(`[SettingsManager] No settings for current user/vehicle.`)
+      // No settings for current user/vehicle, copy from last connected
+      if (this.hasSettingsForUserAndVehicle(storedLastConnectedUser, storedLastConnectedVehicle)) {
+        console.log(`[SettingsManager] Copying settings from last connected user/vehicle.`)
+        const altSettings1 = this.getSettingsForUserAndVehicle(storedLastConnectedUser, storedLastConnectedVehicle)
+        const newSettings = this.getMergedSettings(altSettings1, {})
+        this.setLocalSettingsForUserAndVehicle(this.currentUser, this.currentVehicle, newSettings)
+      } else {
+        // No settings for last connected user/vehicle, copy default settings
+        console.log('[SettingsManager]', 'No settings for last connected user/vehicle, copying from null user/vehicle.')
+        const altSettings2 = this.getSettingsForUserAndVehicle(nullValue, nullValue)
+        const newSettings = this.getMergedSettings(altSettings2, {})
+        this.setLocalSettingsForUserAndVehicle(this.currentUser, this.currentVehicle, newSettings)
+      }
+    }
   }
 
   /**
@@ -664,7 +634,7 @@ class SettingsManager {
     this.backupOldStyleVehicleSettingsIfNeeded(vehicleAddress)
 
     // Set the current vehicle address
-    console.log(`[SettingsManager] Setting current vehicle address to: '${vehicleAddress}'`)
+    console.log(`[SettingsManager] Setting current vehicle address to: '${vehicleAddress}'.`)
     this.currentVehicleAddress = vehicleAddress
 
     // Get ID of the connected vehicle
@@ -672,7 +642,27 @@ class SettingsManager {
     console.log('[SettingsManager]', 'Vehicle ID:', vehicleId)
     if (vehicleId && typeof vehicleId === 'string' && this.currentUser !== undefined && this.currentUser !== '') {
       await this.syncSettingsWithVehicle(this.currentUser, vehicleId, vehicleAddress)
-      this.handleChangingCurrentUserOrVehicle(this.currentUser, vehicleId)
+
+      const storedLastConnectedVehicle = this.retrieveLastConnectedVehicle()
+
+      // Check if we have settings for current user/vehicle
+      if (this.hasSettingsForUserAndVehicle(this.currentUser, vehicleId)) {
+        // We are good to go
+        console.log('[SettingsManager]', 'We have settings for current user/vehicle. No need for migrations.')
+      } else {
+        console.log('[SettingsManager]', 'No settings for current user/vehicle.')
+        // No settings for current user/vehicle, copy from last connected
+        if (this.hasSettingsForUserAndVehicle(this.currentUser, storedLastConnectedVehicle)) {
+          console.log('[SettingsManager] Copying settings from last connected user/vehicle.')
+          this.copySettings(this.currentUser, storedLastConnectedVehicle, this.currentUser, vehicleId)
+        } else {
+          // No settings for last connected user/vehicle, copy default settings
+          console.log('[SettingsManager]', 'No settings for last connected vehicle, copying from null vehicle.')
+          this.copySettings(this.currentUser, nullValue, this.currentUser, vehicleId)
+        }
+      }
+      // Update last connected to current
+      this.saveLastConnectedVehicle(vehicleId)
     }
   }
 
@@ -686,24 +676,50 @@ class SettingsManager {
     // keeping the values we have for the previous user, wrongly overwriting the new user's settings.
     // We should use the settings we have for the new user, and only overwrite them if we don't have settings for the
     // new user neither locally nor on the vehicle.
+    const previousUser = this.retrieveLastConnectedUser()
+    const hasVehicleAddress = ![nullValue, undefined, null, ''].includes(this.currentVehicleAddress)
     this.currentUser = username || nullValue
 
-    // Handle user change
-    // Check if we have settings for the new user and current vehicle
-    if (!this.hasSettingsForUserAndVehicle(this.currentUser, this.currentVehicle)) {
+    let newSettings: VehicleSettings = {}
+
+    // First of all, sync settings with vehicle if possible, so we have both with the "best" values for that user/vehicle combination
+    if (hasVehicleAddress) {
+      newSettings = await this.getBestUserVehicleSettingsBetweenLocalAndVehicle(
+        this.currentUser,
+        this.currentVehicle,
+        this.currentVehicleAddress
+      )
+    }
+
+    // Make sure we have the best settings we can get for the new user and current vehicle
+    if (this.hasSettingsForUserAndVehicle(this.currentUser, this.currentVehicle)) {
+      console.log('[SettingsManager]', 'We have settings for current user/vehicle. No need for migrations.')
+      newSettings = this.getSettingsForUserAndVehicle(this.currentUser, this.currentVehicle)
+    } else {
       console.log(`[SettingsManager] No settings for user '${this.currentUser}' and vehicle '${this.currentVehicle}'.`)
-      const lastUser = this.retrieveLastConnectedUser()
-      if (lastUser && this.hasSettingsForUserAndVehicle(lastUser, this.currentVehicle)) {
-        console.log(`[SettingsManager] Copying settings from user '${lastUser}' to user '${this.currentUser}'.`)
-        this.copySettings(lastUser, this.currentVehicle, this.currentUser, this.currentVehicle)
+      if (previousUser && this.hasSettingsForUserAndVehicle(previousUser, this.currentVehicle)) {
+        console.log(`[SettingsManager] Copying settings from last connected user '${previousUser}'.`)
+        const lastUserSettings = this.getSettingsForUserAndVehicle(previousUser, this.currentVehicle)
+        newSettings = this.getMergedSettings(lastUserSettings, newSettings)
+      } else {
+        console.log(`[SettingsManager] No settings found for last connected user. Copying from null user/vehicle.`)
+        const nullUserSettings = this.getSettingsForUserAndVehicle(nullValue, this.currentVehicle)
+        newSettings = this.getMergedSettings(nullUserSettings, newSettings)
       }
     }
 
-    this.handleChangingCurrentUserOrVehicle(this.currentUser, this.currentVehicle)
-
-    if (this.currentVehicleAddress !== nullValue) {
-      await this.syncSettingsWithVehicle(this.currentUser, this.currentVehicle, this.currentVehicleAddress)
+    if (hasVehicleAddress) {
+      await this.pushSettingsToVehicleUpdateQueue(
+        this.currentUser,
+        this.currentVehicle,
+        this.currentVehicleAddress,
+        newSettings
+      )
     }
+
+    this.setLocalSettingsForUserAndVehicle(this.currentUser, this.currentVehicle, newSettings)
+
+    this.saveLastConnectedUser(this.currentUser)
   }
 
   /**
@@ -711,14 +727,14 @@ class SettingsManager {
    */
   public handleStorageChanging = (): void => {
     const newSettings = this.getLocalSettings()
-    if (newSettings === this.lastLocalSyncedSettingsForComparison) {
+    if (newSettings === this.lastLocalUserVehicleSettings) {
       return
     }
 
     console.log('[SettingsManager]', 'Local settings changed externally!')
     Object.keys(newSettings).forEach((key) => {
-      if (newSettings[key] !== this.lastLocalSyncedSettingsForComparison[key]) {
-        this.notifyListeners(key)
+      if (newSettings[key] !== this.lastLocalUserVehicleSettings[key]) {
+        this.notifyListenersAboutKeyChange(key)
       }
     })
   }

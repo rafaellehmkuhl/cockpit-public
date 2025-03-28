@@ -128,7 +128,7 @@ const formatValue = (value: any): string => {
  * @param newSetting
  */
 const handleSettingsChange = (newSetting: CockpitSetting): void => {
-  console.log('[SettingsInspector] Settings updated:', newSetting)
+  // console.log('[SettingsInspector] Settings updated:', newSetting)
   settingsData.value = settingsManager.getLocalSettings()
   updateCounter.value++ // Force table re-render
 }
