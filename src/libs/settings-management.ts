@@ -393,6 +393,10 @@ class SettingsManager {
     }
   }
 
+  private hasVehicleAddress = (): boolean => {
+    return ![nullValue, undefined, null, ''].includes(this.currentVehicleAddress)
+  }
+
   /**
    * Backs up the current vehicle settings
    * @param {string} vehicleAddress - The address of the vehicle to backup settings for
@@ -637,10 +641,9 @@ class SettingsManager {
     // Before anything else, back up old-style vehicle settings if needed
     this.backupOldStyleVehicleSettingsIfNeeded(vehicleAddress)
 
-    // TODO: If the following lines are uncommented, the settings are not being changed when changing the user
-    // // Set the current vehicle address
-    // console.log(`[SettingsManager] Setting current vehicle address to: '${vehicleAddress}'.`)
-    // this.currentVehicleAddress = vehicleAddress
+    // Set the current vehicle address
+    console.log(`[SettingsManager] Setting current vehicle address to: '${vehicleAddress}'.`)
+    this.currentVehicleAddress = vehicleAddress
 
     // Get ID of the connected vehicle
     const vehicleId = await this.getVehicleIdFromVehicle(vehicleAddress)
@@ -700,13 +703,13 @@ class SettingsManager {
   public handleUserChanging = async (username: string): Promise<void> => {
     console.log('[SettingsManager]', `User changed to '${username}'.`)
     const previousUser = this.retrieveLastConnectedUser()
-    const hasVehicleAddress = ![nullValue, undefined, null, ''].includes(this.currentVehicleAddress)
     this.currentUser = username || nullValue
 
     let newSettings: VehicleSettings = {}
 
     // First of all, sync settings with vehicle if possible, so we have both with the "best" values for that user/vehicle combination
-    if (hasVehicleAddress) {
+    if (this.hasVehicleAddress()) {
+      console.log('[SettingsManager]', 'Has vehicle address! Getting best settings with vehicle.')
       const bestSettingsWithVehicle = await this.getBestUserVehicleSettingsBetweenLocalAndVehicle(
         this.currentUser,
         this.currentVehicle,
@@ -733,14 +736,15 @@ class SettingsManager {
       }
     }
 
-    if (hasVehicleAddress) {
-      await this.pushSettingsToVehicleUpdateQueue(
-        this.currentUser,
-        this.currentVehicle,
-        this.currentVehicleAddress,
-        newSettings
-      )
-    }
+    // TODO: If the following lines are uncommented, the settings are not being changed when changing the user
+    // if (this.hasVehicleAddress()) {
+    //   await this.pushSettingsToVehicleUpdateQueue(
+    //     this.currentUser,
+    //     this.currentVehicle,
+    //     this.currentVehicleAddress,
+    //     newSettings
+    //   )
+    // }
 
     this.setLocalSettingsForUserAndVehicle(this.currentUser, this.currentVehicle, newSettings)
 
@@ -764,7 +768,7 @@ class SettingsManager {
       }
     })
 
-    if (this.currentVehicleAddress) {
+    if (this.hasVehicleAddress()) {
       this.pushSettingsToVehicleUpdateQueue(
         this.currentUser,
         this.currentVehicle,
