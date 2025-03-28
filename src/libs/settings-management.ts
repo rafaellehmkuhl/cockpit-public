@@ -180,6 +180,8 @@ class SettingsManager {
     if (newSettings[this.currentUser] && newSettings[this.currentUser][this.currentVehicle]) {
       Object.keys(newSettings[this.currentUser][this.currentVehicle]).forEach((key) => {
         if (!isEqual(newSettings[this.currentUser][this.currentVehicle][key], this.lastLocalUserVehicleSettings[key])) {
+          console.warn('Setting changed:', key)
+          console.warn(diff(this.lastLocalUserVehicleSettings[key], newSettings[this.currentUser][this.currentVehicle][key]))
           this.notifyListenersAboutKeyChange(key)
         }
       })
@@ -672,10 +674,6 @@ class SettingsManager {
    */
   public handleUserChanging = async (username: string): Promise<void> => {
     console.log('[SettingsManager]', `User changed to '${username}'.`)
-    // TODO: when the user is changing, we are not using the settings we already have for the new user, but instead
-    // keeping the values we have for the previous user, wrongly overwriting the new user's settings.
-    // We should use the settings we have for the new user, and only overwrite them if we don't have settings for the
-    // new user neither locally nor on the vehicle.
     const previousUser = this.retrieveLastConnectedUser()
     const hasVehicleAddress = ![nullValue, undefined, null, ''].includes(this.currentVehicleAddress)
     this.currentUser = username || nullValue
