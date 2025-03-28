@@ -19,7 +19,6 @@ import {
   setKeyDataOnCockpitVehicleStorage,
 } from './blueos'
 import { deserialize, isEqual, sleep } from './utils'
-const defaultSettings: VehicleSettings = {}
 const syncedSettingsKey = 'cockpit-synced-settings'
 const cockpitLastConnectedVehicleKey = 'cockpit-last-connected-vehicle-id'
 const cockpitLastConnectedUserKey = 'cockpit-last-connected-user'
@@ -638,9 +637,10 @@ class SettingsManager {
     // Before anything else, back up old-style vehicle settings if needed
     this.backupOldStyleVehicleSettingsIfNeeded(vehicleAddress)
 
-    // Set the current vehicle address
-    console.log(`[SettingsManager] Setting current vehicle address to: '${vehicleAddress}'.`)
-    this.currentVehicleAddress = vehicleAddress
+    // TODO: If the following lines are uncommented, the settings are not being changed when changing the user
+    // // Set the current vehicle address
+    // console.log(`[SettingsManager] Setting current vehicle address to: '${vehicleAddress}'.`)
+    // this.currentVehicleAddress = vehicleAddress
 
     // Get ID of the connected vehicle
     const vehicleId = await this.getVehicleIdFromVehicle(vehicleAddress)
