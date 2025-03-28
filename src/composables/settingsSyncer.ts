@@ -109,7 +109,6 @@ export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): Rem
   settingsManager.registerListener(key, (newSetting: CockpitSetting) => {
     const newValue = newSetting.value
     if (isEqual(newValue, refedValue.value)) {
-      console.log(`settingsSyncer: Listener for key ${key} activated, but no changes in the value were detected.`)
       return
     }
 

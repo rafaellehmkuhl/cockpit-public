@@ -176,17 +176,19 @@ class SettingsManager {
     console.log('[SettingsManager]', 'Setting/saving local settings.')
     localStorage.setItem(syncedSettingsKey, JSON.stringify(newSettings))
 
-    if (newSettings[this.currentUser] && newSettings[this.currentUser][this.currentVehicle]) {
-      Object.keys(newSettings[this.currentUser][this.currentVehicle]).forEach((key) => {
-        if (!isEqual(newSettings[this.currentUser][this.currentVehicle][key], this.lastLocalUserVehicleSettings[key])) {
-          console.warn('Setting changed:', key)
-          console.warn(
-            diff(this.lastLocalUserVehicleSettings[key], newSettings[this.currentUser][this.currentVehicle][key])
-          )
-          this.notifyListenersAboutKeyChange(key)
-        }
-      })
-      this.lastLocalUserVehicleSettings = { ...newSettings[this.currentUser][this.currentVehicle] }
+    if (this.lastLocalUserVehicleSettings === undefined && Object.keys(newSettings).length > 0) {
+      if (newSettings[this.currentUser] && newSettings[this.currentUser][this.currentVehicle]) {
+        Object.keys(newSettings[this.currentUser][this.currentVehicle]).forEach((key) => {
+          const oldSetting = this.lastLocalUserVehicleSettings[key]
+          const newSetting = newSettings[this.currentUser][this.currentVehicle][key]
+          if (!isEqual(oldSetting, newSetting)) {
+            console.warn('Setting changed:', key)
+            console.warn(diff(oldSetting, newSetting))
+            this.notifyListenersAboutKeyChange(key)
+          }
+        })
+        this.lastLocalUserVehicleSettings = { ...newSettings[this.currentUser][this.currentVehicle] }
+      }
     }
   }
 
@@ -266,7 +268,6 @@ class SettingsManager {
     if (!listeners) {
       return
     }
-    console.log('[SettingsManager]', `Notifying ${listeners.length} listeners for key '${key}'.`)
     listeners.forEach((listener) => {
       listener.callback(newSettings[userId][vehicleId][key])
     })
@@ -352,14 +353,20 @@ class SettingsManager {
       return
     }
 
+    // Let's first get the settings from the vehicle, so we only update the settings that have changed
+    const vehicleSettings = await getKeyDataFromCockpitVehicleStorage(vehicleAddress, 'settings')
+
     while (Object.keys(this.keyValueVehicleUpdateQueue[vehicleId]).length !== 0) {
       const updatesForVehicle = Object.entries(this.keyValueVehicleUpdateQueue[vehicleId])
       for (const [userId, updatesForUser] of updatesForVehicle) {
         for (const [key, update] of Object.entries(updatesForUser)) {
-          console.log(
-            '[SettingsManager]',
-            `Sending new value of key '${key}' for user '${userId}' to vehicle '${vehicleId}'.`
-          )
+          if (vehicleSettings[userId] && vehicleSettings[userId][key]) {
+            if (isEqual(vehicleSettings[userId][key].value, update.value)) {
+              delete this.keyValueVehicleUpdateQueue[vehicleId][userId][key]
+              continue
+            }
+          }
+          console.log(`[SettingsManager] Sending updated key '${key}' for user '${userId}' to vehicle '${vehicleId}'.`)
           try {
             const setting = {
               epochLastChangedLocally: update.epochChange,
