@@ -1,3 +1,4 @@
+import { diff } from 'jest-diff'
 import { v4 as uuidv4 } from 'uuid'
 
 import {
@@ -18,7 +19,6 @@ import {
   setKeyDataOnCockpitVehicleStorage,
 } from './blueos'
 import { deserialize, isEqual, sleep } from './utils'
-import { diff } from 'jest-diff'
 const defaultSettings: VehicleSettings = {}
 const syncedSettingsKey = 'cockpit-synced-settings'
 const cockpitLastConnectedVehicleKey = 'cockpit-last-connected-vehicle-id'
@@ -181,7 +181,9 @@ class SettingsManager {
       Object.keys(newSettings[this.currentUser][this.currentVehicle]).forEach((key) => {
         if (!isEqual(newSettings[this.currentUser][this.currentVehicle][key], this.lastLocalUserVehicleSettings[key])) {
           console.warn('Setting changed:', key)
-          console.warn(diff(this.lastLocalUserVehicleSettings[key], newSettings[this.currentUser][this.currentVehicle][key]))
+          console.warn(
+            diff(this.lastLocalUserVehicleSettings[key], newSettings[this.currentUser][this.currentVehicle][key])
+          )
           this.notifyListenersAboutKeyChange(key)
         }
       })
@@ -631,6 +633,7 @@ class SettingsManager {
    */
   public handleVehicleGettingOnline = async (vehicleAddress: string): Promise<void> => {
     console.log('[SettingsManager]', 'Vehicle online!')
+    const previousVehicle = this.retrieveLastConnectedVehicle()
 
     // Before anything else, back up old-style vehicle settings if needed
     this.backupOldStyleVehicleSettingsIfNeeded(vehicleAddress)
@@ -641,31 +644,53 @@ class SettingsManager {
 
     // Get ID of the connected vehicle
     const vehicleId = await this.getVehicleIdFromVehicle(vehicleAddress)
-    console.log('[SettingsManager]', 'Vehicle ID:', vehicleId)
-    if (vehicleId && typeof vehicleId === 'string' && this.currentUser !== undefined && this.currentUser !== '') {
-      await this.syncSettingsWithVehicle(this.currentUser, vehicleId, vehicleAddress)
-
-      const storedLastConnectedVehicle = this.retrieveLastConnectedVehicle()
-
-      // Check if we have settings for current user/vehicle
-      if (this.hasSettingsForUserAndVehicle(this.currentUser, vehicleId)) {
-        // We are good to go
-        console.log('[SettingsManager]', 'We have settings for current user/vehicle. No need for migrations.')
-      } else {
-        console.log('[SettingsManager]', 'No settings for current user/vehicle.')
-        // No settings for current user/vehicle, copy from last connected
-        if (this.hasSettingsForUserAndVehicle(this.currentUser, storedLastConnectedVehicle)) {
-          console.log('[SettingsManager] Copying settings from last connected user/vehicle.')
-          this.copySettings(this.currentUser, storedLastConnectedVehicle, this.currentUser, vehicleId)
-        } else {
-          // No settings for last connected user/vehicle, copy default settings
-          console.log('[SettingsManager]', 'No settings for last connected vehicle, copying from null vehicle.')
-          this.copySettings(this.currentUser, nullValue, this.currentUser, vehicleId)
-        }
-      }
-      // Update last connected to current
-      this.saveLastConnectedVehicle(vehicleId)
+    if (vehicleId && typeof vehicleId === 'string') {
+      this.currentVehicle = vehicleId
+    } else {
+      this.currentVehicle = nullValue
     }
+
+    console.log('[SettingsManager]', 'Vehicle ID:', vehicleId)
+
+    let newSettings: VehicleSettings = {}
+
+    // First of all, sync settings with vehicle if possible, so we have both with the "best" values for that user/vehicle combination
+    const bestSettingsWithVehicle = await this.getBestUserVehicleSettingsBetweenLocalAndVehicle(
+      this.currentUser,
+      this.currentVehicle,
+      this.currentVehicleAddress
+    )
+    newSettings = this.getMergedSettings(bestSettingsWithVehicle, newSettings)
+
+    // Make sure we have the best settings we can get for the new user and current vehicle
+    if (this.hasSettingsForUserAndVehicle(this.currentUser, this.currentVehicle)) {
+      console.log('[SettingsManager]', 'We have settings for current user/vehicle. No need for migrations.')
+      const currentUserVehicleSettings = this.getSettingsForUserAndVehicle(this.currentUser, this.currentVehicle)
+      newSettings = this.getMergedSettings(currentUserVehicleSettings, newSettings)
+    } else {
+      console.log(`[SettingsManager] No settings for user '${this.currentUser}' and vehicle '${this.currentVehicle}'.`)
+      if (previousVehicle && this.hasSettingsForUserAndVehicle(this.currentUser, previousVehicle)) {
+        console.log(`[SettingsManager] Copying settings from last connected vehicle '${previousVehicle}'.`)
+        const lastVehicleSettings = this.getSettingsForUserAndVehicle(this.currentUser, previousVehicle)
+        newSettings = this.getMergedSettings(lastVehicleSettings, newSettings)
+      } else {
+        console.log(`[SettingsManager] No settings found for last connected vehicle. Copying from null vehicle.`)
+        const nullUserSettings = this.getSettingsForUserAndVehicle(this.currentUser, nullValue)
+        newSettings = this.getMergedSettings(nullUserSettings, newSettings)
+      }
+    }
+
+    await this.pushSettingsToVehicleUpdateQueue(
+      this.currentUser,
+      this.currentVehicle,
+      this.currentVehicleAddress,
+      newSettings
+    )
+
+    this.setLocalSettingsForUserAndVehicle(this.currentUser, this.currentVehicle, newSettings)
+
+    // Update last connected to current
+    this.saveLastConnectedVehicle(vehicleId)
   }
 
   /**
@@ -682,17 +707,19 @@ class SettingsManager {
 
     // First of all, sync settings with vehicle if possible, so we have both with the "best" values for that user/vehicle combination
     if (hasVehicleAddress) {
-      newSettings = await this.getBestUserVehicleSettingsBetweenLocalAndVehicle(
+      const bestSettingsWithVehicle = await this.getBestUserVehicleSettingsBetweenLocalAndVehicle(
         this.currentUser,
         this.currentVehicle,
         this.currentVehicleAddress
       )
+      newSettings = this.getMergedSettings(bestSettingsWithVehicle, newSettings)
     }
 
     // Make sure we have the best settings we can get for the new user and current vehicle
     if (this.hasSettingsForUserAndVehicle(this.currentUser, this.currentVehicle)) {
       console.log('[SettingsManager]', 'We have settings for current user/vehicle. No need for migrations.')
-      newSettings = this.getSettingsForUserAndVehicle(this.currentUser, this.currentVehicle)
+      const currentUserVehicleSettings = this.getSettingsForUserAndVehicle(this.currentUser, this.currentVehicle)
+      newSettings = this.getMergedSettings(currentUserVehicleSettings, newSettings)
     } else {
       console.log(`[SettingsManager] No settings for user '${this.currentUser}' and vehicle '${this.currentVehicle}'.`)
       if (previousUser && this.hasSettingsForUserAndVehicle(previousUser, this.currentVehicle)) {
@@ -700,7 +727,7 @@ class SettingsManager {
         const lastUserSettings = this.getSettingsForUserAndVehicle(previousUser, this.currentVehicle)
         newSettings = this.getMergedSettings(lastUserSettings, newSettings)
       } else {
-        console.log(`[SettingsManager] No settings found for last connected user. Copying from null user/vehicle.`)
+        console.log(`[SettingsManager] No settings found for last connected user. Copying from null user.`)
         const nullUserSettings = this.getSettingsForUserAndVehicle(nullValue, this.currentVehicle)
         newSettings = this.getMergedSettings(nullUserSettings, newSettings)
       }
