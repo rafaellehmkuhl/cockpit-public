@@ -23,7 +23,7 @@ const syncedSettingsKey = 'cockpit-synced-settings'
 const cockpitLastConnectedVehicleKey = 'cockpit-last-connected-vehicle-id'
 const cockpitLastConnectedUserKey = 'cockpit-last-connected-user'
 const nullValue = 'null'
-const keyValueUpdateDebounceTime = 2000
+const keyValueUpdateDebounceTime = 100
 const oldStyleSettingsKey = 'cockpit-old-style-settings'
 /**
  * Manager for synced settings

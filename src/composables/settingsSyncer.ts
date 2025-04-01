@@ -101,7 +101,7 @@ export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): Rem
         console.log(`settingsSyncer: Key ${key} changed on watch:\n${diffToPrint}.`)
         settingsManager.setKeyValue(key, refedValue.value)
         oldRefedValue = JSON.parse(JSON.stringify(refedValue.value)) as T
-      }, 2000)
+      }, 100)
     },
     { deep: true }
   )
