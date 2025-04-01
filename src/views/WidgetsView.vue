@@ -1,6 +1,6 @@
 <template>
   <div class="widgets-view">
-    <div v-for="view in store.viewsToShow" :key="view.hash" class="widget-view">
+    <div v-for="view in viewsToBeShown" :key="view.hash" class="widget-view">
       <div class="w-full h-full bg-slate-500 flex justify-center align-center">
         <div
           v-if="view.widgets.isEmpty()"
@@ -27,7 +27,7 @@
 </template>
 
 <script setup lang="ts">
-import { type AsyncComponentLoader, defineAsyncComponent } from 'vue'
+import { type AsyncComponentLoader, computed, defineAsyncComponent, watch } from 'vue'
 
 import { useWidgetManagerStore } from '@/stores/widgetManager'
 import { WidgetType } from '@/types/widgets'
@@ -60,6 +60,14 @@ const componentFromType = (componentName: string): AsyncComponentLoader => {
 const componentExists = (componentName: string): boolean => {
   return Object.values(WidgetType).includes(mappedComponentType(componentName))
 }
+
+const viewsToBeShown = computed(() => {
+  return store.viewsToShow.filter((v) => v.visible)
+})
+
+watch(viewsToBeShown, (newViews) => {
+  console.warn('viewsToBeShown changed from widgetsview!!')
+})
 </script>
 
 <style scoped>

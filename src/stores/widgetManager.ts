@@ -2,6 +2,7 @@ import '@/libs/cosmos'
 
 import { useStorage, useWindowSize } from '@vueuse/core'
 import { saveAs } from 'file-saver'
+import { diff } from 'jest-diff'
 import { defineStore } from 'pinia'
 import { v4 as uuid4 } from 'uuid'
 import { computed, onBeforeMount, onBeforeUnmount, Ref, ref, watch } from 'vue'
@@ -271,6 +272,7 @@ export const useWidgetManagerStore = defineStore('widget-manager', () => {
   })
 
   const viewsToShow = computed((): View[] => {
+    console.warn('viewsToShow changed from widgetmanagerstore!!')
     const viewsOnShowOrder = currentProfile.value.views.slice()
     viewsOnShowOrder.splice(currentViewIndex.value, 1)
     viewsOnShowOrder.push(currentProfile.value.views[currentViewIndex.value])

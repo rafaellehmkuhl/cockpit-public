@@ -109,6 +109,10 @@ const widgetResizeHandles = computed(() => outerWidgetRef.value?.getElementsByCl
 const contextMenuRef = ref()
 const contextMenuVisible = ref(false)
 
+watch(position, (newPosition) => {
+  console.warn(`position of widget ${widget.value.hash} changed from widgethugger to ${newPosition}`)
+})
+
 const opacitySlider = computed({
   get() {
     return widget.value.options?.opacity ?? 1

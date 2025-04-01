@@ -78,7 +78,6 @@ export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): Rem
       const hasTheSameSerialization = prettyFormat(refedValue.value) === prettyFormat(oldRefedValue)
 
       if (isTheSameObject || hasTheSameSerialization) {
-        console.log(`settingsSyncer: Watch for key ${key} activated, but no changes in the value were detected.`)
         return
       }
 
