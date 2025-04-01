@@ -160,7 +160,7 @@ class SettingsManager {
    * Retrieves the current local settings
    * @returns {LocalSyncedSettings} The local settings
    */
-  private getLocalSettings = (): LocalSyncedSettings => {
+  public getLocalSettings = (): LocalSyncedSettings => {
     const storedLocalSettings = localStorage.getItem(syncedSettingsKey)
     if (storedLocalSettings) {
       return JSON.parse(storedLocalSettings)
