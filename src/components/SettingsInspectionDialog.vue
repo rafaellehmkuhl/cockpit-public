@@ -96,6 +96,8 @@ const formatValue = (value: any): string => {
   return String(value)
 }
 
+let settingsChangeUpdateTimeout: ReturnType<typeof setTimeout> | null = null
+
 /**
  * Handler for settings changes
  * @param newSettings - The new settings object
@@ -103,10 +105,12 @@ const formatValue = (value: any): string => {
  * @param key
  */
 const handleSettingsChange = (newSetting: CockpitSetting, key: string): void => {
-  console.log(
-    `[SettingsInspector] Settings for key '${key}' updated. Epoch: ${newSetting.epochLastChangedLocally}. Value: ${newSetting.value}`
-  )
-  settings.value = settingsManager.getLocalSettings()
+  if (settingsChangeUpdateTimeout) {
+    clearTimeout(settingsChangeUpdateTimeout)
+  }
+  settingsChangeUpdateTimeout = setTimeout(() => {
+    settings.value = settingsManager.getLocalSettings()
+  }, 100)
 }
 
 setInterval(() => {
