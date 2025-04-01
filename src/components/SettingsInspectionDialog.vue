@@ -31,7 +31,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(setting, key) in vehicleSettings" :key="key + '_' + setting.epochLastChangedLocally">
+              <tr v-for="(setting, key) in getSortedSettings(vehicleSettings)" :key="key + '_' + setting.epochLastChangedLocally">
                 <td class="text-wrap" style="max-width: 200px">{{ key }}</td>
                 <td class="text-wrap" style="max-width: 200px">{{ formatValue(setting.value) }}</td>
                 <td>
@@ -110,6 +110,20 @@ const currentUserSettings = computed(() => {
   if (!settings.value || !currentUser.value) return null
   return settings.value[currentUser.value] || null
 })
+
+/**
+ * Sorts settings by last changed timestamp in descending order (most recent first)
+ * @param vehicleSettings - The vehicle settings object to sort
+ * @returns The sorted settings as [key, setting] entries
+ */
+const getSortedSettings = (vehicleSettings: Record<string, CockpitSetting>): Record<string, CockpitSetting> => {
+  return Object.entries(vehicleSettings)
+    .sort(([, a], [, b]) => b.epochLastChangedLocally - a.epochLastChangedLocally)
+    .reduce((acc, [key, value]) => {
+      acc[key] = value
+      return acc
+    }, {} as Record<string, CockpitSetting>)
+}
 
 /**
  * Formats a value for display in the table
