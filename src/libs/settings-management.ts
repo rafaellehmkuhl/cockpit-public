@@ -176,14 +176,14 @@ class SettingsManager {
     console.log('[SettingsManager]', 'Setting/saving local settings.')
     localStorage.setItem(syncedSettingsKey, JSON.stringify(newSettings))
 
-    if (this.lastLocalUserVehicleSettings === undefined && Object.keys(newSettings).length > 0) {
+    if (this.lastLocalUserVehicleSettings !== undefined && Object.keys(newSettings).length > 0) {
       if (newSettings[this.currentUser] && newSettings[this.currentUser][this.currentVehicle]) {
         Object.keys(newSettings[this.currentUser][this.currentVehicle]).forEach((key) => {
           const oldSetting = this.lastLocalUserVehicleSettings[key]
           const newSetting = newSettings[this.currentUser][this.currentVehicle][key]
           if (!isEqual(oldSetting, newSetting)) {
-            console.warn('Setting changed:', key)
-            console.warn(diff(oldSetting, newSetting))
+            // console.warn('Setting changed:', key)
+            // console.warn(diff(oldSetting, newSetting))
             this.notifyListenersAboutKeyChange(key)
           }
         })
