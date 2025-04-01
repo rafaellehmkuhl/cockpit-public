@@ -45,11 +45,11 @@ const oldStyleSettingsKey = 'cockpit-old-style-settings'
  * newest epoch is preferred. If the epochs are the same, the value from the vehicle are preferred.
  */
 class SettingsManager {
+  public currentUser: string = nullValue
+  public currentVehicle: string = nullValue
   private listeners: SettingsListeners = {}
   private keyValueUpdateTimeouts: Record<string, ReturnType<typeof setTimeout>> = {}
   private lastLocalUserVehicleSettings: VehicleSettings = {}
-  private currentUser: string = nullValue
-  private currentVehicle: string = nullValue
   private currentVehicleAddress: string = nullValue
   private keyValueVehicleUpdateQueue: KeyValueVehicleUpdateQueue = {}
 
