@@ -112,7 +112,6 @@ export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): Rem
       return
     }
 
-    settingsManager.setKeyValue(key, newValue)
     refedValue.value = newValue as T
     oldRefedValue = JSON.parse(JSON.stringify(refedValue.value)) as T
   })
