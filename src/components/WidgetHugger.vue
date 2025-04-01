@@ -99,7 +99,23 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const widget = toRefs(props).widget
-const { size, position } = toRefs(props.widget)
+// Create refs for position and size that will be updated when widget changes
+const position = ref(widget.value.position)
+const size = ref(widget.value.size)
+
+// Set up watchers to update position and size when widget changes
+watch(
+  () => widget.value,
+  (newWidget) => {
+    position.value = newWidget.position
+    size.value = newWidget.size
+  },
+  { immediate: true }
+)
+
+watch(position, (newPosition) => (widget.value.position = newPosition))
+watch(size, (newSize) => (widget.value.size = newSize))
+
 const allowMoving = toRefs(props).allowMoving
 const allowResizing = toRefs(props).allowResizing
 const outerWidgetRef = ref<HTMLElement | undefined>()
@@ -108,10 +124,6 @@ const widgetView = computed(() => outerWidgetRef.value?.parentElement)
 const widgetResizeHandles = computed(() => outerWidgetRef.value?.getElementsByClassName('resize-handle'))
 const contextMenuRef = ref()
 const contextMenuVisible = ref(false)
-
-watch(position, (newPosition) => {
-  console.warn(`position of widget ${widget.value.hash} changed from widgethugger to ${newPosition}`)
-})
 
 const opacitySlider = computed({
   get() {
