@@ -336,7 +336,7 @@
   <UpdateNotification v-if="isElectron()" />
   <SnackbarContainer />
   <LocalStorageMonitor />
-  <SettingsInspectionDialog />
+  <!-- <SettingsInspectionDialog /> -->
 </template>
 
 <script setup lang="ts">

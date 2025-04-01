@@ -99,7 +99,7 @@ class SettingsManager {
 
       this.pushKeyValueUpdateToVehicleUpdateQueue(vehicleId, userId, key, value, newEpoch)
 
-      this.notifyListenersAboutKeyChange(key)
+      this.notifyListenersAboutKeyChange(key, newSetting)
     }, keyValueUpdateDebounceTime)
   }
 
@@ -184,7 +184,7 @@ class SettingsManager {
           if (!isEqual(oldSetting, newSetting)) {
             // console.warn('Setting changed:', key)
             // console.warn(diff(oldSetting, newSetting))
-            this.notifyListenersAboutKeyChange(key)
+            this.notifyListenersAboutKeyChange(key, newSetting)
           }
         })
         this.lastLocalUserVehicleSettings = { ...newSettings[this.currentUser][this.currentVehicle] }
@@ -258,18 +258,16 @@ class SettingsManager {
   /**
    * Notifies listeners of local settings changes
    * @param {string} key - The key of the setting that changed
+   * @param {CockpitSetting} newSetting - The new setting
    * @returns {void}
    */
-  private notifyListenersAboutKeyChange = (key: string): void => {
-    const userId = this.currentUser
-    const vehicleId = this.currentVehicle
-    const newSettings = this.getLocalSettings()
+  private notifyListenersAboutKeyChange = (key: string, newSetting: CockpitSetting): void => {
     const listeners = this.listeners[key]
     if (!listeners) {
       return
     }
     listeners.forEach((listener) => {
-      listener.callback(newSettings[userId][vehicleId][key])
+      listener.callback(newSetting)
     })
   }
 
@@ -755,7 +753,7 @@ class SettingsManager {
     console.log('[SettingsManager]', 'Local settings changed externally!')
     Object.keys(newSettings).forEach((key) => {
       if (userVehicleSettings[key] !== this.lastLocalUserVehicleSettings[key]) {
-        this.notifyListenersAboutKeyChange(key)
+        this.notifyListenersAboutKeyChange(key, userVehicleSettings[key])
       }
     })
 
