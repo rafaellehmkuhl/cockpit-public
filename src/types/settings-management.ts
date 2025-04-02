@@ -13,14 +13,24 @@ export type CockpitSetting = {
   value: any
 }
 
-export type VehicleSettings = Record<string, CockpitSetting>
+export type SettingsPackage = Record<string, CockpitSetting>
 
 /**
  * UserSettings is a map with the settings of different vehicles for a single user.
  * The keys are the vehicle ids and the values are the settings for that vehicle.
+ * It's how the settings are stored on the top-side device (Cockpit).
  */
 export interface UserSettings {
-  [key: string]: VehicleSettings
+  [key: string]: SettingsPackage
+}
+
+/**
+ * VehicleSettings is a map with the settings of different users for a single vehicle.
+ * The keys are the user ids and the values are the settings for that user.
+ * It's how the settings are stored on the vehicle.
+ */
+export interface VehicleSettings {
+  [key: string]: SettingsPackage
 }
 
 /**

@@ -1,4 +1,3 @@
-import { diff } from 'jest-diff'
 import { v4 as uuidv4 } from 'uuid'
 
 import {
@@ -8,7 +7,9 @@ import {
   OldCockpitSetting,
   SettingsListener,
   SettingsListeners,
+  SettingsPackage,
   UserChangedEvent,
+  UserSettings,
   VehicleOnlineEvent,
   VehicleSettings,
 } from '@/types/settings-management'
@@ -49,7 +50,7 @@ class SettingsManager {
   public currentVehicle: string = nullValue
   private listeners: SettingsListeners = {}
   private keyValueUpdateTimeouts: Record<string, ReturnType<typeof setTimeout>> = {}
-  private lastLocalUserVehicleSettings: VehicleSettings = {}
+  private lastLocalUserVehicleSettings: SettingsPackage = {}
   private currentVehicleAddress: string = nullValue
   private keyValueVehicleUpdateQueue: KeyValueVehicleUpdateQueue = {}
 
@@ -163,7 +164,7 @@ class SettingsManager {
   public getLocalSettings = (): LocalSyncedSettings => {
     const storedLocalSettings = localStorage.getItem(syncedSettingsKey)
     if (storedLocalSettings) {
-      return JSON.parse(storedLocalSettings)
+      return deserialize(storedLocalSettings)
     }
     return {}
   }
@@ -192,7 +193,7 @@ class SettingsManager {
     }
   }
 
-  private setLocalSettingsForUserAndVehicle = (userId: string, vehicleId: string, settings: VehicleSettings): void => {
+  private setLocalSettingsForUserAndVehicle = (userId: string, vehicleId: string, settings: SettingsPackage): void => {
     const localSettings = this.getLocalSettings()
 
     if (!localSettings[userId]) {
@@ -282,7 +283,7 @@ class SettingsManager {
     return Boolean(localSettings[userId] && localSettings[userId][vehicleId])
   }
 
-  private getSettingsForUserAndVehicle = (userId: string, vehicleId: string): VehicleSettings => {
+  private getSettingsForUserAndVehicle = (userId: string, vehicleId: string): SettingsPackage => {
     const localSettings = this.getLocalSettings()
 
     if (!localSettings[userId]) {
@@ -295,8 +296,8 @@ class SettingsManager {
     return localSettings[userId][vehicleId]
   }
 
-  private getMergedSettings = (settings1: VehicleSettings, settings2: VehicleSettings): VehicleSettings => {
-    const mergedSettings: VehicleSettings = {}
+  private getMergedSettings = (settings1: SettingsPackage, settings2: SettingsPackage): SettingsPackage => {
+    const mergedSettings: SettingsPackage = {}
 
     Object.keys({ ...settings1, ...settings2 }).forEach((key) => {
       const setting1 = settings1[key]
@@ -338,6 +339,33 @@ class SettingsManager {
     this.keyValueVehicleUpdateQueue[vehicleId][userId][key] = { value, epochChange }
   }
 
+  private getValidVehicleSettingsOrThrow = async (vehicleAddress: string): Promise<VehicleSettings> => {
+    try {
+      return await getKeyDataFromCockpitVehicleStorage(vehicleAddress, 'settings')
+    } catch (error) {
+      if ((error as Error).name === NoPathInBlueOsErrorName) {
+        // No settings found on vehicle. Consider it empty.
+        return {}
+      } else {
+        // We had an error getting the settings from the vehicle. We cannot continue otherwise we can be wrongly overwriding the vehicle settings.
+        throw error
+      }
+    }
+  }
+
+  private confirmVehicleIdOrThrow = async (vehicleAddress: string, vehicleId: string): Promise<void> => {
+    try {
+      const idOnVehicle = await getKeyDataFromCockpitVehicleStorage(vehicleAddress, 'cockpit-vehicle-id')
+      if (idOnVehicle !== vehicleId) {
+        throw new Error(
+          `Vehicle ID mismatch. Expected '${vehicleId}' and got '${idOnVehicle}' for vehicle on address '${vehicleAddress}'.`
+        )
+      }
+    } catch (error) {
+      throw new Error(`Could not confirm vehicle ID. ${error}`)
+    }
+  }
+
   /**
    * Sends key value updates to a vehicle
    * @param {string} vehicleAddress - The address of the vehicle to send updates to
@@ -352,14 +380,17 @@ class SettingsManager {
     }
 
     // Let's first get the settings from the vehicle, so we only update the settings that have changed
-    const vehicleSettings = await getKeyDataFromCockpitVehicleStorage(vehicleAddress, 'settings')
+    const vehicleSettings = await this.getValidVehicleSettingsOrThrow(vehicleAddress)
+    await this.confirmVehicleIdOrThrow(vehicleAddress, vehicleId)
 
     while (Object.keys(this.keyValueVehicleUpdateQueue[vehicleId]).length !== 0) {
       const updatesForVehicle = Object.entries(this.keyValueVehicleUpdateQueue[vehicleId])
       for (const [userId, updatesForUser] of updatesForVehicle) {
         for (const [key, update] of Object.entries(updatesForUser)) {
           if (vehicleSettings[userId] && vehicleSettings[userId][key]) {
-            if (isEqual(vehicleSettings[userId][key].value, update.value)) {
+            const sameValue = isEqual(vehicleSettings[userId][key].value, update.value)
+            const vehicleSettingIsNewer = vehicleSettings[userId][key].epochLastChangedLocally > update.epochChange
+            if (sameValue || vehicleSettingIsNewer) {
               delete this.keyValueVehicleUpdateQueue[vehicleId][userId][key]
               continue
             }
@@ -422,12 +453,13 @@ class SettingsManager {
     userId: string,
     vehicleId: string,
     vehicleAddress: string
-  ): Promise<VehicleSettings> => {
+  ): Promise<SettingsPackage> => {
     console.log('[SettingsManager]', `Syncing settings for user=${userId}/vehicle=${vehicleId}`)
 
     // TODO: Decide about what to do if this getkeydata fails
     // Get settings from vehicle
-    let vehicleSettings = await getKeyDataFromCockpitVehicleStorage(vehicleAddress, 'settings')
+    let vehicleSettings = await this.getValidVehicleSettingsOrThrow(vehicleAddress)
+    await this.confirmVehicleIdOrThrow(vehicleAddress, vehicleId)
 
     if (!vehicleSettings) {
       console.warn(`No settings found on vehicle '${vehicleId}'.`)
@@ -455,7 +487,7 @@ class SettingsManager {
     const vehicleUserSettings = vehicleSettings[userId] as Record<string, CockpitSetting | OldCockpitSetting>
 
     // Merge settings, keeping the most recent based on epoch time
-    const mergedSettings: VehicleSettings = {}
+    const mergedSettings: SettingsPackage = {}
 
     Object.keys({ ...localUserVehicleSettings, ...vehicleUserSettings }).forEach((key) => {
       console.debug('[SettingsManager]', `Comparing key '${key}'.`)
@@ -536,7 +568,7 @@ class SettingsManager {
     userId: string,
     vehicleId: string,
     vehicleAddress: string,
-    userVehicleSettings: VehicleSettings
+    userVehicleSettings: SettingsPackage
   ): Promise<void> => {
     // Push all key-value updates to the vehicle update queue
     Object.entries(userVehicleSettings).forEach(([key, setting]) => {
@@ -644,7 +676,7 @@ class SettingsManager {
 
     console.log('[SettingsManager]', 'Vehicle ID:', vehicleId)
 
-    let newSettings: VehicleSettings = {}
+    let newSettings: SettingsPackage = {}
 
     // First of all, sync settings with vehicle if possible, so we have both with the "best" values for that user/vehicle combination
     const bestSettingsWithVehicle = await this.getBestUserVehicleSettingsBetweenLocalAndVehicle(
@@ -694,7 +726,7 @@ class SettingsManager {
     const previousUser = this.retrieveLastConnectedUser()
     this.currentUser = username || nullValue
 
-    let newSettings: VehicleSettings = {}
+    let newSettings: SettingsPackage = {}
 
     // First of all, sync settings with vehicle if possible, so we have both with the "best" values for that user/vehicle combination
     if (this.hasVehicleAddress()) {
