@@ -94,7 +94,6 @@ class SettingsManager {
       }
       const localSettings = this.getLocalSettings()
       localSettings[userId][vehicleId][key] = newSetting
-      console.log('[SettingsManager] Calling setLocalSettings from setKeyValue.')
       this.setLocalSettings(localSettings)
 
       this.pushKeyValueUpdateToVehicleUpdateQueue(vehicleId, userId, key, value, newEpoch)
@@ -367,13 +366,15 @@ class SettingsManager {
 
   /**
    * Sends key value updates to a vehicle
-   * @param {string} vehicleAddress - The address of the vehicle to send updates to
+   * @param {string} userId - The ID of the user to which the updates belong
    * @param {string} vehicleId - The ID of the vehicle to which the updates belong
+   * @param {string} vehicleAddress - The address of the vehicle to send updates to
    */
-  private sendKeyValueUpdatesToVehicle = async (vehicleAddress: string, vehicleId: string): Promise<void> => {
+  private sendKeyValueUpdatesToVehicle = async (userId: string, vehicleId: string, vehicleAddress: string): Promise<void> => {
     if (
       !this.keyValueVehicleUpdateQueue[vehicleId] ||
-      Object.keys(this.keyValueVehicleUpdateQueue[vehicleId]).length === 0
+      !this.keyValueVehicleUpdateQueue[vehicleId]?.[userId] ||
+      Object.keys(this.keyValueVehicleUpdateQueue[vehicleId][userId]).length === 0
     ) {
       return
     }
@@ -382,31 +383,29 @@ class SettingsManager {
     const vehicleSettings = await this.getValidVehicleSettingsOrThrow(vehicleAddress)
     await this.confirmVehicleIdOrThrow(vehicleAddress, vehicleId)
 
-    while (Object.keys(this.keyValueVehicleUpdateQueue[vehicleId]).length !== 0) {
-      const updatesForVehicle = Object.entries(this.keyValueVehicleUpdateQueue[vehicleId])
-      for (const [userId, updatesForUser] of updatesForVehicle) {
-        for (const [key, update] of Object.entries(updatesForUser)) {
-          if (vehicleSettings[userId] && vehicleSettings[userId][key]) {
-            const noValue = update.value === undefined
-            const sameValue = isEqual(vehicleSettings[userId][key].value, update.value)
-            const vehicleSettingIsNewer = vehicleSettings[userId][key].epochLastChangedLocally > update.epochChange
-            if (noValue || sameValue || vehicleSettingIsNewer) {
-              delete this.keyValueVehicleUpdateQueue[vehicleId][userId][key]
-              continue
-            }
-          }
-          console.log(`[SettingsManager] Sending updated key '${key}' for user '${userId}' to vehicle '${vehicleId}'.`)
-          try {
-            const setting = {
-              epochLastChangedLocally: update.epochChange,
-              value: update.value,
-            }
-            await setKeyDataOnCockpitVehicleStorage(vehicleAddress, `settings/${userId}/${key}`, setting)
+    while (Object.keys(this.keyValueVehicleUpdateQueue[vehicleId][userId]).length !== 0) {
+      const updatesForUser = Object.entries(this.keyValueVehicleUpdateQueue[vehicleId][userId])
+      for (const [key, update] of updatesForUser) {
+        if (vehicleSettings[userId] && vehicleSettings[userId][key]) {
+          const noValue = update.value === undefined
+          const sameValue = isEqual(vehicleSettings[userId][key].value, update.value)
+          const vehicleSettingIsNewer = vehicleSettings[userId][key].epochLastChangedLocally > update.epochChange
+          if (noValue || sameValue || vehicleSettingIsNewer) {
             delete this.keyValueVehicleUpdateQueue[vehicleId][userId][key]
-          } catch (error) {
-            const msg = `Error sending key '${key}' for user '${userId}' to vehicle '${vehicleId}'.`
-            console.error('[SettingsManager]', msg, error)
+            continue
           }
+        }
+        console.log(`[SettingsManager] Sending updated key '${key}' for user '${userId}' to vehicle '${vehicleId}'.`)
+        try {
+          const setting = {
+            epochLastChangedLocally: update.epochChange,
+            value: update.value,
+          }
+          await setKeyDataOnCockpitVehicleStorage(vehicleAddress, `settings/${userId}/${key}`, setting)
+          delete this.keyValueVehicleUpdateQueue[vehicleId][userId][key]
+        } catch (error) {
+          const msg = `Error sending key '${key}' for user '${userId}' to vehicle '${vehicleId}'.`
+          console.error('[SettingsManager]', msg, error)
         }
       }
       await sleep(1000)
@@ -581,7 +580,7 @@ class SettingsManager {
       )
     })
 
-    await this.sendKeyValueUpdatesToVehicle(vehicleAddress, vehicleId)
+    await this.sendKeyValueUpdatesToVehicle(userId, vehicleId, vehicleAddress)
   }
 
   /**
@@ -656,7 +655,7 @@ class SettingsManager {
    * @param {string} vehicleAddress - The address of the vehicle
    */
   public handleVehicleGettingOnline = async (vehicleAddress: string): Promise<void> => {
-    console.log('[SettingsManager]', 'Vehicle online!')
+    console.log('[SettingsManager]', 'Handling vehicle getting online!')
     const previousVehicle = this.retrieveLastConnectedVehicle()
 
     // Before anything else, back up old-style vehicle settings if needed
@@ -722,9 +721,10 @@ class SettingsManager {
    * @param {string} username - The new username
    */
   public handleUserChanging = async (username: string): Promise<void> => {
-    console.log('[SettingsManager]', `User changed to '${username}'.`)
+    console.log('[SettingsManager]', `Handling user change from '${this.currentUser}' to '${username}'.`)
     const previousUser = this.retrieveLastConnectedUser()
     this.currentUser = username || nullValue
+    console.log('[SettingsManager]', `User changed to '${this.currentUser}'.`)
 
     let newSettings: SettingsPackage = {}
 
@@ -758,14 +758,14 @@ class SettingsManager {
     }
 
     // TODO: If the following lines are uncommented, the settings are not being changed when changing the user
-    // if (this.hasVehicleAddress()) {
-    //   await this.pushSettingsToVehicleUpdateQueue(
-    //     this.currentUser,
-    //     this.currentVehicle,
-    //     this.currentVehicleAddress,
-    //     newSettings
-    //   )
-    // }
+    if (this.hasVehicleAddress()) {
+      await this.pushSettingsToVehicleUpdateQueue(
+        this.currentUser,
+        this.currentVehicle,
+        this.currentVehicleAddress,
+        newSettings
+      )
+    }
 
     this.setLocalSettingsForUserAndVehicle(this.currentUser, this.currentVehicle, newSettings)
 
@@ -776,6 +776,7 @@ class SettingsManager {
    * Handles a storage change
    */
   public handleStorageChanging = (): void => {
+    console.log('[SettingsManager]', 'Handling storage change!')
     const newSettings = this.getLocalSettings()
     const userVehicleSettings = this.getSettingsForUserAndVehicle(this.currentUser, this.currentVehicle)
     if (isEqual(this.lastLocalUserVehicleSettings, userVehicleSettings)) {

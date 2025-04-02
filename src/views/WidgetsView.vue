@@ -64,10 +64,6 @@ const componentExists = (componentName: string): boolean => {
 const viewsToBeShown = computed(() => {
   return store.viewsToShow.filter((v) => v.visible)
 })
-
-watch(viewsToBeShown, (newViews) => {
-  console.warn('viewsToBeShown changed from widgetsview!!')
-})
 </script>
 
 <style scoped>

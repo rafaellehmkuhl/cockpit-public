@@ -272,7 +272,6 @@ export const useWidgetManagerStore = defineStore('widget-manager', () => {
   })
 
   const viewsToShow = computed((): View[] => {
-    console.warn('viewsToShow changed from widgetmanagerstore!!')
     const viewsOnShowOrder = currentProfile.value.views.slice()
     viewsOnShowOrder.splice(currentViewIndex.value, 1)
     viewsOnShowOrder.push(currentProfile.value.views[currentViewIndex.value])
