@@ -127,7 +127,11 @@ onMounted(async () => {
 const isUsernamesEmpty = computed(() => !usernamesStoredOnBlueOS.value || usernamesStoredOnBlueOS.value.length === 0)
 
 const validateUsername = (username: string): true | string => {
-  if (username.length < 3) {
+  if (username.includes(' ')) {
+    return 'Username cannot contain spaces.'
+  } else if (username.toLowerCase().includes('cockpit')) {
+    return 'Username cannot contain "cockpit" as it is reserved for internal use.'
+  } else if (username.length < 3) {
     return 'Username must be at least 3 characters long.'
   } else if (username.length > 16) {
     return 'Username must be at most 16 characters long.'
