@@ -239,16 +239,20 @@ class SettingsManager {
    * Backs up old-style settings
    * @returns {void}
    */
-  private backupLocalOldStyleSettings = (): void => {
+  private backupLocalOldStyleSettingsIfNeeded = (): void => {
     // Store all local storage key-value pairs under the key 'cockpit-old-style-settings'
-    const oldStyleSettings: Record<string, any> = {}
-    for (const key of Object.keys(localStorage).filter((k) => k !== syncedSettingsKey && k !== oldStyleSettingsKey)) {
-      const value = localStorage.getItem(key)
-      if (value) {
-        oldStyleSettings[key] = deserialize(value)
+    if (!localStorage.getItem(oldStyleSettingsKey)) {
+      console.log('[SettingsManager]', 'No backup for old-style settings found. Creating one.')
+
+      const oldStyleSettings: Record<string, any> = {}
+      for (const key of Object.keys(localStorage).filter((k) => k !== syncedSettingsKey && k !== oldStyleSettingsKey)) {
+        const value = localStorage.getItem(key)
+        if (value) {
+          oldStyleSettings[key] = deserialize(value)
+        }
       }
+      localStorage.setItem(oldStyleSettingsKey, JSON.stringify(oldStyleSettings))
     }
-    localStorage.setItem(oldStyleSettingsKey, JSON.stringify(oldStyleSettings))
   }
 
   /**
@@ -550,8 +554,34 @@ class SettingsManager {
             value: vehicleSetting,
           }
           break
+        case !hasLocalSettings && hasOldVehicleSettings:
+          console.info(`[SettingsManager] Setting key '${key}' to vehicle version (local version is undefined and vehicle version is old).`)
+          mergedSettings[key] = {
+            epochLastChangedLocally: 0,
+            value: vehicleSetting.value,
+          }
+          break
+        case !hasVehicleSettings && hasOldLocalSettings:
+          console.info(`[SettingsManager] Setting key '${key}' to local version (vehicle version is undefined and local version is old).`)
+          mergedSettings[key] = {
+            epochLastChangedLocally: 0,
+            value: localSetting.value,
+          }
+          break
         default:
-          console.info(`[SettingsManager] Not setting key '${key}' (unknown case).`)
+          console.warn(`[SettingsManager] Not setting key '${key}' (unknown case).`)
+          console.warn(`[SettingsManager] Has local settings:`, hasLocalSettings)
+          console.warn(`[SettingsManager] Has vehicle settings:`, hasVehicleSettings)
+          console.warn(`[SettingsManager] Has new local settings:`, hasNewLocalSettings)
+          console.warn(`[SettingsManager] Has new vehicle settings:`, hasNewVehicleSettings)
+          console.warn(`[SettingsManager] Has old local settings:`, hasOldLocalSettings)
+          console.warn(`[SettingsManager] Has old vehicle settings:`, hasOldVehicleSettings)
+          console.warn(`[SettingsManager] Both settings are new:`, bothSettingsAreNew)
+          console.warn(`[SettingsManager] Both settings are old:`, bothSettingsAreOld)
+          console.warn(`[SettingsManager] Local settings is newer:`, localSettingsIsNewer)
+          console.warn(`[SettingsManager] Vehicle settings is newer:`, vehicleSettingsIsNewer)
+          console.warn(`[SettingsManager] Local setting:`, localSetting)
+          console.warn(`[SettingsManager] Vehicle setting:`, vehicleSetting)
           break
       }
       /* eslint-enable vue/max-len, prettier/prettier, max-len */
@@ -594,24 +624,19 @@ class SettingsManager {
    */
   private initLocalSettings = (): void => {
     // First of all, backup old-style settings if not done yet
-    if (!localStorage.getItem(oldStyleSettingsKey)) {
-      console.log('[SettingsManager]', 'No backup for old-style settings found. Creating one.')
-      this.backupLocalOldStyleSettings()
-    }
+    this.backupLocalOldStyleSettingsIfNeeded()
 
     // Load last connected user from storage
     console.log('[SettingsManager]', 'Retrieving last connected user.')
     const storedLastConnectedUser = this.retrieveLastConnectedUser()
-    console.log('[SettingsManager]', 'Setting current user to:', storedLastConnectedUser)
+    console.log('[SettingsManager]', `Last connected user was '${storedLastConnectedUser}'. Setting as current.`)
     this.currentUser = storedLastConnectedUser
 
     // Load last connected vehicle from storage
     console.log('[SettingsManager]', 'Retrieving last connected vehicle.')
     const storedLastConnectedVehicle = this.retrieveLastConnectedVehicle()
-    console.log('[SettingsManager]', 'Setting current vehicle to:', storedLastConnectedVehicle)
+    console.log('[SettingsManager]', `Last connected vehicle was '${storedLastConnectedVehicle}'. Setting as current.`)
     this.currentVehicle = storedLastConnectedVehicle
-
-    console.log('[SettingsManager]', `Current user: ${this.currentUser} / Current vehicle: ${this.currentVehicle}`)
 
     // Check if we have settings for current user/vehicle
     if (this.hasSettingsForUserAndVehicle(this.currentUser, this.currentVehicle)) {
@@ -619,14 +644,14 @@ class SettingsManager {
       console.log('[SettingsManager]', 'We have settings for current user/vehicle. No need for migrations.')
     } else {
       console.log(`[SettingsManager] No settings for current user/vehicle.`)
-      // No settings for current user/vehicle, copy from last connected
       if (this.hasSettingsForUserAndVehicle(storedLastConnectedUser, storedLastConnectedVehicle)) {
+        // No settings for current user/vehicle. Copy from last connected.
         console.log(`[SettingsManager] Copying settings from last connected user/vehicle.`)
         const altSettings1 = this.getSettingsForUserAndVehicle(storedLastConnectedUser, storedLastConnectedVehicle)
         const newSettings = this.getMergedSettings(altSettings1, {})
         this.setLocalSettingsForUserAndVehicle(this.currentUser, this.currentVehicle, newSettings)
       } else {
-        // No settings for last connected user/vehicle, copy default settings
+        // No settings for last connected user/vehicle. Copy from null user/vehicle.
         console.log('[SettingsManager]', 'No settings for last connected user/vehicle, copying from null user/vehicle.')
         const altSettings2 = this.getSettingsForUserAndVehicle(nullValue, nullValue)
         const newSettings = this.getMergedSettings(altSettings2, {})
