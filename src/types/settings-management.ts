@@ -135,3 +135,8 @@ declare global {
     'user-changed': UserChangedEvent
   }
 }
+
+/**
+ * NoVehicleIdErrorName is the name of the error for when a vehicle ID is not found.
+ */
+export const NoVehicleIdErrorName = 'NoVehicleIdError'

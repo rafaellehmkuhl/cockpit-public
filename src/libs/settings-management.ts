@@ -4,6 +4,7 @@ import {
   CockpitSetting,
   KeyValueVehicleUpdateQueue,
   LocalSyncedSettings,
+  NoVehicleIdErrorName,
   OldCockpitSetting,
   SettingsListener,
   SettingsListeners,
@@ -97,8 +98,6 @@ class SettingsManager {
       this.setLocalSettings(localSettings)
 
       this.pushKeyValueUpdateToVehicleUpdateQueue(vehicleId, userId, key, value, newEpoch)
-
-      this.notifyListenersAboutKeyChange(key, newSetting)
     }, keyValueUpdateDebounceTime)
   }
 
@@ -181,8 +180,6 @@ class SettingsManager {
           const oldSetting = this.lastLocalUserVehicleSettings[key]
           const newSetting = newSettings[this.currentUser][this.currentVehicle][key]
           if (!isEqual(oldSetting, newSetting)) {
-            // console.warn('Setting changed:', key)
-            // console.warn(diff(oldSetting, newSetting))
             this.notifyListenersAboutKeyChange(key, newSetting)
           }
         })
@@ -360,7 +357,13 @@ class SettingsManager {
         )
       }
     } catch (error) {
-      throw new Error(`Could not confirm vehicle ID. ${error}`)
+      if ((error as Error).name === NoPathInBlueOsErrorName) {
+        const noVehicleIdError = new Error(`Could not confirm vehicle ID. ${error}`)
+        noVehicleIdError.name = NoVehicleIdErrorName
+        throw noVehicleIdError
+      } else {
+        throw new Error(`Could not confirm vehicle ID. ${error}`)
+      }
     }
   }
 
@@ -370,7 +373,11 @@ class SettingsManager {
    * @param {string} vehicleId - The ID of the vehicle to which the updates belong
    * @param {string} vehicleAddress - The address of the vehicle to send updates to
    */
-  private sendKeyValueUpdatesToVehicle = async (userId: string, vehicleId: string, vehicleAddress: string): Promise<void> => {
+  private sendKeyValueUpdatesToVehicle = async (
+    userId: string,
+    vehicleId: string,
+    vehicleAddress: string
+  ): Promise<void> => {
     if (
       !this.keyValueVehicleUpdateQueue[vehicleId] ||
       !this.keyValueVehicleUpdateQueue[vehicleId]?.[userId] ||
@@ -455,7 +462,6 @@ class SettingsManager {
   ): Promise<SettingsPackage> => {
     console.log('[SettingsManager]', `Syncing settings for user=${userId}/vehicle=${vehicleId}`)
 
-    // TODO: Decide about what to do if this getkeydata fails
     // Get settings from vehicle
     let vehicleSettings = await this.getValidVehicleSettingsOrThrow(vehicleAddress)
     await this.confirmVehicleIdOrThrow(vehicleAddress, vehicleId)
@@ -676,14 +682,20 @@ class SettingsManager {
     console.log('[SettingsManager]', 'Vehicle ID:', vehicleId)
 
     let newSettings: SettingsPackage = {}
+    let wasAbleToGetBestSettings = false
 
     // First of all, sync settings with vehicle if possible, so we have both with the "best" values for that user/vehicle combination
-    const bestSettingsWithVehicle = await this.getBestUserVehicleSettingsBetweenLocalAndVehicle(
-      this.currentUser,
-      this.currentVehicle,
-      this.currentVehicleAddress
-    )
-    newSettings = this.getMergedSettings(bestSettingsWithVehicle, newSettings)
+    try {
+      const bestSettingsWithVehicle = await this.getBestUserVehicleSettingsBetweenLocalAndVehicle(
+        this.currentUser,
+        this.currentVehicle,
+        this.currentVehicleAddress
+      )
+      newSettings = this.getMergedSettings(bestSettingsWithVehicle, newSettings)
+      wasAbleToGetBestSettings = true
+    } catch (error) {
+      console.error('[SettingsManager]', 'Error getting best settings with vehicle.', error)
+    }
 
     // Make sure we have the best settings we can get for the new user and current vehicle
     if (this.hasSettingsForUserAndVehicle(this.currentUser, this.currentVehicle)) {
@@ -703,12 +715,14 @@ class SettingsManager {
       }
     }
 
-    await this.pushSettingsToVehicleUpdateQueue(
-      this.currentUser,
-      this.currentVehicle,
-      this.currentVehicleAddress,
-      newSettings
-    )
+    if (wasAbleToGetBestSettings) {
+      await this.pushSettingsToVehicleUpdateQueue(
+        this.currentUser,
+        this.currentVehicle,
+        this.currentVehicleAddress,
+        newSettings
+      )
+    }
 
     this.setLocalSettingsForUserAndVehicle(this.currentUser, this.currentVehicle, newSettings)
 
@@ -727,16 +741,22 @@ class SettingsManager {
     console.log('[SettingsManager]', `User changed to '${this.currentUser}'.`)
 
     let newSettings: SettingsPackage = {}
+    let wasAbleToGetBestSettings = false
 
     // First of all, sync settings with vehicle if possible, so we have both with the "best" values for that user/vehicle combination
     if (this.hasVehicleAddress()) {
       console.log('[SettingsManager]', 'Has vehicle address! Getting best settings with vehicle.')
-      const bestSettingsWithVehicle = await this.getBestUserVehicleSettingsBetweenLocalAndVehicle(
-        this.currentUser,
-        this.currentVehicle,
-        this.currentVehicleAddress
-      )
-      newSettings = this.getMergedSettings(bestSettingsWithVehicle, newSettings)
+      try {
+        const bestSettingsWithVehicle = await this.getBestUserVehicleSettingsBetweenLocalAndVehicle(
+          this.currentUser,
+          this.currentVehicle,
+          this.currentVehicleAddress
+        )
+        newSettings = this.getMergedSettings(bestSettingsWithVehicle, newSettings)
+        wasAbleToGetBestSettings = true
+      } catch (error) {
+        console.error('[SettingsManager]', 'Error getting best settings with vehicle.', error)
+      }
     }
 
     // Make sure we have the best settings we can get for the new user and current vehicle
@@ -757,8 +777,7 @@ class SettingsManager {
       }
     }
 
-    // TODO: If the following lines are uncommented, the settings are not being changed when changing the user
-    if (this.hasVehicleAddress()) {
+    if (this.hasVehicleAddress() && wasAbleToGetBestSettings) {
       await this.pushSettingsToVehicleUpdateQueue(
         this.currentUser,
         this.currentVehicle,
