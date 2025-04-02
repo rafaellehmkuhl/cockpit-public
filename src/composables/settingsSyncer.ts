@@ -73,9 +73,9 @@ export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): Rem
 
   watch(
     refedValue,
-    () => {
-      const isTheSameObject = Object.is(refedValue.value, oldRefedValue)
-      const hasTheSameSerialization = prettyFormat(refedValue.value) === prettyFormat(oldRefedValue)
+    (newValue) => {
+      const isTheSameObject = Object.is(newValue, oldRefedValue)
+      const hasTheSameSerialization = prettyFormat(newValue) === prettyFormat(oldRefedValue)
 
       if (isTheSameObject || hasTheSameSerialization) {
         return
@@ -86,7 +86,7 @@ export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): Rem
       }
 
       watchUpdaterTimeout = setTimeout(() => {
-        const diffInValue = diff(oldRefedValue, refedValue.value, {
+        const diffInValue = diff(oldRefedValue, newValue, {
           expand: false,
           contextLines: 3,
           includeChangeCounts: true,
@@ -98,8 +98,8 @@ export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): Rem
           diffToPrint = truncatedDiff
         }
         console.log(`settingsSyncer: Key ${key} changed on watch:\n${diffToPrint}.`)
-        settingsManager.setKeyValue(key, refedValue.value)
-        oldRefedValue = deserialize(JSON.stringify(refedValue.value)) as T
+        settingsManager.setKeyValue(key, newValue)
+        oldRefedValue = deserialize(JSON.stringify(newValue)) as T
       }, 100)
     },
     { deep: true }

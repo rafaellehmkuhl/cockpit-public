@@ -9,7 +9,6 @@ import {
   SettingsListeners,
   SettingsPackage,
   UserChangedEvent,
-  UserSettings,
   VehicleOnlineEvent,
   VehicleSettings,
 } from '@/types/settings-management'
@@ -388,9 +387,10 @@ class SettingsManager {
       for (const [userId, updatesForUser] of updatesForVehicle) {
         for (const [key, update] of Object.entries(updatesForUser)) {
           if (vehicleSettings[userId] && vehicleSettings[userId][key]) {
+            const noValue = update.value === undefined
             const sameValue = isEqual(vehicleSettings[userId][key].value, update.value)
             const vehicleSettingIsNewer = vehicleSettings[userId][key].epochLastChangedLocally > update.epochChange
-            if (sameValue || vehicleSettingIsNewer) {
+            if (noValue || sameValue || vehicleSettingIsNewer) {
               delete this.keyValueVehicleUpdateQueue[vehicleId][userId][key]
               continue
             }
