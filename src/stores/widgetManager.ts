@@ -708,7 +708,7 @@ export const useWidgetManagerStore = defineStore('widget-manager', () => {
       savedProfiles.value.push(userProfile)
     })
     loadProfile(savedProfiles.value[0])
-    reloadCockpit()
+    // reloadCockpit()
   }
 
   // Make sure the interface is not booting with a profile or view that does not exist

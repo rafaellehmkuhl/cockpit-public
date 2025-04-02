@@ -75,7 +75,7 @@ export const useMissionStore = defineStore('mission', () => {
     }
 
     username.value = newUsername
-    await reloadCockpit()
+    // await reloadCockpit()
   }
 
   const setDefaultMapPosition = (center: WaypointCoordinates, zoom: number): void => {
@@ -104,6 +104,12 @@ export const useMissionStore = defineStore('mission', () => {
     const waypointIndex = currentPlanningWaypoints.findIndex((wp) => wp.id === id)
     return waypointIndex !== -1 ? waypointIndex + 1 : ''
   }
+
+  watch(
+    username,
+    () => window.dispatchEvent(new CustomEvent('user-changed', { detail: { username: username.value } })),
+    { immediate: true }
+  )
 
   return {
     username,

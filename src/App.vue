@@ -238,6 +238,25 @@
               interfaceStore.isOnSmallScreen && interfaceStore.isOnSmallScreen ? topBarScaleStyle : undefined,
             ]"
           >
+            <div class="flex items-center justify-center gap-x-4">
+              <v-btn
+                id="select-profile"
+                size="small"
+                append-icon="mdi-swap-horizontal"
+                class="bg-[#FFFFFF22] shadow-2 mx-2"
+                variant="flat"
+                @click="missionStore.changeUsername"
+              >
+                switch user
+              </v-btn>
+              <v-switch
+                v-model="alertStore.enableVoiceAlerts"
+                label="Enable voice alerts"
+                color="white"
+                class="mx-2"
+                hide-details
+              />
+            </div>
             <button
               v-if="interfaceStore.mainMenuStyleTrigger === 'burger'"
               class="flex items-center justify-center h-full mr-2 aspect-square top-bar-hamburger"
@@ -316,6 +335,8 @@
   <ActionDiscoveryModal auto-check-on-mount />
   <UpdateNotification v-if="isElectron()" />
   <SnackbarContainer />
+  <LocalStorageMonitor />
+  <SettingsInspectionDialog />
 </template>
 
 <script setup lang="ts">
@@ -333,6 +354,8 @@ import SettingsIcon from '@/assets/icons/settings.svg'
 import ToolsIcon from '@/assets/icons/tools.svg'
 import ActionDiscoveryModal from '@/components/ActionDiscoveryModal.vue'
 import GlassModal from '@/components/GlassModal.vue'
+import LocalStorageMonitor from '@/components/LocalStorageMonitor.vue'
+import SettingsInspectionDialog from '@/components/SettingsInspectionDialog.vue'
 import SnackbarContainer from '@/components/SnackbarContainer.vue'
 import Tutorial from '@/components/Tutorial.vue'
 import UpdateNotification from '@/components/UpdateNotification.vue'
@@ -345,6 +368,8 @@ import {
   unregisterActionCallback,
 } from '@/libs/joystick/protocols/cockpit-actions'
 import { isElectron } from '@/libs/utils'
+import { useAlertStore } from '@/stores/alert'
+import { useMissionStore } from '@/stores/mission'
 
 import About from './components/About.vue'
 import AltitudeSlider from './components/AltitudeSlider.vue'
@@ -376,6 +401,7 @@ const widgetStore = useWidgetManagerStore()
 const vehicleStore = useMainVehicleStore()
 const interfaceStore = useAppInterfaceStore()
 const alertStore = useAlertStore()
+const missionStore = useMissionStore()
 
 const showAboutDialog = ref(false)
 const showSubMenu = ref(false)
@@ -940,5 +966,11 @@ body.hide-cursor {
 
 .top-bar-hamburger {
   outline: none;
+}
+
+.app-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
 }
 </style>

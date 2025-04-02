@@ -72,6 +72,7 @@ import { computed, onMounted, ref } from 'vue'
 
 import { getSettingsUsernamesFromBlueOS } from '@/composables/settingsSyncer'
 import { openSnackbar } from '@/composables/snackbar'
+import { settingsManager } from '@/libs/settings-management'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 import { useMissionStore } from '@/stores/mission'
 
@@ -94,6 +95,13 @@ const setNewUsername = (username: string): void => {
   emit('confirmed', username)
 }
 
+const loadLocalUsernames = (): void => {
+  const locallyStoredUsernames = Object.keys(settingsManager.getLocalSettings())
+  if (locallyStoredUsernames.length) {
+    usernamesStoredOnBlueOS.value = [...new Set([...(usernamesStoredOnBlueOS.value ?? []), ...locallyStoredUsernames])]
+  }
+}
+
 const loadUsernamesFromBlueOS = async (): Promise<void> => {
   isLoading.value = true
 
@@ -110,6 +118,7 @@ const loadUsernamesFromBlueOS = async (): Promise<void> => {
 }
 
 onMounted(async () => {
+  loadLocalUsernames()
   if (mainVehicleStore.isVehicleOnline) {
     await loadUsernamesFromBlueOS()
   }
