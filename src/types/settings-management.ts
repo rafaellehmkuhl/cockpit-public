@@ -49,6 +49,8 @@ export interface LocalSyncedSettings {
  */
 export type OldCockpitSetting = any
 
+export type OldCockpitSettingsPackage = Record<string, OldCockpitSetting>
+
 /**
  * SettingsListener is the type of the listener for the settings manager.
  */
