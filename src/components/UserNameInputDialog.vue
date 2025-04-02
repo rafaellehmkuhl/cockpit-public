@@ -87,34 +87,31 @@ const showNewUsernamePrompt = ref(false)
 const validationError = ref('')
 const newUsername = ref('')
 const usernamesStoredOnBlueOS = ref<string[] | null>(null)
-const isLoading = ref(true)
+const isLoading = ref(false)
 
 const setNewUsername = (username: string): void => {
   newUsername.value = username
   emit('confirmed', username)
 }
 
-const loadUsernames = async (): Promise<void> => {
+const loadUsernamesFromBlueOS = async (): Promise<void> => {
+  isLoading.value = true
+
   try {
-    const usernames = await getSettingsUsernamesFromBlueOS()
-    if (!usernames?.length) {
-      usernamesStoredOnBlueOS.value = []
-      return
+    const blueOSUsernames = await getSettingsUsernamesFromBlueOS()
+    if (blueOSUsernames && blueOSUsernames.length) {
+      usernamesStoredOnBlueOS.value = [...new Set([...(usernamesStoredOnBlueOS.value ?? []), ...blueOSUsernames])]
     }
-    usernamesStoredOnBlueOS.value = usernames
   } catch (error) {
-    usernamesStoredOnBlueOS.value = []
-    console.error('Failed to load usernames.')
+    console.error('Failed to load usernames from BlueOS.')
   } finally {
     isLoading.value = false
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   if (mainVehicleStore.isVehicleOnline) {
-    loadUsernames()
-  } else {
-    isLoading.value = false
+    await loadUsernamesFromBlueOS()
   }
 })
 
