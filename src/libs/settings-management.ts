@@ -681,6 +681,30 @@ class SettingsManager {
     return vehicleId
   }
 
+  private copyAllSettingsFromVehicleToLocalMissingUsers = async (
+    vehicleAddress: string,
+    vehicleId: string
+  ): Promise<void> => {
+    // Copy all users from the vehicle to the local storage, if they are not present here
+    const newSettings: LocalSyncedSettings = {}
+    const vehicleSettings = await this.getValidVehicleSettingsOrThrow(vehicleAddress)
+    const localSettings = this.getLocalSettings()
+    const usersOnVehicle = Object.keys(vehicleSettings)
+    const usersOnLocal = Object.keys(localSettings)
+    const missingUsers = usersOnVehicle.filter((user) => !usersOnLocal.includes(user))
+    console.log(`[SettingsManager] Copying settings from vehicle for missing users ${missingUsers.join(', ')}.`)
+    missingUsers.forEach((user) => {
+      if (newSettings[user] === undefined) {
+        newSettings[user] = {}
+      }
+      if (newSettings[user][vehicleId] === undefined) {
+        newSettings[user][vehicleId] = {}
+      }
+      newSettings[user][vehicleId] = vehicleSettings[user] || {}
+    })
+    this.setLocalSettings(newSettings)
+  }
+
   /**
    * Handles a vehicle getting online
    * @param {string} vehicleAddress - The address of the vehicle
@@ -702,6 +726,11 @@ class SettingsManager {
       this.currentVehicle = vehicleId
     } else {
       this.currentVehicle = nullValue
+    }
+
+    // Copy all users from the vehicle to the local storage, if they are not present here
+    if (vehicleId) {
+      await this.copyAllSettingsFromVehicleToLocalMissingUsers(vehicleAddress, vehicleId)
     }
 
     console.log('[SettingsManager]', 'Vehicle ID:', vehicleId)
