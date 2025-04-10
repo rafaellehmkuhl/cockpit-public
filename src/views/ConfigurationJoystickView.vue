@@ -549,6 +549,7 @@ import { getAllTransformingFunctions } from '@/libs/actions/data-lake-transforma
 import { getArdupilotVersion, getMavlink2RestVersion } from '@/libs/blueos'
 import { MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { JoystickModel } from '@/libs/joystick/manager'
+import { MAVLinkButtonFunction } from '@/libs/joystick/protocols/mavlink-manual-control'
 import { modifierKeyActions } from '@/libs/joystick/protocols/other'
 import { useAppInterfaceStore } from '@/stores/appInterface'
 import { useControllerStore } from '@/stores/controller'
@@ -647,8 +648,11 @@ const filteredAndSortedJoystickActions = (): JoystickAction[] => {
   return buttonActionsToShow.value
     .filter((action: JoystickAction) => action.name.toLowerCase().includes(searchText.value))
     .filter((action: JoystickAction) => filteredProtocols.includes(action.protocol))
+    .filter((action: JoystickAction) => !idsExcludedJoystickActions.includes(action.id))
     .sort((a: JoystickAction, b: JoystickAction) => a.name.localeCompare(b.name))
 }
+
+const idsExcludedJoystickActions = [MAVLinkButtonFunction.arm, MAVLinkButtonFunction.disarm]
 
 const searchText = ref('')
 
