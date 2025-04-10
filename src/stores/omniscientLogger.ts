@@ -22,6 +22,7 @@ export const useOmniscientLoggerStore = defineStore('omniscient-logger', () => {
     'cockpit-memory-usage',
     'Cockpit Memory Usage',
     'number',
+    'cockpit',
     'The memory usage of the Cockpit application in MB. This value is updated every 100ms.'
   )
   createDataLakeVariable(cockpitMemoryUsageVariable)
@@ -37,6 +38,7 @@ export const useOmniscientLoggerStore = defineStore('omniscient-logger', () => {
     'cockpit-app-frame-rate',
     'Cockpit App Frame Rate',
     'number',
+    'cockpit',
     'The framerate of the Cockpit application rendering in fps. This value is updated every 100ms.'
   )
   createDataLakeVariable(cockpitAppFrameRateVariable)
@@ -93,6 +95,7 @@ export const useOmniscientLoggerStore = defineStore('omniscient-logger', () => {
             streamRateVariableId(streamName, key),
             `Stream '${streamName}' - ${key}`,
             'number',
+            'cockpit',
             `WebRTC stat '${key}' of the '${streamName}' video stream.`
           )
           createDataLakeVariable(streamVariable)

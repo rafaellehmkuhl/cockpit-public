@@ -176,6 +176,7 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
           vehicleAddressVariableId,
           'Vehicle Address',
           'string',
+          'cockpit',
           'The address of the vehicle, without protocol.'
         )
         createDataLakeVariable(vehicleAddressVariable)
@@ -187,6 +188,7 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
           vehicleMavlink2RestHttpEndpointVariableId,
           'MAVLink2REST HTTP Endpoint',
           'string',
+          'cockpit',
           'The HTTP endpoint of the vehicle MAVLink2REST service.'
         )
         createDataLakeVariable(vehicleMavlink2RestHttpEndpointVariable)
@@ -490,7 +492,7 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     updateVehicleId()
 
     const blueOsVariables = {
-      cpuTemp: { id: 'blueos/cpu/tempC', name: 'CPU Temperature', type: 'number' },
+      cpuTemp: { id: 'blueos/cpu/tempC', name: 'CPU Temperature', type: 'number', source: 'blueos' },
     }
 
     // Register BlueOS variables in the data lake

@@ -22,6 +22,10 @@ export interface DataLakeVariableConfig {
    */
   type: DataLakeVariableType
   /**
+   * The source of the variable
+   */
+  source: string
+  /**
    * What the variable does or means
    */
   description?: string
@@ -32,6 +36,7 @@ export interface DataLakeVariableConfig {
  * @param { string } id - The id of the variable
  * @param { string } name - The name of the variable
  * @param { 'string' | 'number' | 'boolean' } type - The type of the variable (string, number or boolean)
+ * @param { string } source - The source of the variable
  * @param { string } description - What the variable does or means
  * @param { boolean } persistent - Whether the variable should be persisted between boots
  * @param { boolean } persistValue - Whether the variable's value should be persisted between boots
@@ -40,6 +45,7 @@ export class DataLakeVariable implements DataLakeVariableConfig {
   id: string
   name: string
   type: DataLakeVariableType
+  source: string
   description?: string
   persistent: boolean
   persistValue: boolean
@@ -48,6 +54,7 @@ export class DataLakeVariable implements DataLakeVariableConfig {
     id: string,
     name: string,
     type: DataLakeVariableType,
+    source: string,
     description?: string,
     persistent = false,
     persistValue = false
@@ -55,6 +62,7 @@ export class DataLakeVariable implements DataLakeVariableConfig {
     this.id = id
     this.name = name
     this.type = type
+    this.source = source
     this.description = description
     this.persistent = persistent
     this.persistValue = persistValue

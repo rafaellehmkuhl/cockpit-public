@@ -133,7 +133,7 @@ const modelValue = toRef(props, 'modelValue')
 /**
  * The variable being created or edited
  */
-const variable = reactive<DataLakeVariable>({
+const variable = reactive<Partial<DataLakeVariable>>({
   id: '',
   name: '',
   type: 'number',
@@ -289,7 +289,7 @@ const saveVariable = (): void => {
     }
   }
 
-  const newVariable = { ...variable }
+  const newVariable = { ...variable, ...{ source: 'user-defined' } } as DataLakeVariable
 
   if (editMode.value) {
     updateDataLakeVariableInfo(newVariable)
