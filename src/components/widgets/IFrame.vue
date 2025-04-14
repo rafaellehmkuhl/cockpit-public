@@ -1,15 +1,6 @@
 <template>
   <div class="w-full h-full">
-    <teleport to=".widgets-view">
-      <iframe
-        v-show="iframe_loaded"
-        ref="iframe"
-        :src="widget.options.source"
-        :style="iframeStyle"
-        frameborder="0"
-        @load="loadFinished"
-      />
-    </teleport>
+    <iframe v-show="iframe_loaded" ref="iframe" :src="widget.options.source" frameborder="0" @load="loadFinished" />
     <v-dialog v-model="widgetStore.widgetManagerVars(widget.hash).configMenuOpen" min-width="400" max-width="35%">
       <v-card class="pa-2" :style="interfaceStore.globalGlassMenuStyles">
         <v-card-title class="text-center">Settings</v-card-title>
@@ -122,28 +113,6 @@ onBeforeMount((): void => {
 
 onBeforeUnmount((): void => {
   window.removeEventListener('message', apiEventCallback, true)
-})
-
-const { width: windowWidth, height: windowHeight } = useWindowSize()
-
-const iframeStyle = computed<string>(() => {
-  let newStyle = ''
-
-  newStyle = newStyle.concat(' ', 'position: absolute;')
-  newStyle = newStyle.concat(' ', `left: ${widget.value.position.x * windowWidth.value}px;`)
-  newStyle = newStyle.concat(' ', `top: ${widget.value.position.y * windowHeight.value}px;`)
-  newStyle = newStyle.concat(' ', `width: ${widget.value.size.width * windowWidth.value}px;`)
-  newStyle = newStyle.concat(' ', `height: ${widget.value.size.height * windowHeight.value}px;`)
-
-  if (widgetStore.editingMode) {
-    newStyle = newStyle.concat(' ', 'pointer-events:none; border:0;')
-  }
-
-  if (!widgetStore.isWidgetVisible(widget.value)) {
-    newStyle = newStyle.concat(' ', 'display: none;')
-  }
-
-  return newStyle
 })
 
 const iframeOpacity = computed<number>(() => {

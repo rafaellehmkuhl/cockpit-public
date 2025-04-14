@@ -23,6 +23,21 @@
         </WidgetHugger>
       </template>
     </div>
+    <div id="widgets-view-foreground">
+      <div v-for="viewWithIframe in store.currentProfile.views" :key="viewWithIframe.name">
+        <div v-for="maybeIframeWidget in viewWithIframe.widgets.slice().reverse()" :key="maybeIframeWidget.hash">
+          <WidgetHugger
+            v-if="maybeIframeWidget.component === 'IFrame'"
+            :widget="maybeIframeWidget"
+            :allow-moving="store.widgetManagerVars(maybeIframeWidget.hash).allowMoving"
+            :allow-resizing="store.editingMode"
+            :class="store.isWidgetVisible(maybeIframeWidget) ? 'visibleWidgetClass' : 'hiddenWidgetClass'"
+          >
+            <component :is="componentFromType(maybeIframeWidget.component)" :widget="maybeIframeWidget" />
+          </WidgetHugger>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -81,5 +96,11 @@ const componentExists = (componentName: string): boolean => {
   align-items: center;
   justify-content: center;
   background-color: rgb(122, 25, 25);
+}
+.visibleWidgetClass {
+  display: block;
+}
+.hiddenWidgetClass {
+  display: none;
 }
 </style>
