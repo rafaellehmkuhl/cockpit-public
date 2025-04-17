@@ -97,14 +97,107 @@
           </div>
           <div v-if="currentCalibrationType === 'exponential'" class="w-full">
             <p class="text-sm text-gray-400 mb-2">Move the joystick to its maximum range in each direction</p>
-            <div class="flex justify-between w-full">
-              <div class="w-1/2 pr-2">
-                <p class="text-xs text-gray-400 mb-1">Left/Right</p>
-                <v-progress-linear v-model="exponentialProgress.x" color="blue" height="4" striped class="w-full" />
-              </div>
-              <div class="w-1/2 pl-2">
-                <p class="text-xs text-gray-400 mb-1">Up/Down</p>
-                <v-progress-linear v-model="exponentialProgress.y" color="blue" height="4" striped class="w-full" />
+            <div class="flex flex-col gap-4 w-full">
+              <div v-for="(axis, index) in currentJoystick?.state.axes ?? []" :key="index" class="w-full">
+                <div class="flex items-center justify-between mb-1">
+                  <p class="text-xs text-gray-400">Axis {{ index }}</p>
+                  <div class="flex items-center gap-2">
+                    <v-btn
+                      size="x-small"
+                      variant="text"
+                      class="text-gray-400"
+                      @click="exponentialFactors[index] = 1.0"
+                    >
+                      Reset
+                    </v-btn>
+                    <span class="text-xs text-gray-400">Factor:</span>
+                    <v-slider
+                      v-model="exponentialFactors[index]"
+                      min="1.0"
+                      max="5.0"
+                      step="0.1"
+                      hide-details
+                      class="w-32"
+                      density="compact"
+                    />
+                    <span class="text-xs text-gray-400">{{ exponentialFactors[index].toFixed(1) }}</span>
+                  </div>
+                </div>
+                <div class="flex flex-col gap-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs text-gray-400 w-16">Raw:</span>
+                    <v-progress-linear
+                      :model-value="(rawAxisValues[index] + 1) * 50"
+                      color="gray"
+                      height="4"
+                      class="flex-1"
+                    />
+                    <span class="text-xs text-gray-400 w-12">{{ rawAxisValues[index].toFixed(2) }}</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs text-gray-400 w-16">Processed:</span>
+                    <v-progress-linear
+                      :model-value="(processedAxisValues[index] + 1) * 50"
+                      color="blue"
+                      height="4"
+                      class="flex-1"
+                    />
+                    <span class="text-xs text-gray-400 w-12">{{ processedAxisValues[index].toFixed(2) }}</span>
+                  </div>
+                  <div class="w-full h-32 relative">
+                    <svg class="w-full h-full" viewBox="0 0 200 100" preserveAspectRatio="none">
+                      <!-- Grid lines -->
+                      <line x1="0" y1="50" x2="200" y2="50" stroke="#e5e7eb" stroke-width="1" />
+                      <line x1="100" y1="0" x2="100" y2="100" stroke="#e5e7eb" stroke-width="1" />
+
+                      <!-- Linear curve (y = x) -->
+                      <path
+                        d="M 0 50 L 200 50"
+                        stroke="#9ca3af"
+                        stroke-width="2"
+                        fill="none"
+                      />
+
+                      <!-- Exponential curve -->
+                      <path
+                        :d="getExponentialCurvePath(index)"
+                        stroke="#3b82f6"
+                        stroke-width="2"
+                        fill="none"
+                      />
+
+                      <!-- Current value indicator -->
+                      <circle
+                        :cx="100 + (rawAxisValues[index] * 100)"
+                        :cy="50 - (processedAxisValues[index] * 50)"
+                        r="3"
+                        fill="#3b82f6"
+                      />
+
+                      <!-- Vertical line -->
+                      <line
+                        :x1="100 + (rawAxisValues[index] * 100)"
+                        y1="0"
+                        :x2="100 + (rawAxisValues[index] * 100)"
+                        y2="100"
+                        stroke="#3b82f6"
+                        stroke-width="1"
+                        stroke-dasharray="2,2"
+                      />
+
+                      <!-- Horizontal line -->
+                      <line
+                        x1="0"
+                        :y1="50 - (processedAxisValues[index] * 50)"
+                        x2="200"
+                        :y2="50 - (processedAxisValues[index] * 50)"
+                        stroke="#3b82f6"
+                        stroke-width="1"
+                        stroke-dasharray="2,2"
+                      />
+                    </svg>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -140,14 +233,17 @@ const showCalibrationModal = ref(false)
 const currentCalibrationType = ref<'deadband' | 'circle' | 'exponential'>('deadband')
 const calibrationProgress = ref(0)
 const exponentialProgress = ref({ x: 0, y: 0 })
+const exponentialFactors = ref<number[]>([])
+const rawAxisValues = ref<number[]>([])
+const processedAxisValues = ref<number[]>([])
 const joystickPosition = ref({ x: 0, y: 0 })
 const joystickPosition2 = ref({ x: 0, y: 0 })
 const isCalibrationComplete = ref(false)
 
 const calibrationOptions = ref({
-  deadband: true,
+  deadband: false,
   circleCorrection: false,
-  exponential: false,
+  exponential: true,
 })
 
 const calibrationModalTitle = computed(() => {
@@ -182,6 +278,14 @@ const openCalibrationModal = (type: 'deadband' | 'circle' | 'exponential'): void
   calibrationProgress.value = 0
   exponentialProgress.value = { x: 0, y: 0 }
   isCalibrationComplete.value = false
+
+  if (type === 'exponential') {
+    // Initialize exponential factors for all axes
+    const numAxes = currentJoystick.value?.state.axes.length ?? 0
+    exponentialFactors.value = Array(numAxes).fill(1.0)
+    rawAxisValues.value = Array(numAxes).fill(0)
+    processedAxisValues.value = Array(numAxes).fill(0)
+  }
 }
 
 const cancelCalibration = (): void => {
@@ -218,10 +322,23 @@ watch(
       joystickPosition.value = { x: axes[0] ?? 0, y: axes[1] ?? 0 }
       joystickPosition2.value = { x: axes[2] ?? 0, y: axes[3] ?? 0 }
     } else if (currentCalibrationType.value === 'exponential') {
-      // Update exponential calibration progress
+      // Update exponential calibration progress and values
+      const currentAxes = currentJoystick.value?.state.axes ?? []
+      rawAxisValues.value = currentAxes.map(axis => axis ?? 0)
+
+      // Calculate processed values with exponential scaling
+      processedAxisValues.value = currentAxes.map((value, index) => {
+        const factor = exponentialFactors.value[index] ?? 1.0
+        const axisValue = value ?? 0
+        const sign = Math.sign(axisValue)
+        const absValue = Math.abs(axisValue)
+        return sign * Math.pow(absValue, factor)
+      })
+
+      // Update progress based on maximum values seen
       exponentialProgress.value = {
-        x: Math.max(exponentialProgress.value.x, Math.abs(x) * 100),
-        y: Math.max(exponentialProgress.value.y, Math.abs(y) * 100),
+        x: Math.max(exponentialProgress.value.x, Math.abs(currentAxes[0] ?? 0) * 100),
+        y: Math.max(exponentialProgress.value.y, Math.abs(currentAxes[1] ?? 0) * 100),
       }
       isCalibrationComplete.value = exponentialProgress.value.x >= 100 && exponentialProgress.value.y >= 100
     }
@@ -229,7 +346,21 @@ watch(
   { deep: true }
 )
 
+const getExponentialCurvePath = (axisIndex: number): string => {
+  const factor = exponentialFactors.value[axisIndex] ?? 1.0
+  const points: string[] = []
+
+  for (let x = -1; x <= 1; x += 0.1) {
+    const y = Math.sign(x) * Math.pow(Math.abs(x), factor)
+    const svgX = 100 + (x * 100)
+    const svgY = 50 - (y * 50)
+    points.push(`${svgX},${svgY}`)
+  }
+
+  return `M ${points.join(' L ')}`
+}
+
 onMounted(() => {
-  openCalibrationModal('deadband')
+  openCalibrationModal('exponential')
 })
 </script>
