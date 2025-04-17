@@ -66,16 +66,32 @@
           </div>
           <div v-if="currentCalibrationType === 'circle'" class="w-full">
             <p class="text-sm text-gray-400 mb-2">Move the joystick in a full circle pattern</p>
-            <div class="w-full h-40 flex items-center justify-center">
-              <div class="w-32 h-32 border-2 border-blue-400 rounded-full relative">
-                <div
-                  class="w-4 h-4 bg-blue-400 rounded-full absolute"
-                  :style="{
-                    left: `${50 + joystickPosition.x * 50}%`,
-                    top: `${50 + joystickPosition.y * 50}%`,
-                    transform: 'translate(-50%, -50%)',
-                  }"
-                />
+            <div class="w-full h-40 flex items-center justify-center gap-8">
+              <div class="flex flex-col items-center">
+                <p class="text-xs text-gray-400 mb-2">Left Stick</p>
+                <div class="w-32 h-32 border-2 border-blue-400 rounded-full relative">
+                  <div
+                    class="w-4 h-4 bg-blue-400 rounded-full absolute"
+                    :style="{
+                      left: `${50 + joystickPosition.x * 50}%`,
+                      top: `${50 + joystickPosition.y * 50}%`,
+                      transform: 'translate(-50%, -50%)',
+                    }"
+                  />
+                </div>
+              </div>
+              <div class="flex flex-col items-center">
+                <p class="text-xs text-gray-400 mb-2">Right Stick</p>
+                <div class="w-32 h-32 border-2 border-red-400 rounded-full relative">
+                  <div
+                    class="w-4 h-4 bg-red-400 rounded-full absolute"
+                    :style="{
+                      left: `${50 + joystickPosition2.x * 50}%`,
+                      top: `${50 + joystickPosition2.y * 50}%`,
+                      transform: 'translate(-50%, -50%)',
+                    }"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -107,7 +123,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import InteractionDialog from '@/components/InteractionDialog.vue'
 import { useControllerStore } from '@/stores/controller'
@@ -125,10 +141,11 @@ const currentCalibrationType = ref<'deadband' | 'circle' | 'exponential'>('deadb
 const calibrationProgress = ref(0)
 const exponentialProgress = ref({ x: 0, y: 0 })
 const joystickPosition = ref({ x: 0, y: 0 })
+const joystickPosition2 = ref({ x: 0, y: 0 })
 const isCalibrationComplete = ref(false)
 
 const calibrationOptions = ref({
-  deadband: false,
+  deadband: true,
   circleCorrection: false,
   exponential: false,
 })
@@ -185,6 +202,7 @@ watch(
     const x = axes[0] ?? 0
     const y = axes[1] ?? 0
     joystickPosition.value = { x, y }
+    joystickPosition2.value = { x: -x, y: -y }
 
     if (currentCalibrationType.value === 'deadband') {
       // Update deadband calibration progress
@@ -195,6 +213,10 @@ watch(
         calibrationProgress.value = Math.max(0, calibrationProgress.value - 1)
       }
       isCalibrationComplete.value = calibrationProgress.value >= 100
+    } else if (currentCalibrationType.value === 'circle') {
+      // Update both joystick positions for circle calibration
+      joystickPosition.value = { x: axes[0] ?? 0, y: axes[1] ?? 0 }
+      joystickPosition2.value = { x: axes[2] ?? 0, y: axes[3] ?? 0 }
     } else if (currentCalibrationType.value === 'exponential') {
       // Update exponential calibration progress
       exponentialProgress.value = {
@@ -206,4 +228,8 @@ watch(
   },
   { deep: true }
 )
+
+onMounted(() => {
+  openCalibrationModal('deadband')
+})
 </script>
