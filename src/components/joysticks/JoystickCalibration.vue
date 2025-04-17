@@ -63,12 +63,7 @@
               <p class="text-sm text-gray-400">
                 Move the joystick to its center position and hold it there for 5 seconds
               </p>
-              <v-btn
-                size="small"
-                color="primary"
-                :disabled="isCalibrating"
-                @click="startCalibration()"
-              >
+              <v-btn size="small" color="primary" :disabled="isCalibrating" @click="startCalibration()">
                 Calibrate All
               </v-btn>
             </div>
@@ -86,7 +81,7 @@
                 :key="index"
                 class="w-full"
                 :class="{
-                  'opacity-50': isCalibrating && calibratingAxis !== null && calibratingAxis !== index
+                  'opacity-50': isCalibrating && calibratingAxis !== null && calibratingAxis !== index,
                 }"
               >
                 <div class="flex items-center justify-between mb-1">
@@ -105,12 +100,7 @@
                       hide-details
                       class="w-24"
                     />
-                    <v-btn
-                      size="x-small"
-                      color="primary"
-                      :disabled="isCalibrating"
-                      @click="startCalibration(index)"
-                    >
+                    <v-btn size="x-small" color="primary" :disabled="isCalibrating" @click="startCalibration(index)">
                       Auto Calibrate
                     </v-btn>
                   </div>
@@ -121,11 +111,11 @@
                   @mousemove="handleMouseMove(index, $event, $event.currentTarget as HTMLElement)"
                 >
                   <!-- Background bar -->
-                  <div class="absolute inset-0 bg-gray-200 rounded-full" />
+                  <div class="absolute inset-0 bg-gray-200 rounded-full border-2 border-gray-700/80" />
 
                   <!-- Deadzone region -->
                   <div
-                    class="absolute inset-y-0 bg-red-300/50"
+                    class="absolute inset-y-0 bg-red-300/50 top-[2px] bottom-[2px]"
                     :style="{
                       left: '50%',
                       right: '50%',
@@ -136,7 +126,7 @@
 
                   <!-- Current value indicator -->
                   <div
-                    class="absolute top-0 bottom-0 w-1 bg-blue-500 rounded-full"
+                    class="absolute top-[2px] bottom-[2px] w-1 bg-blue-500/70"
                     :style="{
                       left: `${50 + (rawAxisValues[index] ?? 0) * 50}%`,
                       transform: 'translateX(-50%)',
@@ -144,18 +134,18 @@
                   />
 
                   <!-- Center line -->
-                  <div class="absolute top-0 bottom-0 w-px bg-gray-400 left-1/2" />
+                  <div class="absolute top-[2px] bottom-[2px] w-px bg-gray-400 left-1/2" />
 
                   <!-- Threshold handles -->
                   <div
-                    class="absolute top-0 bottom-0 w-1 bg-red-500 cursor-ew-resize"
+                    class="absolute top-[2px] bottom-[2px] w-1 bg-red-300 cursor-ew-resize"
                     :style="{
                       left: `${50 - deadzoneThresholds[index] * 50}%`,
                       transform: 'translateX(-50%)',
                     }"
                   />
                   <div
-                    class="absolute top-0 bottom-0 w-1 bg-red-500 cursor-ew-resize"
+                    class="absolute top-[2px] bottom-[2px] w-1 bg-red-300 cursor-ew-resize"
                     :style="{
                       left: `${50 + deadzoneThresholds[index] * 50}%`,
                       transform: 'translateX(-50%)',
@@ -340,7 +330,7 @@ const calibrationOptions = ref({
 })
 
 const formattedDeadzoneThresholds = computed(() => {
-  return deadzoneThresholds.value.map(threshold => Number(threshold.toFixed(2)))
+  return deadzoneThresholds.value.map((threshold) => Number(threshold.toFixed(2)))
 })
 
 const calibrationModalTitle = computed(() => {
@@ -402,9 +392,7 @@ const startCalibration = (axisIndex?: number): void => {
     maxDeviations.value[axisIndex] = 0
   } else {
     // Calibrate all auto axes
-    maxDeviations.value = maxDeviations.value.map((_, i) =>
-      maxDeviations.value[i]
-    )
+    maxDeviations.value = maxDeviations.value.map((_, i) => maxDeviations.value[i])
   }
 }
 
@@ -464,7 +452,8 @@ watch(
           }
         })
 
-        if (elapsed >= 5000) { // 5 seconds calibration
+        if (elapsed >= 5000) {
+          // 5 seconds calibration
           isCalibrating.value = false
           calibratingAxis.value = null
           // Set the deadzone threshold to the maximum deviation plus a small buffer
@@ -520,7 +509,7 @@ const getExponentialCurvePath = (axisIndex: number): string => {
   return `M ${points.join(' L ')}`
 }
 
-onMounted(() => {
-  openCalibrationModal('deadband')
-})
+// onMounted(() => {
+//   openCalibrationModal('deadband')
+// })
 </script>
