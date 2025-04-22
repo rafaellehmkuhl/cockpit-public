@@ -13,12 +13,16 @@ import { customActionTypes } from '@/types/cockpit-actions'
 
 export const setupMavlinkCameraResources = (): void => {
   // Initialize camera zoom variables
-  createDataLakeVariable(new DataLakeVariable('camera-zoom-decrease', 'Camera Zoom Decrease', 'number'), 0)
-  createDataLakeVariable(new DataLakeVariable('camera-zoom-increase', 'Camera Zoom Increase', 'number'), 0)
+  const zoomDecrease = new DataLakeVariable('camera-zoom-decrease', 'Camera Zoom Decrease', 'number', 'cockpit')
+  createDataLakeVariable(zoomDecrease, 0)
+  const zoomIncrease = new DataLakeVariable('camera-zoom-increase', 'Camera Zoom Increase', 'number', 'cockpit')
+  createDataLakeVariable(zoomIncrease, 0)
 
   // Initialize camera focus variables
-  createDataLakeVariable(new DataLakeVariable('camera-focus-decrease', 'Camera Focus Decrease', 'number'), 0)
-  createDataLakeVariable(new DataLakeVariable('camera-focus-increase', 'Camera Focus Increase', 'number'), 0)
+  const focusDecrease = new DataLakeVariable('camera-focus-decrease', 'Camera Focus Decrease', 'number', 'cockpit')
+  createDataLakeVariable(focusDecrease, 0)
+  const focusIncrease = new DataLakeVariable('camera-focus-increase', 'Camera Focus Increase', 'number', 'cockpit')
+  createDataLakeVariable(focusIncrease, 0)
 
   // Initialize camera zoom transforming function
   try {

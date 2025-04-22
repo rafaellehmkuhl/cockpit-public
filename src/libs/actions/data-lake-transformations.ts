@@ -154,7 +154,7 @@ const deleteAllTransformingFunctionsVariables = (): void => {
 const setupAllTransformingFunctionsVariables = (): void => {
   globalTransformingFunctions.forEach((func) => {
     try {
-      createDataLakeVariable(new DataLakeVariable(func.id, func.name, func.type, func.description))
+      createDataLakeVariable(new DataLakeVariable(func.id, func.name, func.type, func.source, func.description))
     } catch (createError) {
       const msg = `Could not create data lake variable info for transforming function ${func.id}. Error: ${createError}`
       console.error(msg)
@@ -180,6 +180,8 @@ export interface TransformingFunction {
   id: string
   /** Type of the new variable */
   type: 'string' | 'number' | 'boolean'
+  /** Source of the new variable */
+  source: string
   /** Description of the new variable */
   description?: string
   /** JavaScript expression that defines how to calculate the new variable */
@@ -192,6 +194,7 @@ export interface TransformingFunction {
  * @param {string} id - ID of the new variable
  * @param {string} name - Name of the new variable
  * @param {'string' | 'number' | 'boolean'} type - Type of the new variable
+ * @param {string} source - Source of the new variable
  * @param {string} expression - Expression to calculate the variable's value
  * @param {string?} description - Description of the new variable
  */
@@ -199,12 +202,13 @@ export const createTransformingFunction = (
   id: string,
   name: string,
   type: 'string' | 'number' | 'boolean',
+  source: string,
   expression: string,
   description?: string
 ): void => {
-  const transformingFunction: TransformingFunction = { name, id, type, expression, description }
+  const transformingFunction: TransformingFunction = { name, id, type, source, expression, description }
   globalTransformingFunctions.push(transformingFunction)
-  createDataLakeVariable(new DataLakeVariable(id, name, type, description))
+  createDataLakeVariable(new DataLakeVariable(id, name, type, source, description))
   saveTransformingFunctions()
 }
 
