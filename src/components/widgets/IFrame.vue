@@ -1,15 +1,6 @@
 <template>
   <div class="w-full h-full">
-    <teleport to=".widgets-view">
-      <iframe
-        v-show="iframe_loaded"
-        ref="iframe"
-        :src="widget.options.source"
-        :style="iframeStyle"
-        frameborder="0"
-        @load="loadFinished"
-      />
-    </teleport>
+    <iframe v-show="iframe_loaded" ref="iframe" :src="widget.options.source" frameborder="0" @load="loadFinished" />
     <v-dialog v-model="widgetStore.widgetManagerVars(widget.hash).configMenuOpen" min-width="400" max-width="35%">
       <v-card class="pa-2" :style="interfaceStore.globalGlassMenuStyles">
         <v-card-title class="text-center">Settings</v-card-title>
@@ -54,8 +45,7 @@
 </template>
 
 <script setup lang="ts">
-import { useWindowSize } from '@vueuse/core'
-import { computed, defineProps, onBeforeMount, onBeforeUnmount, ref, toRefs, watch } from 'vue'
+import { computed, defineProps, onBeforeMount, onBeforeUnmount, onMounted, ref, toRefs, watch } from 'vue'
 
 import { defaultBlueOsAddress } from '@/assets/defaults'
 import Snackbar from '@/components/Snackbar.vue'
@@ -109,6 +99,7 @@ const apiEventCallback = (event: MessageEvent): void => {
 }
 
 onBeforeMount((): void => {
+  console.log(`IFrame '${widget.value.hash}' with source '${widget.value.options.source}' will mount.`)
   window.addEventListener('message', apiEventCallback, true)
 
   if (Object.keys(widget.value.options).length !== 0) {
@@ -124,30 +115,16 @@ onBeforeUnmount((): void => {
   window.removeEventListener('message', apiEventCallback, true)
 })
 
-const { width: windowWidth, height: windowHeight } = useWindowSize()
-
-const iframeStyle = computed<string>(() => {
-  let newStyle = ''
-
-  newStyle = newStyle.concat(' ', 'position: absolute;')
-  newStyle = newStyle.concat(' ', `left: ${widget.value.position.x * windowWidth.value}px;`)
-  newStyle = newStyle.concat(' ', `top: ${widget.value.position.y * windowHeight.value}px;`)
-  newStyle = newStyle.concat(' ', `width: ${widget.value.size.width * windowWidth.value}px;`)
-  newStyle = newStyle.concat(' ', `height: ${widget.value.size.height * windowHeight.value}px;`)
-
-  if (widgetStore.editingMode) {
-    newStyle = newStyle.concat(' ', 'pointer-events:none; border:0;')
-  }
-
-  if (!widgetStore.isWidgetVisible(widget.value)) {
-    newStyle = newStyle.concat(' ', 'display: none;')
-  }
-
-  return newStyle
+onMounted(() => {
+  console.log(`IFrame '${widget.value.hash}' with source '${widget.value.options.source}' mounted.`)
 })
 
 const iframeOpacity = computed<number>(() => {
   return (100 - transparency.value) / 100
+})
+
+const pointerEvents = computed<string>(() => {
+  return widgetStore.editingMode ? 'none' : 'auto'
 })
 
 /**
@@ -180,5 +157,6 @@ iframe {
   margin: 0;
   padding: 0;
   opacity: calc(v-bind('iframeOpacity'));
+  pointer-events: calc(v-bind('pointerEvents'));
 }
 </style>
