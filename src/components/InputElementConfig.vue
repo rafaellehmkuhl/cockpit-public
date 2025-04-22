@@ -509,6 +509,7 @@ const saveOrUpdateParameter = (): void => {
     id: futureDataLakeVariable.value?.id === '' ? futureDataLakeVariable.value?.name : futureDataLakeVariable.value?.id,
     name: futureDataLakeVariable.value?.name,
     type: currentElement.value?.options.variableType,
+    source: 'user-defined',
     description: futureDataLakeVariable.value?.description,
   }
   if (

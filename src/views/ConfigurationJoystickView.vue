@@ -437,7 +437,7 @@
                 class="-mb-4"
               />
               <Button
-                v-for="action in filteredAndSortedJoystickActions()"
+                v-for="action in filteredAndSortedJoystickActions"
                 :key="action.name"
                 class="w-full my-1 text-sm hover:bg-slate-700 flex flex-col"
                 :class="{
@@ -527,6 +527,7 @@ import ExpansiblePanel from '@/components/ExpansiblePanel.vue'
 import InteractionDialog from '@/components/InteractionDialog.vue'
 import AxisVisualization from '@/components/joysticks/AxisVisualization.vue'
 import JoystickPS from '@/components/joysticks/JoystickPS.vue'
+import { getDataLakeVariableInfo } from '@/libs/actions/data-lake'
 import { getAllTransformingFunctions } from '@/libs/actions/data-lake-transformations'
 import { getArdupilotVersion, getMavlink2RestVersion } from '@/libs/blueos'
 import { MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
@@ -627,13 +628,29 @@ const warnIfJoystickDoesNotSupportExtendedManualControl = async (): Promise<void
   }
 }
 
-const filteredAndSortedJoystickActions = (): JoystickAction[] => {
-  return buttonActionsToShow.value
+const filteredAndSortedJoystickActions = computed((): JoystickAction[] => {
+  let joystickActions = []
+
+  for (const action of buttonActionsToShow.value) {
+    const dataLakeVariableInfo = getDataLakeVariableInfo(action.id)
+    if (dataLakeVariableInfo) {
+      // If the action is a data lake variable and its source is vehicle, then it should be removed from the list
+      if (!['vehicle', 'cockpit'].includes(dataLakeVariableInfo.source)) {
+        joystickActions.push(action)
+      }
+    } else {
+      joystickActions.push(action)
+    }
+  }
+
+  joystickActions = joystickActions
     .filter((action: JoystickAction) => action.name.toLowerCase().includes(searchText.value))
     .filter((action: JoystickAction) => filteredProtocols.includes(action.protocol))
     .filter((action: JoystickAction) => !idsExcludedJoystickActions.includes(action.id))
     .sort((a: JoystickAction, b: JoystickAction) => a.name.localeCompare(b.name))
-}
+
+  return joystickActions
+})
 
 const idsExcludedJoystickActions = [MAVLinkButtonFunction.arm, MAVLinkButtonFunction.disarm]
 

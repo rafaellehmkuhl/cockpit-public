@@ -108,7 +108,7 @@ const registerCockpitActions = (): void => {
     return
   if (miniWidget.value.options.dataLakeVariable) {
     createDataLakeVariable(
-      miniWidget.value.options.dataLakeVariable,
+      { ...miniWidget.value.options.dataLakeVariable, ...{ source: 'user-defined' } },
       widgetStore.getMiniWidgetLastValue(miniWidget.value.hash)
     )
   }

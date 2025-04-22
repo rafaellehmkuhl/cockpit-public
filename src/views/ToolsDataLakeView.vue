@@ -294,7 +294,7 @@ const getVariableSource = (id: string): VariableSource => {
 const filteredVariables = computed<DataLakeVariableWithSource[]>(() => {
   const variables = availableDataLakeVariables.value.map((v) => ({
     ...v,
-    source: getVariableSource(v.id),
+    source: v.source,
   }))
 
   if (!searchQuery.value) return variables
