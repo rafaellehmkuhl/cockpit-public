@@ -345,9 +345,27 @@ export type JoystickCalibration = {
      */
     enabled: boolean
     /**
-     * The thresholds for each axis
+     * The thresholds for each axis and button
      */
-    thresholds: number[]
+    thresholds: {
+      /**
+       * Thresholds for axes (-1 to 1 range)
+       */
+      axes: number[]
+      /**
+       * Thresholds for buttons (0 to 1 range)
+       */
+      buttons: {
+        /**
+         * Button index
+         */
+        index: number
+        /**
+         * Deadband threshold (0 to 1)
+         */
+        threshold: number
+      }[]
+    }
   }
   /**
    * Circle correction calibration
@@ -373,9 +391,27 @@ export type JoystickCalibration = {
      */
     enabled: boolean
     /**
-     * The exponential factors for each axis
+     * The exponential factors for each axis and button
      */
-    factors: number[]
+    factors: {
+      /**
+       * Factors for axes (-1 to 1 range)
+       */
+      axes: number[]
+      /**
+       * Factors for buttons (0 to 1 range)
+       */
+      buttons: {
+        /**
+         * Button index
+         */
+        index: number
+        /**
+         * Exponential factor (1.0 to 5.0)
+         */
+        factor: number
+      }[]
+    }
   }
 }
 

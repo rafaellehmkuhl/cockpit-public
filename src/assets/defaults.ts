@@ -906,14 +906,20 @@ export const defaultDisplayUnitPreferences = {
 export const defaultJoystickCalibration: JoystickCalibration = {
   deadband: {
     enabled: false,
-    thresholds: [0.05, 0.05, 0.05, 0.05] as number[],
+    thresholds: {
+      axes: [0.05, 0.05, 0.05, 0.05],
+      buttons: []
+    }
   },
   circleCorrection: {
     enabled: false,
-    thresholds: [] as number[],
+    thresholds: []
   },
   exponential: {
     enabled: false,
-    factors: [1.0, 1.0, 1.0, 1.0] as number[],
-  },
+    factors: {
+      axes: [1.0, 1.0, 1.0, 1.0],
+      buttons: []
+    }
+  }
 }

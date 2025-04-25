@@ -1,5 +1,7 @@
 import { defaultJoystickCalibration } from '@/assets/defaults'
+import { availableGamepadToCockpitMaps } from '@/assets/joystick-profiles'
 import { type JoystickCalibration, type JoystickState } from '@/types/joystick'
+import { type GamepadToCockpitStdMapping } from '@/types/joystick'
 
 import { applyCalibration } from './calibration'
 
@@ -423,12 +425,65 @@ class JoystickManager {
    * Apply calibration to a joystick value
    * @param {number} value The raw input value
    * @param {Gamepad} gamepad The gamepad object
+   * @param {boolean} isButton Whether the value is from a button (true) or axis (false)
+   * @param {number} index The input index
    * @returns {number} The calibrated value
    */
-  private applyCalibrationToValue(value: number, gamepad: Gamepad): number {
+  private applyCalibrationToValue(value: number, gamepad: Gamepad, isButton: boolean, index: number): number {
     const model = this.getModel(gamepad)
     const calibration = this.getCalibrationSettings(model)
-    return applyCalibration(value, calibration)
+    return applyCalibration(value, calibration, isButton, index)
+  }
+
+  /**
+   * Get the mapping for a gamepad
+   * @param {Gamepad} gamepad The gamepad object
+   * @returns {GamepadToCockpitStdMapping | undefined} The mapping for the gamepad
+   */
+  private getMapping(gamepad: Gamepad): GamepadToCockpitStdMapping | undefined {
+    const model = this.getModel(gamepad)
+    return availableGamepadToCockpitMaps[model]
+  }
+
+  /**
+   * Get the current state of all joysticks
+   * @returns {JoystickState} The current state of all joysticks
+   */
+  private getJoysticksState(): JoystickState {
+    const state: JoystickState = {
+      buttons: [],
+      axes: [],
+    }
+
+    this.enabledJoysticks.forEach((index) => {
+      const gamepad = this.currentGamepadsConnections[index]
+      if (!gamepad) return
+
+      const mapping = this.getMapping(gamepad)
+      if (!mapping) return
+
+      // Map buttons
+      mapping.buttons.forEach((buttonIndex: number | null, i: number) => {
+        if (buttonIndex === null || gamepad.buttons[buttonIndex] === undefined) {
+          state.buttons.push(undefined)
+          return
+        }
+        const value = gamepad.buttons[buttonIndex].value
+        state.buttons.push(this.applyCalibrationToValue(value, gamepad, true, i))
+      })
+
+      // Map axes
+      mapping.axes.forEach((axisIndex: number | null, i: number) => {
+        if (axisIndex === null || gamepad.axes[axisIndex] === undefined) {
+          state.axes.push(undefined)
+          return
+        }
+        const value = gamepad.axes[axisIndex]
+        state.axes.push(this.applyCalibrationToValue(value, gamepad, false, i))
+      })
+    })
+
+    return state
   }
 
   /**
@@ -452,7 +507,7 @@ class JoystickManager {
         // Check for axis changes
         gamepad.axes.forEach((value, index) => {
           if (previousState.axes[index] !== value) {
-            const calibratedValue = this.applyCalibrationToValue(value, gamepad)
+            const calibratedValue = this.applyCalibrationToValue(value, gamepad, false, index)
             newState.axes[index] = calibratedValue
           }
         })
@@ -461,7 +516,8 @@ class JoystickManager {
         gamepad.buttons.forEach((button, index) => {
           const previousButton = previousState.buttons[index]
           if (previousButton !== button.value) {
-            newState.buttons[index] = button.value
+            const calibratedValue = this.applyCalibrationToValue(button.value, gamepad, true, index)
+            newState.buttons[index] = calibratedValue
           }
         })
       }
