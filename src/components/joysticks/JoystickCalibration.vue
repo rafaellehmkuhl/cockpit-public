@@ -301,10 +301,12 @@ import { computed, ref, watch } from 'vue'
 
 import { defaultJoystickCalibration } from '@/assets/defaults'
 import InteractionDialog from '@/components/InteractionDialog.vue'
+import { applyDeadband, applyExponential } from '@/libs/joystick/calibration'
 import { JoystickModel } from '@/libs/joystick/manager'
 import { round } from '@/libs/utils'
 import { useControllerStore } from '@/stores/controller'
 import { type JoystickCalibration } from '@/types/joystick'
+
 const controllerStore = useControllerStore()
 
 const showCalibrationModal = ref(false)
@@ -334,8 +336,6 @@ const currentCalibration = computed<JoystickCalibration>({
     return controllerStore.joystickCalibrationOptions[currentJoystickModel.value] ?? defaultJoystickCalibration
   },
   set: (newValue: JoystickCalibration) => {
-    console.log('currentJoystickModel', currentJoystickModel.value)
-    console.log('set', newValue)
     controllerStore.joystickCalibrationOptions[currentJoystickModel.value] = newValue
   },
 })
@@ -434,21 +434,12 @@ const cancelCalibration = (): void => {
 }
 
 const saveCalibration = (): void => {
-  console.log('saveCalibration')
   if (currentCalibrationType.value === 'deadband') {
-    console.log('deadband')
-    console.log('deadzoneThresholds.value', deadzoneThresholds.value)
-    console.log('currentCalibration.value.deadband before', currentCalibration.value.deadband)
     currentCalibration.value.deadband.thresholds = [...deadzoneThresholds.value]
     currentCalibration.value.deadband.enabled = true
-    console.log('currentCalibration.value.deadband after', currentCalibration.value.deadband)
   } else if (currentCalibrationType.value === 'exponential') {
-    console.log('exponential')
-    console.log('exponentialFactors.value', exponentialFactors.value)
-    console.log('currentCalibration.value.exponential before', currentCalibration.value.exponential)
     currentCalibration.value.exponential.factors = [...exponentialFactors.value]
     currentCalibration.value.exponential.enabled = true
-    console.log('currentCalibration.value.exponential after', currentCalibration.value.exponential)
   }
   showCalibrationModal.value = false
 }
@@ -514,10 +505,7 @@ watch(
       // Calculate processed values with exponential scaling
       processedAxisValues.value = currentAxes.map((value, index) => {
         const factor = exponentialFactors.value[index] ?? 1.0
-        const axisValue = value ?? 0
-        const sign = Math.sign(axisValue)
-        const absValue = Math.abs(axisValue)
-        return sign * Math.pow(absValue, factor)
+        return applyExponential(value ?? 0, factor)
       })
 
       // Update progress based on maximum values seen

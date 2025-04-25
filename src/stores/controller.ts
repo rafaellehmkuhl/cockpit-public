@@ -1,4 +1,4 @@
-import { useDocumentVisibility, useStorage } from '@vueuse/core'
+import { useDocumentVisibility } from '@vueuse/core'
 import { saveAs } from 'file-saver'
 import { defineStore } from 'pinia'
 import { v4 as uuid4 } from 'uuid'
@@ -13,7 +13,7 @@ import {
 import { useInteractionDialog } from '@/composables/interactionDialog'
 import { useBlueOsStorage } from '@/composables/settingsSyncer'
 import { MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
-import { joystickManager, JoystickModel, JoysticksMap, JoystickStateEvent } from '@/libs/joystick/manager'
+import { joystickCalibrationOptionsKey, joystickManager, JoystickModel, JoysticksMap } from '@/libs/joystick/manager'
 import { allAvailableAxes, allAvailableButtons } from '@/libs/joystick/protocols'
 import { CockpitActionsFunction, executeActionCallback } from '@/libs/joystick/protocols/cockpit-actions'
 import { modifierKeyActions, otherAvailableActions } from '@/libs/joystick/protocols/other'
@@ -59,10 +59,9 @@ export const useControllerStore = defineStore('controller', () => {
     'cockpit-default-vehicle-type-protocol-mappings',
     defaultProtocolMappingVehicleCorrespondency
   )
-  const joystickCalibrationOptions = useBlueOsStorage<JoystickCalibrationOptions>(
-    'cockpit-joystick-calibration-options',
-    { [JoystickModel.Unknown]: defaultJoystickCalibration }
-  )
+  const joystickCalibrationOptions = useBlueOsStorage<JoystickCalibrationOptions>(joystickCalibrationOptionsKey, {
+    [JoystickModel.Unknown]: defaultJoystickCalibration,
+  })
 
   const currentMainJoystick = ref<Joystick | undefined>(undefined)
 
@@ -136,7 +135,9 @@ export const useControllerStore = defineStore('controller', () => {
   }
 
   joystickManager.onJoystickConnectionUpdate((event) => processJoystickConnectionEvent(event))
-  joystickManager.onJoystickStateUpdate((event) => processJoystickStateEvent(event))
+  joystickManager.onJoystickStateUpdate((gamepadIndex, currentState, gamepad) =>
+    processJoystickStateEvent(gamepadIndex, currentState, gamepad)
+  )
 
   const processJoystickConnectionEvent = (event: JoysticksMap): void => {
     const newMap = new Map(Array.from(event).map(([index, gamepad]) => [index, new Joystick(gamepad)]))
@@ -190,10 +191,11 @@ export const useControllerStore = defineStore('controller', () => {
 
   const { showDialog } = useInteractionDialog()
 
-  const processJoystickStateEvent = (event: JoystickStateEvent): void => {
-    const joystick = joysticks.value.get(event.detail.index)
+  const processJoystickStateEvent = (gamepadIndex: number, currentState: JoystickState, gamepad: Gamepad): void => {
+    const joystick = joysticks.value.get(gamepadIndex)
     if (joystick === undefined) return
-    joystick.gamepad = event.detail.gamepad
+
+    joystick.gamepad = gamepad
 
     const joystickModel = joystick.model || JoystickModel.Unknown
     joystick.gamepadToCockpitMap = cockpitStdMappings.value[joystickModel]
@@ -201,9 +203,9 @@ export const useControllerStore = defineStore('controller', () => {
     for (const callback of updateCallbacks.value) {
       try {
         callback(
-          joystick.state,
+          currentState,
           protocolMapping.value,
-          activeButtonActions(joystick.state, protocolMapping.value),
+          activeButtonActions(currentState, protocolMapping.value),
           actionsJoystickConfirmRequired.value
         )
       } catch (error) {
