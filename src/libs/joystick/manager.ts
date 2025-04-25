@@ -469,7 +469,7 @@ class JoystickManager {
       // Update previous state
       this.previousGamepadState.set(gamepad.index, newState)
 
-      this.emitStateEvent(gamepad.index, newState)
+      this.emitStateEvent(gamepad.index, newState, gamepad)
     }
 
     // Continue polling
@@ -480,12 +480,13 @@ class JoystickManager {
    * Emit state event to registered callbacks
    * @param {number} gamepadIndex - The gamepad index
    * @param {JoystickState} gamepadState - The gamepad state
+   * @param {Gamepad} gamepad - The gamepad object
    */
-  private emitStateEvent(gamepadIndex: number, gamepadState: JoystickState): void {
+  private emitStateEvent(gamepadIndex: number, gamepadState: JoystickState, gamepad: Gamepad): void {
     if (!this.enabledJoysticks.includes(gamepadIndex)) return
 
     for (const callback of this.callbacksJoystickState) {
-      callback(gamepadIndex, gamepadState, this.joysticks.get(gamepadIndex) as Gamepad)
+      callback(gamepadIndex, gamepadState, gamepad)
     }
   }
 

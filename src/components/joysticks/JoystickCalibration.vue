@@ -193,7 +193,7 @@
               >
                 <div class="flex flex-col items-center justify-between mb-1">
                   <p class="text-xs text-white font-bold mt-4 mb-1">Axis {{ index }}</p>
-                  <div class="flex items-center gap-2 w-full px-2">
+                  <div class="flex items-center gap-2 w-full px-1">
                     <v-btn
                       size="x-small"
                       variant="text"
@@ -217,25 +217,27 @@
                   </div>
                 </div>
                 <div class="flex flex-col gap-2">
-                  <div class="flex items-center justify-between gap-2 w-full px-2">
-                    <span class="text-xs text-gray-400 w-full">Raw:</span>
+                  <div class="flex items-center justify-between gap-2 w-full px-1">
+                    <span class="text-xs text-gray-400 w-[220px]">Raw:</span>
                     <v-progress-linear
                       :model-value="(rawAxisValues[index] + 1) * 50"
                       color="gray"
                       height="4"
-                      class="w-[292px]"
+                      class="w-[260px] mx-1"
                     />
-                    <span class="text-xs text-gray-400 w-fit">{{ rawAxisValues[index].toFixed(2) }}</span>
+                    <span class="text-xs text-gray-400 w-[140px] text-end">{{ rawAxisValues[index].toFixed(2) }}</span>
                   </div>
-                  <div class="flex items-center justify-between gap-2 w-full px-2">
-                    <span class="text-xs text-gray-400 w-full">Processed:</span>
+                  <div class="flex items-center justify-between gap-2 w-full px-1">
+                    <span class="text-xs text-gray-400 w-[220px]">Processed:</span>
                     <v-progress-linear
                       :model-value="(processedAxisValues[index] + 1) * 50"
                       color="blue"
                       height="4"
-                      class="w-[292px]"
+                      class="w-[260px] mx-1"
                     />
-                    <span class="text-xs text-gray-400 w-fit">{{ processedAxisValues[index].toFixed(2) }}</span>
+                    <span class="text-xs text-gray-400 w-[140px] text-end">
+                      {{ processedAxisValues[index].toFixed(2) }}
+                    </span>
                   </div>
                   <div class="w-full h-32 relative">
                     <svg class="w-full h-full" viewBox="0 0 200 100" preserveAspectRatio="none">
