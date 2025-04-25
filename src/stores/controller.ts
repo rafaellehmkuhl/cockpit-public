@@ -1,9 +1,10 @@
-import { useDocumentVisibility } from '@vueuse/core'
+import { useDocumentVisibility, useStorage } from '@vueuse/core'
 import { saveAs } from 'file-saver'
 import { defineStore } from 'pinia'
 import { v4 as uuid4 } from 'uuid'
 import { computed, onMounted, ref, toRaw, watch } from 'vue'
 
+import { defaultJoystickCalibration } from '@/assets/defaults'
 import {
   availableGamepadToCockpitMaps,
   cockpitStandardToProtocols,
@@ -26,6 +27,7 @@ import {
   Joystick,
   JoystickAxis,
   JoystickButton,
+  JoystickCalibrationOptions,
   JoystickProtocol,
 } from '@/types/joystick'
 
@@ -57,6 +59,13 @@ export const useControllerStore = defineStore('controller', () => {
     'cockpit-default-vehicle-type-protocol-mappings',
     defaultProtocolMappingVehicleCorrespondency
   )
+  const joystickCalibrationOptions = useBlueOsStorage<JoystickCalibrationOptions>(
+    'cockpit-joystick-calibration-options',
+    { [JoystickModel.Unknown]: defaultJoystickCalibration }
+  )
+
+  const currentMainJoystick = ref<Joystick | undefined>(undefined)
+
   // Confirmation per joystick action required currently is only available for cockpit actions
   const actionsJoystickConfirmRequired = useBlueOsStorage(
     'cockpit-actions-joystick-confirm-required',
@@ -152,6 +161,13 @@ export const useControllerStore = defineStore('controller', () => {
       if (joysticks.value.size === 0) {
         console.warn('Disabling joystick forwarding.')
         enableForwarding.value = false
+      }
+    }
+
+    if (joysticks.value.size >= 1) {
+      currentMainJoystick.value = Array.from(joysticks.value.values())[0]
+      if (joystickCalibrationOptions.value[currentMainJoystick.value.model] === undefined) {
+        joystickCalibrationOptions.value[currentMainJoystick.value.model] = defaultJoystickCalibration
       }
     }
   }
@@ -454,5 +470,7 @@ export const useControllerStore = defineStore('controller', () => {
     exportFunctionsMapping,
     importFunctionsMapping,
     loadDefaultProtocolMappingForVehicle,
+    joystickCalibrationOptions,
+    currentMainJoystick,
   }
 })

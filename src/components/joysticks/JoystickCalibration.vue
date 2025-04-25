@@ -3,45 +3,36 @@
     <div class="flex flex-col gap-4 w-full">
       <div class="flex items-center justify-between w-full">
         <div class="flex items-center gap-2">
-          <v-checkbox v-model="calibrationOptions.deadband" density="compact" hide-details class="mt-0" />
+          <v-checkbox v-model="currentCalibration.deadband.enabled" density="compact" hide-details class="mt-0" />
           <span>Deadband/Deadzone</span>
         </div>
-        <v-btn
-          v-if="calibrationOptions.deadband"
-          variant="text"
-          class="text-blue-400"
-          @click="openCalibrationModal('deadband')"
-        >
+        <v-btn variant="text" class="text-blue-400" @click="openCalibrationModal('deadband')">
           Calibrate Deadband
         </v-btn>
       </div>
 
       <div class="flex items-center justify-between w-full">
         <div class="flex items-center gap-2">
-          <v-checkbox v-model="calibrationOptions.circleCorrection" density="compact" hide-details class="mt-0" />
-          <span>Circle Correction</span>
+          <v-checkbox
+            v-model="currentCalibration.circleCorrection.enabled"
+            disabled
+            density="compact"
+            hide-details
+            class="mt-0"
+          />
+          <span class="text-gray-200">Circle Correction</span>
         </div>
-        <v-btn
-          v-if="calibrationOptions.circleCorrection"
-          variant="text"
-          class="text-blue-400"
-          @click="openCalibrationModal('circle')"
-        >
+        <v-btn variant="text" class="text-blue-400" disabled @click="openCalibrationModal('circle')">
           Calibrate Circle
         </v-btn>
       </div>
 
       <div class="flex items-center justify-between w-full">
         <div class="flex items-center gap-2">
-          <v-checkbox v-model="calibrationOptions.exponential" density="compact" hide-details class="mt-0" />
+          <v-checkbox v-model="currentCalibration.exponential.enabled" density="compact" hide-details class="mt-0" />
           <span>Exponential Scaling</span>
         </div>
-        <v-btn
-          v-if="calibrationOptions.exponential"
-          variant="text"
-          class="text-blue-400"
-          @click="openCalibrationModal('exponential')"
-        >
+        <v-btn variant="text" class="text-blue-400" @click="openCalibrationModal('exponential')">
           Calibrate Exponential
         </v-btn>
       </div>
@@ -49,7 +40,7 @@
   </div>
 
   <teleport to="body">
-    <InteractionDialog v-model="showCalibrationModal" max-width="500px" variant="text-only" persistent>
+    <InteractionDialog v-model="showCalibrationModal" max-width="600px" variant="text-only" persistent>
       <template #title>
         <div class="flex justify-center w-full font-bold mt-1">
           {{ calibrationModalTitle }}
@@ -57,6 +48,9 @@
       </template>
       <template #content>
         <div class="flex flex-col items-center gap-4 p-4">
+          <p v-if="currentCalibrationType === 'circle'" class="text-center text-red-500 mb-4">
+            Circle correction is not implemented yet. Reach out to us if that is something you need.
+          </p>
           <p class="text-center">{{ calibrationModalInstructions }}</p>
           <div v-if="currentCalibrationType === 'deadband'" class="w-full">
             <div class="flex justify-between items-center mb-4">
@@ -77,7 +71,7 @@
             </div>
             <div class="flex flex-col gap-4 w-full">
               <div
-                v-for="(axis, index) in currentJoystick?.state.axes ?? []"
+                v-for="(axis, index) in controllerStore.currentMainJoystick?.state.axes ?? []"
                 :key="index"
                 class="w-full"
                 :class="{
@@ -111,7 +105,7 @@
                   @mousemove="handleMouseMove(index, $event, $event.currentTarget as HTMLElement)"
                 >
                   <!-- Background bar -->
-                  <div class="absolute inset-0 bg-gray-200 rounded-full border-2 border-gray-700/80" />
+                  <div class="absolute inset-0 bg-gray-200 border-2 border-gray-700/80" />
 
                   <!-- Deadzone region -->
                   <div
@@ -155,8 +149,8 @@
               </div>
             </div>
           </div>
-          <div v-if="currentCalibrationType === 'circle'" class="w-full">
-            <p class="text-sm text-gray-400 mb-2">Move the joystick in a full circle pattern</p>
+          <div v-if="currentCalibrationType === 'circle'" class="w-full flex flex-col items-center gap-4">
+            <p class="text-sm text-gray-400 mb-2">Move the joystick in a full circle pattern.</p>
             <div class="w-full h-40 flex items-center justify-center gap-8">
               <div class="flex flex-col items-center">
                 <p class="text-xs text-gray-400 mb-2">Left Stick</p>
@@ -187,13 +181,26 @@
             </div>
           </div>
           <div v-if="currentCalibrationType === 'exponential'" class="w-full">
-            <p class="text-sm text-gray-400 mb-2">Move the joystick to its maximum range in each direction</p>
-            <div class="flex flex-col gap-4 w-full">
-              <div v-for="(axis, index) in currentJoystick?.state.axes ?? []" :key="index" class="w-full">
-                <div class="flex items-center justify-between mb-1">
-                  <p class="text-xs text-gray-400">Axis {{ index }}</p>
-                  <div class="flex items-center gap-2">
-                    <v-btn size="x-small" variant="text" class="text-gray-400" @click="exponentialFactors[index] = 1.0">
+            <p class="text-sm text-gray-400 mb-2">
+              Adjust the exponential scaling factor for each axis, to decide how sensitive the axis should be in the
+              center.
+            </p>
+            <div class="grid grid-cols-2 gap-x-4 gap-y-8 w-full">
+              <div
+                v-for="(axis, index) in controllerStore.currentMainJoystick?.state.axes ?? []"
+                :key="index"
+                class="w-56"
+              >
+                <div class="flex flex-col items-center justify-between mb-1">
+                  <p class="text-xs text-white font-bold mt-4 mb-1">Axis {{ index }}</p>
+                  <div class="flex items-center gap-2 w-full px-2">
+                    <v-btn
+                      size="x-small"
+                      variant="text"
+                      class="text-gray-400"
+                      :disabled="exponentialFactors[index] === 1.0"
+                      @click="exponentialFactors[index] = 1.0"
+                    >
                       Reset
                     </v-btn>
                     <span class="text-xs text-gray-400">Factor:</span>
@@ -203,32 +210,32 @@
                       max="5.0"
                       step="0.1"
                       hide-details
-                      class="w-32"
+                      class="w-full"
                       density="compact"
                     />
                     <span class="text-xs text-gray-400">{{ exponentialFactors[index].toFixed(1) }}</span>
                   </div>
                 </div>
                 <div class="flex flex-col gap-2">
-                  <div class="flex items-center gap-2">
-                    <span class="text-xs text-gray-400 w-16">Raw:</span>
+                  <div class="flex items-center justify-between gap-2 w-full px-2">
+                    <span class="text-xs text-gray-400 w-full">Raw:</span>
                     <v-progress-linear
                       :model-value="(rawAxisValues[index] + 1) * 50"
                       color="gray"
                       height="4"
-                      class="flex-1"
+                      class="w-[292px]"
                     />
-                    <span class="text-xs text-gray-400 w-12">{{ rawAxisValues[index].toFixed(2) }}</span>
+                    <span class="text-xs text-gray-400 w-fit">{{ rawAxisValues[index].toFixed(2) }}</span>
                   </div>
-                  <div class="flex items-center gap-2">
-                    <span class="text-xs text-gray-400 w-16">Processed:</span>
+                  <div class="flex items-center justify-between gap-2 w-full px-2">
+                    <span class="text-xs text-gray-400 w-full">Processed:</span>
                     <v-progress-linear
                       :model-value="(processedAxisValues[index] + 1) * 50"
                       color="blue"
                       height="4"
-                      class="flex-1"
+                      class="w-[292px]"
                     />
-                    <span class="text-xs text-gray-400 w-12">{{ processedAxisValues[index].toFixed(2) }}</span>
+                    <span class="text-xs text-gray-400 w-fit">{{ processedAxisValues[index].toFixed(2) }}</span>
                   </div>
                   <div class="w-full h-32 relative">
                     <svg class="w-full h-full" viewBox="0 0 200 100" preserveAspectRatio="none">
@@ -282,9 +289,7 @@
       <template #actions>
         <div class="flex justify-end w-full gap-2">
           <v-btn variant="text" @click="cancelCalibration">Cancel</v-btn>
-          <v-btn variant="text" color="primary" :disabled="!isCalibrationComplete" @click="finishCalibration">
-            Finish
-          </v-btn>
+          <v-btn variant="text" :disabled="!allowSavingCalibration" @click="saveCalibration">Save</v-btn>
         </div>
       </template>
     </InteractionDialog>
@@ -292,19 +297,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
+import { defaultJoystickCalibration } from '@/assets/defaults'
 import InteractionDialog from '@/components/InteractionDialog.vue'
+import { JoystickModel } from '@/libs/joystick/manager'
 import { round } from '@/libs/utils'
 import { useControllerStore } from '@/stores/controller'
-import { type Joystick } from '@/types/joystick'
-
+import { type JoystickCalibration } from '@/types/joystick'
 const controllerStore = useControllerStore()
-const currentJoystick = computed<Joystick | undefined>(() => {
-  if (!controllerStore.joysticks || controllerStore.joysticks.size <= 0) return undefined
-  const entry = controllerStore.joysticks.entries().next()
-  return entry.done ? undefined : entry.value[1]
-})
 
 const showCalibrationModal = ref(false)
 const currentCalibrationType = ref<'deadband' | 'circle' | 'exponential'>('deadband')
@@ -315,7 +316,7 @@ const rawAxisValues = ref<number[]>([])
 const processedAxisValues = ref<number[]>([])
 const joystickPosition = ref({ x: 0, y: 0 })
 const joystickPosition2 = ref({ x: 0, y: 0 })
-const isCalibrationComplete = ref(false)
+const allowSavingCalibration = ref(false)
 const deadzoneThresholds = ref<number[]>([])
 const deadzoneProgress = ref<number[]>([])
 const isCalibrating = ref(false)
@@ -324,10 +325,19 @@ const isInDeadzone = ref<boolean[]>([])
 const maxDeviations = ref<number[]>([])
 const calibratingAxis = ref<number | null>(null)
 
-const calibrationOptions = ref({
-  deadband: false,
-  circleCorrection: false,
-  exponential: false,
+const currentJoystickModel = computed<JoystickModel>(() => {
+  return controllerStore.currentMainJoystick?.model ?? JoystickModel.Unknown
+})
+
+const currentCalibration = computed<JoystickCalibration>({
+  get: () => {
+    return controllerStore.joystickCalibrationOptions[currentJoystickModel.value] ?? defaultJoystickCalibration
+  },
+  set: (newValue: JoystickCalibration) => {
+    console.log('currentJoystickModel', currentJoystickModel.value)
+    console.log('set', newValue)
+    controllerStore.joystickCalibrationOptions[currentJoystickModel.value] = newValue
+  },
 })
 
 const calibrationModalTitle = computed(() => {
@@ -361,19 +371,30 @@ const openCalibrationModal = (type: 'deadband' | 'circle' | 'exponential'): void
   showCalibrationModal.value = true
   calibrationProgress.value = 0
   exponentialProgress.value = { x: 0, y: 0 }
-  isCalibrationComplete.value = false
   isCalibrating.value = false
+
+  if (type === 'circle') {
+    allowSavingCalibration.value = false
+  } else {
+    allowSavingCalibration.value = true
+  }
 
   if (type === 'exponential') {
     // Initialize exponential factors for all axes
-    const numAxes = currentJoystick.value?.state.axes.length ?? 0
-    exponentialFactors.value = Array(numAxes).fill(1.0)
+    const numAxes = controllerStore.currentMainJoystick?.state.axes.length ?? 0
+    exponentialFactors.value =
+      currentCalibration.value.exponential.factors.length === numAxes
+        ? [...currentCalibration.value.exponential.factors]
+        : Array(numAxes).fill(1.0)
     rawAxisValues.value = Array(numAxes).fill(0)
     processedAxisValues.value = Array(numAxes).fill(0)
   } else if (type === 'deadband') {
     // Initialize deadzone settings for all axes
-    const numAxes = currentJoystick.value?.state.axes.length ?? 0
-    deadzoneThresholds.value = Array(numAxes).fill(0.1)
+    const numAxes = controllerStore.currentMainJoystick?.state.axes.length ?? 0
+    deadzoneThresholds.value =
+      currentCalibration.value.deadband.thresholds.length === numAxes
+        ? [...currentCalibration.value.deadband.thresholds]
+        : Array(numAxes).fill(0.1)
     deadzoneProgress.value = Array(numAxes).fill(0.1)
     isInDeadzone.value = Array(numAxes).fill(false)
     maxDeviations.value = Array(numAxes).fill(0)
@@ -412,14 +433,29 @@ const cancelCalibration = (): void => {
   showCalibrationModal.value = false
 }
 
-const finishCalibration = (): void => {
-  // TODO: Implement calibration saving logic
+const saveCalibration = (): void => {
+  console.log('saveCalibration')
+  if (currentCalibrationType.value === 'deadband') {
+    console.log('deadband')
+    console.log('deadzoneThresholds.value', deadzoneThresholds.value)
+    console.log('currentCalibration.value.deadband before', currentCalibration.value.deadband)
+    currentCalibration.value.deadband.thresholds = [...deadzoneThresholds.value]
+    currentCalibration.value.deadband.enabled = true
+    console.log('currentCalibration.value.deadband after', currentCalibration.value.deadband)
+  } else if (currentCalibrationType.value === 'exponential') {
+    console.log('exponential')
+    console.log('exponentialFactors.value', exponentialFactors.value)
+    console.log('currentCalibration.value.exponential before', currentCalibration.value.exponential)
+    currentCalibration.value.exponential.factors = [...exponentialFactors.value]
+    currentCalibration.value.exponential.enabled = true
+    console.log('currentCalibration.value.exponential after', currentCalibration.value.exponential)
+  }
   showCalibrationModal.value = false
 }
 
 // Watch for joystick movements during calibration
 watch(
-  () => currentJoystick.value?.state.axes,
+  () => controllerStore.currentMainJoystick?.state.axes,
   (axes) => {
     if (!axes || !showCalibrationModal.value) return
 
@@ -430,7 +466,7 @@ watch(
 
     if (currentCalibrationType.value === 'deadband') {
       // Update deadband calibration progress for each axis
-      const currentAxes = currentJoystick.value?.state.axes ?? []
+      const currentAxes = controllerStore.currentMainJoystick?.state.axes ?? []
       rawAxisValues.value = currentAxes.map((axis) => axis ?? 0)
 
       // Update deadzone status for each axis
@@ -462,14 +498,17 @@ watch(
         }
       }
 
-      isCalibrationComplete.value = deadzoneThresholds.value.every((threshold) => threshold >= 0.1)
+      allowSavingCalibration.value = deadzoneThresholds.value.every((threshold) => threshold >= 0 && threshold <= 1)
     } else if (currentCalibrationType.value === 'circle') {
       // Update both joystick positions for circle calibration
       joystickPosition.value = { x: axes[0] ?? 0, y: axes[1] ?? 0 }
       joystickPosition2.value = { x: axes[2] ?? 0, y: axes[3] ?? 0 }
+
+      // We still didn't implement circle correction, so we don't allow saving calibration
+      allowSavingCalibration.value = false
     } else if (currentCalibrationType.value === 'exponential') {
       // Update exponential calibration progress and values
-      const currentAxes = currentJoystick.value?.state.axes ?? []
+      const currentAxes = controllerStore.currentMainJoystick?.state.axes ?? []
       rawAxisValues.value = currentAxes.map((axis) => axis ?? 0)
 
       // Calculate processed values with exponential scaling
@@ -482,11 +521,7 @@ watch(
       })
 
       // Update progress based on maximum values seen
-      exponentialProgress.value = {
-        x: Math.max(exponentialProgress.value.x, Math.abs(currentAxes[0] ?? 0) * 100),
-        y: Math.max(exponentialProgress.value.y, Math.abs(currentAxes[1] ?? 0) * 100),
-      }
-      isCalibrationComplete.value = exponentialProgress.value.x >= 100 && exponentialProgress.value.y >= 100
+      allowSavingCalibration.value = exponentialFactors.value.every((factor) => factor >= 1.0 && factor <= 5.0)
     }
   },
   { deep: true }
@@ -505,8 +540,4 @@ const getExponentialCurvePath = (axisIndex: number): string => {
 
   return `M ${points.join(' L ')}`
 }
-
-onMounted(() => {
-  openCalibrationModal('deadband')
-})
 </script>
