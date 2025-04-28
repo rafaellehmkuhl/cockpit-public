@@ -13,6 +13,22 @@
 
       <div class="flex items-center justify-between w-full">
         <div class="flex items-center gap-2">
+          <v-checkbox
+            v-model="currentCalibration.circleCorrection.enabled"
+            disabled
+            density="compact"
+            hide-details
+            class="mt-0"
+          />
+          <span class="text-gray-200">Circle Correction</span>
+        </div>
+        <v-btn variant="text" class="text-blue-400" disabled @click="openCalibrationModal('circle')">
+          Calibrate Circle
+        </v-btn>
+      </div>
+
+      <div class="flex items-center justify-between w-full">
+        <div class="flex items-center gap-2">
           <v-checkbox v-model="currentCalibration.exponential.enabled" density="compact" hide-details class="mt-0" />
           <span>Exponential Scaling</span>
         </div>
@@ -32,6 +48,9 @@
       </template>
       <template #content>
         <div class="flex flex-col items-center gap-4 p-4">
+          <p v-if="currentCalibrationType === 'circle'" class="text-center text-red-500 mb-4">
+            Circle correction is not implemented yet. Reach out to us if that is something you need.
+          </p>
           <p class="text-center">{{ calibrationModalInstructions }}</p>
           <div v-if="currentCalibrationType === 'deadband'" class="w-full">
             <div class="flex justify-between items-center mb-4">
@@ -124,6 +143,37 @@
                     :style="{
                       left: `${50 + deadzoneThresholds[index] * 50}%`,
                       transform: 'translateX(-50%)',
+                    }"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-if="currentCalibrationType === 'circle'" class="w-full flex flex-col items-center gap-4">
+            <p class="text-sm text-gray-400 mb-2">Move the joystick in a full circle pattern.</p>
+            <div class="w-full h-40 flex items-center justify-center gap-8">
+              <div class="flex flex-col items-center">
+                <p class="text-xs text-gray-400 mb-2">Left Stick</p>
+                <div class="w-32 h-32 border-2 border-blue-400 rounded-full relative">
+                  <div
+                    class="w-4 h-4 bg-blue-400 rounded-full absolute"
+                    :style="{
+                      left: `${50 + joystickPosition.x * 50}%`,
+                      top: `${50 + joystickPosition.y * 50}%`,
+                      transform: 'translate(-50%, -50%)',
+                    }"
+                  />
+                </div>
+              </div>
+              <div class="flex flex-col items-center">
+                <p class="text-xs text-gray-400 mb-2">Right Stick</p>
+                <div class="w-32 h-32 border-2 border-red-400 rounded-full relative">
+                  <div
+                    class="w-4 h-4 bg-red-400 rounded-full absolute"
+                    :style="{
+                      left: `${50 + joystickPosition2.x * 50}%`,
+                      top: `${50 + joystickPosition2.y * 50}%`,
+                      transform: 'translate(-50%, -50%)',
                     }"
                   />
                 </div>
@@ -262,7 +312,7 @@ import { type JoystickCalibration } from '@/types/joystick'
 const controllerStore = useControllerStore()
 
 const showCalibrationModal = ref(false)
-const currentCalibrationType = ref<'deadband' | 'exponential'>('deadband')
+const currentCalibrationType = ref<'deadband' | 'circle' | 'exponential'>('deadband')
 const calibrationProgress = ref(0)
 const exponentialProgress = ref({ x: 0, y: 0 })
 const exponentialFactors = ref<number[]>([])
@@ -296,6 +346,8 @@ const calibrationModalTitle = computed(() => {
   switch (currentCalibrationType.value) {
     case 'deadband':
       return 'Deadband Calibration'
+    case 'circle':
+      return 'Circle Correction Calibration'
     case 'exponential':
       return 'Exponential Scaling Calibration'
     default:
@@ -307,6 +359,8 @@ const calibrationModalInstructions = computed(() => {
   switch (currentCalibrationType.value) {
     case 'deadband':
       return 'This will help eliminate small unwanted movements around the center position. Follow the instructions below to calibrate the deadband.'
+    case 'circle':
+      return 'This will help ensure your joystick movements form a perfect circle. Follow the instructions below to calibrate the circle correction.'
     case 'exponential':
       return 'This will help adjust the sensitivity curve of your joystick. Follow the instructions below to calibrate the exponential scaling.'
     default:
@@ -314,14 +368,18 @@ const calibrationModalInstructions = computed(() => {
   }
 })
 
-const openCalibrationModal = (type: 'deadband' | 'exponential'): void => {
+const openCalibrationModal = (type: 'deadband' | 'circle' | 'exponential'): void => {
   currentCalibrationType.value = type
   showCalibrationModal.value = true
   calibrationProgress.value = 0
   exponentialProgress.value = { x: 0, y: 0 }
   isCalibrating.value = false
 
-  allowSavingCalibration.value = true
+  if (type === 'circle') {
+    allowSavingCalibration.value = false
+  } else {
+    allowSavingCalibration.value = true
+  }
 
   if (type === 'exponential') {
     // Initialize exponential factors for all axes
@@ -434,6 +492,13 @@ watch(
       }
 
       allowSavingCalibration.value = deadzoneThresholds.value.every((threshold) => threshold >= 0 && threshold <= 1)
+    } else if (currentCalibrationType.value === 'circle') {
+      // Update both joystick positions for circle calibration
+      joystickPosition.value = { x: axes[0] ?? 0, y: axes[1] ?? 0 }
+      joystickPosition2.value = { x: axes[2] ?? 0, y: axes[3] ?? 0 }
+
+      // We still didn't implement circle correction, so we don't allow saving calibration
+      allowSavingCalibration.value = false
     } else if (currentCalibrationType.value === 'exponential') {
       // Update exponential calibration progress and values
       const currentAxes = controllerStore.currentMainJoystick?.state.axes ?? []
