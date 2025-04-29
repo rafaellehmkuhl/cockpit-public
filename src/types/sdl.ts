@@ -39,11 +39,11 @@ export interface SDLJoystickDevice {
   /**
    * Device vendor
    */
-  vendor?: string
+  vendor?: number
   /**
    * Device product
    */
-  product?: string
+  product?: number
 }
 
 /**
