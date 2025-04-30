@@ -1,3 +1,5 @@
+import { isElectron } from '../utils'
+
 /**
  * Possible events from GamepadListener
  * https://developer.mozilla.org/en-US/docs/Web/API/Gamepad_API/Using_the_Gamepad_API
@@ -232,7 +234,11 @@ class JoystickManager {
    * Singleton constructor
    */
   private constructor() {
-    this.start()
+    if (!isElectron()) {
+      this.start()
+    } else {
+      console.info('Gamepad detection disabled in Electron environment')
+    }
   }
 
   /**
