@@ -28,7 +28,8 @@
     "@fortawesome/free-solid-svg-icons": "^6.4.0",
     "@fortawesome/vue-fontawesome": "^3.0.3",
     "@j2only/slide-unlock": "^0.5.5",
-    "@kmamal/sdl": "^0.10.7",
+    "@kmamal/build-sdl": "^2.30.11-2",
+    "@kmamal/sdl": "^0.11.7",
     "@mdi/font": "^7.4.47",
     "@mdi/js": "^7.4.47",
     "@peermetrics/webrtc-stats": "^5.7.1",
@@ -165,6 +166,8 @@
       "runtime": "org.freedesktop.Platform",
       "runtimeVersion": "22.08",
       "sdk": "org.freedesktop.Sdk"
-    }
+    },
+    "buildDependenciesFromSource": false,
+    "npmRebuild": false
   }
 }
