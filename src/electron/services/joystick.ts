@@ -1,3 +1,4 @@
+import { BrowserWindow, ipcMain } from 'electron'
 import { JoystickState } from '@/types/joystick'
 import { SDLJoystickDevice, SDLJoystickInstance, SDLModule } from '@/types/sdl'
 
@@ -91,6 +92,11 @@ export const checkJoystickState = (
   // Only process if the joystick is still connected
   if (joystickInstance.closed) return
 
+  const currentState: JoystickState = {
+    buttons: [...joystickInstance.buttons],
+    axes: [...joystickInstance.axes]
+  }
+
   // Check buttons for changes
   for (let i = 0; i < joystickInstance.buttons.length; i++) {
     const isPressed = joystickInstance.buttons[i] ? 1 : 0
@@ -111,6 +117,14 @@ export const checkJoystickState = (
       previousState.axes[i] = value
     }
   }
+
+  // Send joystick state to renderer
+  BrowserWindow.getAllWindows().forEach(window => {
+    window.webContents.send('joystick-state', {
+      deviceName,
+      state: currentState
+    })
+  })
 }
 
 export const checkDeviceChanges = (sdl: SDLModule): void => {

@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('update-not-available', (_event, info) => callback(info)),
   onDownloadProgress: (callback: (info: any) => void) =>
     ipcRenderer.on('download-progress', (_event, info) => callback(info)),
+  onJoystickState: (callback: (data: { deviceName: string, state: any }) => void) =>
+    ipcRenderer.on('joystick-state', (_event, data) => callback(data)),
   downloadUpdate: () => ipcRenderer.send('download-update'),
   installUpdate: () => ipcRenderer.send('install-update'),
   cancelUpdate: () => ipcRenderer.send('cancel-update'),

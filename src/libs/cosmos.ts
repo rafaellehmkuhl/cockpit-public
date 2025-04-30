@@ -2,6 +2,7 @@ import { isBrowser } from 'browser-or-node'
 
 import { ElectronStorageDB } from '@/types/general'
 import { NetworkInfo } from '@/types/network'
+import type { JoystickState } from '@/types/joystick'
 
 import {
   createDataLakeVariable,
@@ -224,6 +225,10 @@ declare global {
        * Register callback for download progress event
        */
       onDownloadProgress: (callback: (info: any) => void) => void
+      /**
+       * Register callback for joystick state updates
+       */
+      onJoystickState: (callback: (data: { deviceName: string, state: JoystickState }) => void) => void
       /**
        * Open cockpit folder
        */
