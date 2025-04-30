@@ -1,6 +1,7 @@
 import { isBrowser } from 'browser-or-node'
 
 import { ElectronStorageDB } from '@/types/general'
+import type { JoystickState } from '@/types/joystick'
 import { NetworkInfo } from '@/types/network'
 
 import {
@@ -224,6 +225,21 @@ declare global {
        * Register callback for download progress event
        */
       onDownloadProgress: (callback: (info: any) => void) => void
+      /**
+       * Register callback for joystick state updates
+       */
+      onJoystickState: (
+        callback: (data: {
+          /**
+           * Joystick device name
+           */
+          deviceName: string
+          /**
+           * Joystick state
+           */
+          state: JoystickState
+        }) => void
+      ) => void
       /**
        * Open cockpit folder
        */

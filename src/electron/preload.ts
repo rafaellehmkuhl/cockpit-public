@@ -1,5 +1,21 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
+import type { JoystickState } from '@/types/joystick'
+
+/**
+ * Joystick state event data
+ */
+interface JoystickStateEventData {
+  /**
+   * Joystick device name
+   */
+  deviceName: string
+  /**
+   * Joystick state
+   */
+  state: JoystickState
+}
+
 contextBridge.exposeInMainWorld('electronAPI', {
   getInfoOnSubnets: () => ipcRenderer.invoke('get-info-on-subnets'),
   onUpdateAvailable: (callback: (info: any) => void) =>
@@ -11,6 +27,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('update-not-available', (_event, info) => callback(info)),
   onDownloadProgress: (callback: (info: any) => void) =>
     ipcRenderer.on('download-progress', (_event, info) => callback(info)),
+  onJoystickState: (callback: (data: JoystickStateEventData) => void) =>
+    ipcRenderer.on('joystick-state', (_event, data) => callback(data)),
   downloadUpdate: () => ipcRenderer.send('download-update'),
   installUpdate: () => ipcRenderer.send('install-update'),
   cancelUpdate: () => ipcRenderer.send('cancel-update'),
