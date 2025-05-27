@@ -266,6 +266,68 @@ export const useVideoStore = defineStore('video', () => {
   }
 
   /**
+   * Generates a fake placeholder thumbnail for videos.
+   * @param {string} fileName - The video file name to display on the thumbnail
+   * @returns {Promise<Blob>} A promise that resolves with a placeholder thumbnail blob.
+   */
+  const generatePlaceholderThumbnail = async (fileName: string): Promise<Blob> => {
+    return new Promise<Blob>((resolve, reject) => {
+      const canvas = document.createElement('canvas')
+      const context = canvas.getContext('2d')
+      if (!context) {
+        reject('2D context not available.')
+        return
+      }
+
+      const [width, height] = [660, 370]
+      canvas.width = width
+      canvas.height = height
+
+      // Create gradient background
+      const gradient = context.createLinearGradient(0, 0, width, height)
+      gradient.addColorStop(0, '#1e3a8a') // Blue-800
+      gradient.addColorStop(1, '#1e40af') // Blue-700
+      context.fillStyle = gradient
+      context.fillRect(0, 0, width, height)
+
+      // Add video icon
+      context.fillStyle = '#ffffff'
+      context.font = 'bold 48px Arial'
+      context.textAlign = 'center'
+      context.fillText('▶', width / 2, height / 2 - 40)
+
+      // Add file name
+      context.fillStyle = '#e5e7eb' // Gray-200
+      context.font = '16px Arial'
+      context.textAlign = 'center'
+
+      // Truncate filename if too long
+      const maxLength = 50
+      const displayName = fileName.length > maxLength ? fileName.substring(0, maxLength) + '...' : fileName
+      context.fillText(displayName, width / 2, height / 2 + 20)
+
+      // Add "Video Thumbnail" text
+      context.fillStyle = '#9ca3af' // Gray-400
+      context.font = '14px Arial'
+      context.fillText('Video Thumbnail', width / 2, height / 2 + 45)
+
+      // Add border
+      context.strokeStyle = '#374151' // Gray-700
+      context.lineWidth = 2
+      context.strokeRect(1, 1, width - 2, height - 2)
+
+      const blobCallback = (blob: Blob | null): void => {
+        if (!blob) {
+          reject('Failed to create placeholder thumbnail blob')
+          return
+        }
+        resolve(blob)
+      }
+      canvas.toBlob(blobCallback, 'image/jpeg', 0.8)
+    })
+  }
+
+  /**
    * Start recording the stream
    * @param {string} streamName - Name of the stream
    */
@@ -403,13 +465,19 @@ export const useVideoStore = defineStore('video', () => {
           const videoChunk = await tempVideoStorage.getItem(chunkName)
           if (videoChunk) {
             const firstChunkBlob = new Blob([videoChunk as Blob])
-            const thumbnail = await extractThumbnailFromVideo(firstChunkBlob)
+            let thumbnail: Blob
+            try {
+              thumbnail = await extractThumbnailFromVideo(firstChunkBlob)
+            } catch (thumbnailError) {
+              console.warn('Failed to extract thumbnail from video chunk, generating placeholder.', thumbnailError)
+              thumbnail = await generatePlaceholderThumbnail(fileName)
+            }
             // Save thumbnail in the storage
             await tempVideoStorage.setItem(videoThumbnailFilename(recordingHash), thumbnail)
             unprocessedVideos.value = { ...unprocessedVideos.value, ...{ [recordingHash]: updatedInfo } }
           }
         } catch (error) {
-          console.error('Failed to extract thumbnail:', error)
+          console.error('Failed to process thumbnail:', error)
         }
       }
 
@@ -650,7 +718,13 @@ export const useVideoStore = defineStore('video', () => {
       await videoStorage.setItem(finalFileName, durFixedBlob ?? mergedBlob)
 
       // Save thumbnail in the storage
-      const thumbnail = await extractThumbnailFromVideo(chunkBlobs[0])
+      let thumbnail: Blob
+      try {
+        thumbnail = await extractThumbnailFromVideo(chunkBlobs[0])
+      } catch (error) {
+        console.warn('Failed to extract thumbnail from video, generating placeholder:', error)
+        thumbnail = await generatePlaceholderThumbnail(finalFileName)
+      }
       await videoStorage.setItem(videoThumbnailFilename(finalFileName), thumbnail)
 
       updateLastProcessingUpdate(hash)
