@@ -13,10 +13,11 @@ import {
 import { useInteractionDialog } from '@/composables/interactionDialog'
 import { useBlueOsStorage } from '@/composables/settingsSyncer'
 import { MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
-import { joystickCalibrationOptionsKey, joystickManager, JoystickModel, JoysticksMap } from '@/libs/joystick/manager'
+import { GamepadsMap, joystickManager, JoystickModel, JoystickStateEvent } from '@/libs/joystick/manager'
 import { allAvailableAxes, allAvailableButtons } from '@/libs/joystick/protocols'
 import { CockpitActionsFunction, executeActionCallback } from '@/libs/joystick/protocols/cockpit-actions'
 import { modifierKeyActions, otherAvailableActions } from '@/libs/joystick/protocols/other'
+import { isElectron } from '@/libs/utils'
 import { Alert, AlertLevel } from '@/types/alert'
 import {
   type JoystickProtocolActionsMapping,
@@ -154,14 +155,14 @@ export const useControllerStore = defineStore('controller', () => {
     processJoystickStateEvent(gamepadIndex, currentState, gamepad)
   )
 
-  const processJoystickConnectionEvent = (event: JoysticksMap): void => {
+  const processJoystickConnectionEvent = (event: GamepadsMap): void => {
     const newMap = new Map(Array.from(event).map(([index, gamepad]) => [index, new Joystick(gamepad)]))
 
     // Add new joysticks
     for (const [index, joystick] of newMap) {
       if (joysticks.value.has(index)) continue
-      joystick.model = joystickManager.getModel(joystick.gamepad)
-      const { product_id, vendor_id } = joystickManager.getVidPid(joystick.gamepad)
+      joystick.model = joystickManager.getJoystickModelFromGamepad(joystick.gamepad)
+      const { product_id, vendor_id } = joystickManager.getVidPidFromGamepad(joystick.gamepad)
       joysticks.value.set(index, joystick)
       console.info(`Joystick ${index} connected. Model: ${joystick.model} // VID: ${vendor_id} // PID: ${product_id}`)
       console.info('Enabling joystick forwarding.')
@@ -206,12 +207,14 @@ export const useControllerStore = defineStore('controller', () => {
     }
   }
 
-  // Disable joystick forwarding if the window/tab is not visible (using VueUse)
+  // Disable joystick forwarding if the window/tab is not visible (except on Electron)
   const windowVisibility = useDocumentVisibility()
   watch(windowVisibility, (value) => {
     // Disable this failcheck if the user explicitly wants to hold the last input when the window is hidden
     // This can be considered unsafe, as the user might not be aware of the joystick input being forwarded to the vehicle
     if (holdLastInputWhenWindowHidden.value) return
+
+    if (isElectron()) return
 
     if (value === 'hidden') {
       console.warn('Window/tab hidden. Disabling joystick forwarding.')
@@ -224,10 +227,10 @@ export const useControllerStore = defineStore('controller', () => {
 
   const { showDialog } = useInteractionDialog()
 
-  const processJoystickStateEvent = (gamepadIndex: number, currentState: JoystickState, gamepad: Gamepad): void => {
-    const joystick = joysticks.value.get(gamepadIndex)
+  const processJoystickStateEvent = (event: JoystickStateEvent): void => {
+    const joystick = joysticks.value.get(event.index)
     if (joystick === undefined) return
-    joystick.gamepad = gamepad
+    joystick.gamepad = event.gamepad
 
     const joystickModel = joystick.model || JoystickModel.Unknown
     joystick.gamepadToCockpitMap = cockpitStdMappings.value[joystickModel]
@@ -238,9 +241,9 @@ export const useControllerStore = defineStore('controller', () => {
     for (const callback of updateCallbacks.value) {
       try {
         callback(
-          currentState,
+          event.rawState,
           protocolMapping.value,
-          activeButtonActions(currentState, protocolMapping.value),
+          activeButtonActions(event.rawState, protocolMapping.value),
           actionsJoystickConfirmRequired.value
         )
       } catch (error) {
