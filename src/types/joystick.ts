@@ -1,5 +1,7 @@
 import { JoystickModel } from '@/libs/joystick/manager'
 
+import { SDLControllerState } from './sdl'
+
 /**
  * Available joystick protocols.
  * Each protocol is expected to have it's own way of doing thing, including mapping, limiting, communicating, etc.
@@ -25,6 +27,10 @@ export enum CockpitModifierKeyOption {
  */
 export interface JoystickState {
   /**
+   * The epoch of the given state
+   */
+  timestamp: number
+  /**
    * Joystick buttons state
    */
   buttons: (number | undefined)[]
@@ -38,36 +44,69 @@ export interface JoystickState {
  * Joystick abstraction for widget
  */
 export class Joystick {
-  gamepad: Gamepad
-  gamepadToCockpitMap: GamepadToCockpitStdMapping | undefined = undefined
-  model = JoystickModel.Unknown
+  model: JoystickModel
+  vendorId: string
+  productId: string
+  numberOfButtons: number
+  numberOfAxes: number
+  lastKnownState: JoystickState | undefined = undefined
 
   /**
-   * Create joystick component
-   * @param {Gamepad} gamepad Axis to be set
+   *
+   * @param {JoystickModel} model - The model of the joystick
+   * @param {string} vendorId - The vendor id of the joystick
+   * @param {string} productId - The product id of the joystick
+   * @param {number} numberOfButtons - The number of buttons of the joystick
+   * @param {number} numberOfAxes - The number of axes of the joystick
    */
-  constructor(gamepad: Gamepad) {
-    this.gamepad = gamepad
+  constructor(
+    model: JoystickModel,
+    vendorId: string,
+    productId: string,
+    numberOfButtons: number,
+    numberOfAxes: number
+  ) {
+    this.model = model
+    this.vendorId = vendorId
+    this.productId = productId
+    this.numberOfButtons = numberOfButtons
+    this.numberOfAxes = numberOfAxes
   }
 
   /**
-   * Returns current state of axes and buttons
-   * @returns {JoystickState}
+   * Update the state of the joystick
+   * @param {JoystickState} joystickState - The joystick state
    */
-  get state(): JoystickState {
-    return {
-      buttons:
-        this.gamepadToCockpitMap?.buttons.map((idx) => {
-          if (idx === null || this.gamepad.buttons[idx] === undefined) return undefined
-          return this.gamepad.buttons[idx].value
-        }) || [],
-      axes:
-        this.gamepadToCockpitMap?.axes.map((idx) => {
-          if (idx === null || this.gamepad.axes[idx] === undefined) return undefined
-          return this.gamepad.axes[idx]
-        }) || [],
-    }
+  updateState(joystickState: JoystickState): void {
+    this.lastKnownState = joystickState
   }
+}
+
+/**
+ * Convert a Gamepad API state to a JoystickState instance
+ * @param {GamepadButton[]} gamepadButtons - The gamepad buttons
+ * @param {number[]} gamepadAxes - The gamepad axes
+ * @param {number} timestamp - The timestamp of the state
+ * @param {GamepadToCockpitStdMapping} gamepadToCockpitMap - The mapping from Gamepad API to Cockpit standard
+ * @returns {JoystickState} The Joystick state
+ */
+export const gamepadStateToJoystickState = (
+  gamepadButtons: GamepadButton[],
+  gamepadAxes: number[],
+  timestamp: number,
+  gamepadToCockpitMap: GamepadToCockpitStdMapping
+): JoystickState => {
+  const buttons =
+    gamepadToCockpitMap.buttons.map((idx) => {
+      if (idx === null || gamepadButtons[idx] === undefined) return undefined
+      return gamepadButtons[idx].value
+    }) || []
+  const axes =
+    gamepadToCockpitMap.axes.map((idx) => {
+      if (idx === null || gamepadAxes[idx] === undefined) return undefined
+      return gamepadAxes[idx]
+    }) || []
+  return { timestamp, buttons, axes }
 }
 
 /**
@@ -385,4 +424,102 @@ export type JoystickCalibration = {
 
 export type JoystickCalibrationOptions = {
   [joystickModel in string]: JoystickCalibration
+}
+
+/**
+ * Data for the event of a new state of a joystick on the Electron side
+ */
+export interface ElectronSDLControllerStateEventData {
+  /**
+   * Joystick device id
+   */
+  deviceId: number
+  /**
+   * Joystick device name
+   */
+  deviceName: string
+  /**
+   * Joystick product id
+   */
+  productId: string
+  /**
+   * Joystick vendor id
+   */
+  vendorId: string
+  /**
+   * Joystick state
+   */
+  state: SDLControllerState
+}
+
+export type JoystickSdlStandardToGamepadStandard = {
+  /**
+   * SDL button index as key to Gamepad button index as value
+   */
+  buttons: {
+    [key: number]: number
+  }
+  /**
+   * SDL axis index as key to Gamepad axis index as value
+   */
+  axes: {
+    [key: number]:
+      | number
+      | {
+          /**
+           * Gamepad axis index
+           */
+          axis: number
+          /**
+           * Gamepad button index (if the axis should also be mapped as a button)
+           */
+          button: number
+        }
+  }
+}
+
+/**
+ * Convert SDL controller state to Gamepad state, using the default mapping for both
+ * @param {SDLControllerState} sdlState - SDL controller state
+ * @param {number} [timestamp] - The timestamp of the state
+ * @returns {JoystickState} Gamepad state
+ */
+export const convertSDLControllerStateToGamepadState = (
+  sdlState: SDLControllerState,
+  timestamp?: number
+): JoystickState => {
+  return {
+    timestamp: timestamp ?? Date.now(),
+    buttons: [
+      sdlState.buttons.a ? 1 : 0,
+      sdlState.buttons.b ? 1 : 0,
+      sdlState.buttons.x ? 1 : 0,
+      sdlState.buttons.y ? 1 : 0,
+      sdlState.buttons.leftShoulder ? 1 : 0,
+      sdlState.buttons.rightShoulder ? 1 : 0,
+      sdlState.axes.leftTrigger,
+      sdlState.axes.rightTrigger,
+      sdlState.buttons.back ? 1 : 0,
+      sdlState.buttons.start ? 1 : 0,
+      sdlState.buttons.leftStick ? 1 : 0,
+      sdlState.buttons.rightStick ? 1 : 0,
+      sdlState.buttons.dpadUp ? 1 : 0,
+      sdlState.buttons.dpadDown ? 1 : 0,
+      sdlState.buttons.dpadLeft ? 1 : 0,
+      sdlState.buttons.dpadRight ? 1 : 0,
+      sdlState.buttons.guide ? 1 : 0,
+      sdlState.buttons.paddle1 ? 1 : 0,
+      sdlState.buttons.paddle2 ? 1 : 0,
+      sdlState.buttons.paddle3 ? 1 : 0,
+      sdlState.buttons.paddle4 ? 1 : 0,
+    ],
+    axes: [
+      sdlState.axes.leftStickX,
+      sdlState.axes.leftStickY,
+      sdlState.axes.rightStickX,
+      sdlState.axes.rightStickY,
+      sdlState.axes.leftTrigger,
+      sdlState.axes.rightTrigger,
+    ],
+  }
 }
