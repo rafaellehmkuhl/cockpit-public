@@ -9,15 +9,22 @@ import {
   availableGamepadToCockpitMaps,
   cockpitStandardToProtocols,
   defaultProtocolMappingVehicleCorrespondency,
+  JoystickModel,
 } from '@/assets/joystick-profiles'
 import { useInteractionDialog } from '@/composables/interactionDialog'
 import { useBlueOsStorage } from '@/composables/settingsSyncer'
 import { checkForOtherManualControlSources } from '@/libs/blueos'
 import { MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
-import { joystickCalibrationOptionsKey, joystickManager, JoystickModel, JoysticksMap } from '@/libs/joystick/manager'
+import {
+  joystickCalibrationOptionsKey,
+  joystickManager,
+  JoysticksMap,
+  JoystickStateEvent,
+} from '@/libs/joystick/manager'
 import { allAvailableAxes, allAvailableButtons } from '@/libs/joystick/protocols'
 import { CockpitActionsFunction, executeActionCallback } from '@/libs/joystick/protocols/cockpit-actions'
 import { modifierKeyActions, otherAvailableActions } from '@/libs/joystick/protocols/other'
+import { isElectron } from '@/libs/utils'
 import { Alert, AlertLevel } from '@/types/alert'
 import {
   type GamepadToCockpitStdMapping,
@@ -155,23 +162,19 @@ export const useControllerStore = defineStore('controller', () => {
     updateCallbacks.value.push(callback)
   }
 
-  joystickManager.onJoystickConnectionUpdate((event) => processJoystickConnectionEvent(event))
-  joystickManager.onJoystickStateUpdate((gamepadIndex, currentState, gamepad) =>
-    processJoystickStateEvent(gamepadIndex, currentState, gamepad)
-  )
+  joystickManager.onJoystickConnectionUpdate((newJoysticksMap) => processJoystickConnectionEvent(newJoysticksMap))
+  joystickManager.onJoystickStateUpdate((joystickStateEvent) => processJoystickStateEvent(joystickStateEvent))
 
-  const processJoystickConnectionEvent = async (event: JoysticksMap): Promise<void> => {
-    const newMap = new Map(Array.from(event).map(([index, gamepad]) => [index, new Joystick(gamepad)]))
-
-    const thereWereJoysticksBefore = joysticks.value.size > 0
+  const processJoystickConnectionEvent = async (newJoysticksMap: JoysticksMap): Promise<void> => {
+    const thereWereJoysticksBefore = newJoysticksMap.size > 0
 
     // Add new joysticks
-    for (const [index, joystick] of newMap) {
+    for (const [index, joystick] of newJoysticksMap) {
       if (joysticks.value.has(index)) continue
-      joystick.model = joystickManager.getModel(joystick.gamepad)
-      const { product_id, vendor_id } = joystickManager.getVidPid(joystick.gamepad)
       joysticks.value.set(index, joystick)
-      console.info(`Joystick ${index} connected. Model: ${joystick.model} // VID: ${vendor_id} // PID: ${product_id}`)
+      console.info(
+        `Joystick ${index} connected. Model: ${joystick.model} // VID: ${joystick.vendorId} // PID: ${joystick.productId}`
+      )
 
       if (thereWereJoysticksBefore && enableForwarding.value) {
         console.warn('There are joysticks connected and forwarding already. Skipping joystick conflict check.')
@@ -206,7 +209,7 @@ export const useControllerStore = defineStore('controller', () => {
 
     // Remove joysticks that doesn't not exist anymore
     for (const key of joysticks.value.keys()) {
-      if (event.has(key)) continue
+      if (newJoysticksMap.has(key)) continue
       const model = joysticks.value.get(key)?.model
       joysticks.value.delete(key)
       console.info(`Joystick ${key} (${model ?? 'Unknown model'}) disconnected.`)
@@ -218,7 +221,7 @@ export const useControllerStore = defineStore('controller', () => {
 
     // If there's at least one joystick connected, set it as the current main joystick
     if (joysticks.value.size >= 1) {
-      currentMainJoystick.value = Array.from(joysticks.value.values())[0]
+      currentMainJoystick.value = Array.from(joysticks.value.values())[0] as Joystick
 
       // If there's no calibration options for the current main joystick, use the default calibration
       if (joystickCalibrationOptions.value[currentMainJoystick.value.model] === undefined) {
@@ -227,11 +230,11 @@ export const useControllerStore = defineStore('controller', () => {
           deadband: { enabled: false, thresholds: { axes: [], buttons: [] } },
           exponential: { enabled: false, factors: { axes: [], buttons: [] } },
         } as JoystickCalibration
-        currentMainJoystick.value.gamepad.axes.forEach((_, index) => {
+        currentMainJoystick.value.lastKnownState?.axes.forEach((_, index) => {
           newCalibration.deadband.thresholds.axes[index] = defaultJoystickCalibration.deadband.thresholds.axes[index]
           newCalibration.exponential.factors.axes[index] = defaultJoystickCalibration.exponential.factors.axes[index]
         })
-        currentMainJoystick.value.gamepad.buttons.forEach((_, index) => {
+        currentMainJoystick.value.lastKnownState?.buttons.forEach((_, index) => {
           newCalibration.deadband.thresholds.buttons[index] =
             defaultJoystickCalibration.deadband.thresholds.buttons[index]
           newCalibration.exponential.factors.buttons[index] =
@@ -242,12 +245,15 @@ export const useControllerStore = defineStore('controller', () => {
     }
   }
 
-  // Disable joystick forwarding if the window/tab is not visible (using VueUse)
+  // Disable joystick forwarding if the window/tab is not visible (except on Electron)
   const windowVisibility = useDocumentVisibility()
   watch(windowVisibility, (value) => {
     // Disable this failcheck if the user explicitly wants to hold the last input when the window is hidden
     // This can be considered unsafe, as the user might not be aware of the joystick input being forwarded to the vehicle
     if (holdLastInputWhenWindowHidden.value) return
+
+    // On Electron, we don't need to disable joystick forwarding when the window is hidden, since we have background access to the joystick
+    if (isElectron()) return
 
     if (value === 'hidden') {
       console.warn('Window/tab hidden. Disabling joystick forwarding.')
@@ -260,13 +266,10 @@ export const useControllerStore = defineStore('controller', () => {
 
   const { showDialog } = useInteractionDialog()
 
-  const processJoystickStateEvent = (gamepadIndex: number, currentState: JoystickState, gamepad: Gamepad): void => {
-    const joystick = joysticks.value.get(gamepadIndex)
+  const processJoystickStateEvent = (event: JoystickStateEvent): void => {
+    const joystick = joysticks.value.get(event.index)
     if (joystick === undefined) return
-    joystick.gamepad = gamepad
-
-    const joystickModel = joystick.model || JoystickModel.Unknown
-    joystick.gamepadToCockpitMap = cockpitStdMappings.value[joystickModel]
+    joystick.lastKnownState = event.state
 
     // If joystick forwarding is disabled, disable the callback processing
     if (!enableForwarding.value) return
@@ -274,9 +277,9 @@ export const useControllerStore = defineStore('controller', () => {
     for (const callback of updateCallbacks.value) {
       try {
         callback(
-          currentState,
+          event.state,
           protocolMapping.value,
-          activeButtonActions(currentState, protocolMapping.value),
+          activeButtonActions(event.state, protocolMapping.value),
           actionsJoystickConfirmRequired.value
         )
       } catch (error) {

@@ -251,8 +251,8 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { defaultJoystickCalibration } from '@/assets/defaults'
+import { JoystickModel } from '@/assets/joystick-profiles'
 import InteractionDialog from '@/components/InteractionDialog.vue'
-import { JoystickModel } from '@/libs/joystick/manager'
 import { round } from '@/libs/utils'
 import { useControllerStore } from '@/stores/controller'
 import { type JoystickCalibration } from '@/types/joystick'
