@@ -14,8 +14,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Cockpit</title>
     <meta name="description" content="An intuitive and customizable cross-platform ground control station for remote vehicles of all types.">
-  <script type="module" crossorigin src="./assets/index-Bo0g13_A.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-CWxx2qS_.css">
+  <script type="module" crossorigin src="./assets/index-VAlCxklL.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-D21E3zgh.css">
 <link rel="manifest" href="./manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
 
 <body>
@@ -25,7 +25,21 @@
             <button id="proceed-browser-overlay">Proceed Anyway</button>
         </div>
         <div id="underlying-fallback">
-            <p>It looks like something went wrong while loading Cockpit. Resetting the settings can solve the problem.</p>
+            <p class="text-3xl">It looks like something went wrong while loading Cockpit.</p>
+
+            <p class="text-lg my-4">
+                This can happen, for example, if you just updated Cockpit's version, and the server cache is still
+                serving old files. In this and other cases, doing a hard refresh (Ctrl/Cmd+Shift+R) will solve the problem.
+            </p>
+
+            <p class="text-md my-4">
+                If doing a hard refresh still doesn't solve the problem, it probably means something is wrong with your
+                settings. This can happen, for example, if you imported a broken settings file. In this case, contact
+                the Blue Robotics team in one of our support channels (e.g.: email, forum, discord, etc) so we can help
+                you fix that, or if you need a fix right now, you can click the button below to reset your settings.
+                Remember though that this will delete all your settings, including your widget layouts, joystick mappings, etc.
+            </p>
+
             <button id="clear-settings-btn">Reset Cockpit settings</button>
         </div>
     </div>
@@ -107,7 +121,8 @@
             border: #fff solid 1px;
             border-radius: 5px;
             margin: 1.5rem;
-            padding: 1.5rem;
+            padding: 3rem;
+            max-width: 50%;
         }
         #non-app-main button {
             background-color: #0486aa;
