@@ -8,3 +8,6 @@ cypress/videos/
 cypress/screenshots/
 
 *.log
+
+notarization-env.sh
+*.p12
