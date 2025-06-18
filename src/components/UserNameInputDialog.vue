@@ -99,6 +99,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useInteractionDialog } from '@/composables/interactionDialog'
 import { openSnackbar } from '@/composables/snackbar'
 import { deleteUsernameOnBlueOS, getSettingsUsernamesFromBlueOS } from '@/libs/blueos'
+import { settingsManager } from '@/libs/settings-management'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 import { useMissionStore } from '@/stores/mission'
 
@@ -157,7 +158,7 @@ const deleteUser = async (username: string): Promise<void> => {
             usernamesStoredOnBlueOS.value = (usernamesStoredOnBlueOS.value ?? []).filter((u) => u !== username)
           } catch (err) {
             try {
-              await loadUsernames()
+              await loadUsernamesFromBlueOS()
               openSnackbar({
                 message: `Failed deleting '${username}'. The list was refreshed. Please try again.`,
                 variant: 'error',
@@ -183,6 +184,13 @@ const setNewUsername = (username: string): void => {
   emit('confirmed', username)
 }
 
+const loadLocalUsernames = (): void => {
+  const locallyStoredUsernames = Object.keys(settingsManager.getLocalSettings())
+  if (locallyStoredUsernames.length) {
+    usernamesStoredOnBlueOS.value = [...new Set([...(usernamesStoredOnBlueOS.value ?? []), ...locallyStoredUsernames])]
+  }
+}
+
 const loadUsernamesFromBlueOS = async (): Promise<void> => {
   isLoading.value = true
 
@@ -198,7 +206,8 @@ const loadUsernamesFromBlueOS = async (): Promise<void> => {
   }
 }
 
-const getVehicleName = async (): Promise<void> => {
+onMounted(async () => {
+  loadLocalUsernames()
   if (mainVehicleStore.isVehicleOnline) {
     try {
       const response = await mainVehicleStore.getCurrentVehicleName()
@@ -207,7 +216,7 @@ const getVehicleName = async (): Promise<void> => {
       console.error('Failed to get vehicle name:', error)
     }
   }
-}
+})
 
 const handleEsc = (e: KeyboardEvent): void => {
   if (e.key === 'Escape') {
@@ -219,7 +228,6 @@ onMounted(() => {
   window.addEventListener('keydown', handleEsc)
   if (mainVehicleStore.isVehicleOnline) {
     loadUsernamesFromBlueOS()
-    getVehicleName()
   } else {
     isLoading.value = false
   }

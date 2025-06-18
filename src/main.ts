@@ -1,6 +1,7 @@
 import 'floating-vue/dist/style.css'
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
 import '@/libs/system-logging'
+import './libs/settings-management'
 import './libs/localStorage-monitor'
 
 import { library } from '@fortawesome/fontawesome-svg-core'
