@@ -176,6 +176,12 @@ export const useMissionStore = defineStore('mission', () => {
     { deep: true }
   )
 
+  watch(
+    username,
+    () => window.dispatchEvent(new CustomEvent('user-changed', { detail: { username: username.value } })),
+    { immediate: true }
+  )
+
   return {
     username,
     lastConnectedUser,
