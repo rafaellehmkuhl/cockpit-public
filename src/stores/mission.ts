@@ -116,7 +116,7 @@ export const useMissionStore = defineStore('mission', () => {
     }
 
     username.value = newUsername
-    await reloadCockpit()
+    // await reloadCockpit()
   }
 
   const setDefaultMapPosition = (center: WaypointCoordinates, zoom: number): void => {
