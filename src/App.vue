@@ -162,8 +162,6 @@
   >
     <SplashScreen v-if="interfaceStore.showSplashScreen" />
   </Transition>
-  <LocalStorageMonitor />
-  <SettingsInspectionDialog />
 </template>
 
 <script setup lang="ts">
@@ -172,8 +170,6 @@ import { computed, onBeforeMount, onBeforeUnmount, onMounted, ref, watch } from 
 
 import ActionDiscoveryModal from '@/components/ActionDiscoveryModal.vue'
 import GlassModal from '@/components/GlassModal.vue'
-import LocalStorageMonitor from '@/components/LocalStorageMonitor.vue'
-import SettingsInspectionDialog from '@/components/SettingsInspectionDialog.vue'
 import SkullAnimation from '@/components/SkullAnimation.vue'
 import SnackbarContainer from '@/components/SnackbarContainer.vue'
 import Tutorial from '@/components/Tutorial.vue'
