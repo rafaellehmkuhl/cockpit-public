@@ -6,7 +6,6 @@ import { useInteractionDialog } from '@/composables/interactionDialog'
 import { useBlueOsStorage } from '@/composables/settingsSyncer'
 import { askForUsername } from '@/composables/usernamePrompDialog'
 import { eventCategoriesDefaultMapping } from '@/libs/slide-to-confirm'
-import { reloadCockpit } from '@/libs/utils'
 import {
   AltitudeReferenceType,
   PointOfInterest,
@@ -116,7 +115,6 @@ export const useMissionStore = defineStore('mission', () => {
     }
 
     username.value = newUsername
-    await reloadCockpit()
   }
 
   const setDefaultMapPosition = (center: WaypointCoordinates, zoom: number): void => {
@@ -174,6 +172,12 @@ export const useMissionStore = defineStore('mission', () => {
     () => [...currentPlanningWaypoints],
     (wps) => persistDraft(wps),
     { deep: true }
+  )
+
+  watch(
+    username,
+    () => window.dispatchEvent(new CustomEvent('user-changed', { detail: { username: username.value } })),
+    { immediate: true }
   )
 
   return {

@@ -2,6 +2,7 @@
 import { format } from 'date-fns'
 import localforage from 'localforage'
 
+import { settingsManager } from '@/libs/settings-management'
 import { systemLoggingEnablingKey } from '@/stores/development'
 
 export const systemLogDateFormat = 'LLL dd, yyyy'
@@ -49,7 +50,7 @@ const saveLogEventInDB = (event: LogEvent): void => {
   }
 }
 
-const enableSystemLogging = localStorage.getItem(systemLoggingEnablingKey)
+const enableSystemLogging = settingsManager.getKeyValue(systemLoggingEnablingKey)
 if (enableSystemLogging === 'true') {
   console.log(`
     System logging is enabled.
