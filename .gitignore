@@ -7,4 +7,7 @@ cypress/fixtures/
 cypress/videos/
 cypress/screenshots/
 
+# Playwright test results
+test-results/
+
 *.log

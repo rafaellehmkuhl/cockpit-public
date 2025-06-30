@@ -6,7 +6,7 @@ export default defineConfig({
     // You may want to clean this up later by importing these.
     setupNodeEvents(on, config) {
       // eslint-disable-next-line
-      return require('./cypress/plugins/index.ts').default(on, config)
+			return require("./cypress/plugins/index.ts").default(on, config);
     },
     baseUrl: 'http://localhost:5050',
   },
