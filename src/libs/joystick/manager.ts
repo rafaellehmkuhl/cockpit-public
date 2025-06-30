@@ -1,6 +1,7 @@
 import { defaultJoystickCalibration } from '@/assets/defaults'
 import { type JoystickCalibration, type JoystickState } from '@/types/joystick'
 
+import { settingsManager } from '../settings-management'
 import { applyCalibration } from './calibration'
 
 export const joystickCalibrationOptionsKey = 'cockpit-joystick-calibration-options'
@@ -400,7 +401,7 @@ class JoystickManager {
    */
   private loadCalibrationSettings(): void {
     try {
-      const stored = localStorage.getItem(joystickCalibrationOptionsKey)
+      const stored = settingsManager.getKeyValue(joystickCalibrationOptionsKey)
       if (stored) {
         const options = JSON.parse(stored) as Record<JoystickModel, JoystickCalibration>
         this.calibrationOptions = new Map(Object.entries(options).map(([key, value]) => [key as JoystickModel, value]))
@@ -494,7 +495,7 @@ class JoystickManager {
 
     // Get the joystick model to check if it's disabled
     const model = this.getModel(gamepad)
-    const disabledJoystickModels = JSON.parse(localStorage.getItem('cockpit-disabled-joystick-models') || '[]')
+    const disabledJoystickModels = JSON.parse(settingsManager.getKeyValue('cockpit-disabled-joystick-models') || '[]')
     if (disabledJoystickModels.includes(model)) return
 
     for (const callback of this.callbacksJoystickState) {

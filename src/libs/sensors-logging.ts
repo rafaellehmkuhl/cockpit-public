@@ -220,11 +220,66 @@ class DataLogger {
   datetimeLastLogPoint: Date | null = null
   variablesBeingUsed: DatalogVariable[] = []
   veryGenericIndicators: VeryGenericData[] = []
-  telemetryDisplayData =
-    (settingsManager.getKeyValue(telemetryDisplayDataKey) as OverlayGrid) ?? defaultTelemetryDisplayData
-  telemetryDisplayOptions =
-    (settingsManager.getKeyValue(telemetryDisplayOptionsKey) as OverlayOptions) ?? defaultTelemetryDisplayOptions
-  logInterval = (settingsManager.getKeyValue(logIntervalKey) as number) ?? defaultLogInterval
+  private _telemetryDisplayData?: OverlayGrid
+  private _telemetryDisplayOptions?: OverlayOptions
+  private _logInterval?: number
+
+  get telemetryDisplayData(): OverlayGrid {
+    if (this._telemetryDisplayData === undefined) {
+      const savedValue = settingsManager.getKeyValue(telemetryDisplayDataKey) as OverlayGrid
+      this._telemetryDisplayData = savedValue ?? defaultTelemetryDisplayData
+    }
+    return this._telemetryDisplayData
+  }
+
+  set telemetryDisplayData(value: OverlayGrid) {
+    this._telemetryDisplayData = value
+    settingsManager.setKeyValue(telemetryDisplayDataKey, value)
+  }
+
+  get telemetryDisplayOptions(): OverlayOptions {
+    if (this._telemetryDisplayOptions === undefined) {
+      const savedValue = settingsManager.getKeyValue(telemetryDisplayOptionsKey) as OverlayOptions
+      this._telemetryDisplayOptions = savedValue ?? defaultTelemetryDisplayOptions
+    }
+    return this._telemetryDisplayOptions
+  }
+
+  set telemetryDisplayOptions(value: OverlayOptions) {
+    this._telemetryDisplayOptions = value
+    settingsManager.setKeyValue(telemetryDisplayOptionsKey, value)
+  }
+
+  get logInterval(): number {
+    if (this._logInterval === undefined) {
+      const savedValue = settingsManager.getKeyValue(logIntervalKey) as number
+      this._logInterval = savedValue ?? defaultLogInterval
+    }
+    return this._logInterval
+  }
+
+  set logInterval(value: number) {
+    if (value < 1) {
+      showDialog({ message: 'Minimum log interval is 1 millisecond (1000 Hz).', variant: 'error' })
+      return
+    }
+
+    this._logInterval = value
+    settingsManager.setKeyValue(logIntervalKey, value)
+  }
+
+  get frequency(): number {
+    return 1000 / this.logInterval
+  }
+
+  set frequency(value: number) {
+    if (value > 1000 || value < 0.1) {
+      showDialog({ message: 'Log frequency should stay between 0.1 Hz and 1000 Hz.', variant: 'error' })
+      return
+    }
+
+    this.logInterval = 1000 / value
+  }
 
   cockpitLogsDB = localforage.createInstance({
     driver: localforage.INDEXEDDB,
@@ -361,59 +416,6 @@ class DataLogger {
    */
   logging(): boolean {
     return this.datetimeLastLogPoint !== null && this.datetimeLastLogPoint > new Date(Date.now() - this.logInterval * 2)
-  }
-
-  /**
-   * Set the interval between log points
-   * @param {number} interval The interval in milliseconds. Default is 1000 and minimum is 1
-   */
-  setInterval(interval: number): void {
-    if (interval < 1) {
-      showDialog({ message: 'Minimum log interval is 1 millisecond (1000 Hz).', variant: 'error' })
-      return
-    }
-
-    this.logInterval = interval
-    settingsManager.setKeyValue(logIntervalKey, interval)
-  }
-
-  /**
-   * Get the frequency of log points
-   * @returns {number} The frequency in hertz
-   */
-  getFrequency(): number {
-    return 1000 / this.logInterval
-  }
-
-  /**
-   * Set the frequency of log points
-   * @param {number} frequency The frequency in hertz. Default is 1 Hz, minimum is 0.1 Hz and maximum is 1000 Hz
-   */
-  setFrequency(frequency: number): void {
-    if (frequency > 1000 || frequency < 0.1) {
-      showDialog({ message: 'Log frequency should stay between 0.1 Hz and 1000 Hz.', variant: 'error' })
-      return
-    }
-
-    this.setInterval(1000 / frequency)
-  }
-
-  /**
-   * Update the telemetry display data
-   * @param {OverlayGrid} data - The new data
-   */
-  updateTelemetryDisplayData(data: OverlayGrid): void {
-    this.telemetryDisplayData = data
-    settingsManager.setKeyValue(telemetryDisplayDataKey, data)
-  }
-
-  /**
-   * Update the telemetry display options
-   * @param {OverlayOptions} options - The new options
-   */
-  updateTelemetryDisplayOptions(options: OverlayOptions): void {
-    this.telemetryDisplayOptions = options
-    settingsManager.setKeyValue(telemetryDisplayOptionsKey, options)
   }
 
   /**
@@ -626,3 +628,4 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`
 }
 
 export const datalogger = new DataLogger()
+console.log('[DataLogger]', 'Data logger initialized.')

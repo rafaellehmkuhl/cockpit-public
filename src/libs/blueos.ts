@@ -295,6 +295,7 @@ export const getCpuTempCelsius = async (vehicleAddress: string): Promise<number>
 export const checkBlueOsUserDataSimilarity = async (vehicleAddress: string): Promise<boolean> => {
   const missionStore = useMissionStore()
 
+  // TODO: Use settings manager instead of localStorage
   const storedSettings: Record<string, any> = Object.keys(localStorage)
     .filter((key) => key.startsWith('cockpit-'))
     .reduce((acc: Record<string, any>, key: string) => {
