@@ -1,7 +1,6 @@
 import { useStorage, useTimestamp } from '@vueuse/core'
 import { differenceInSeconds } from 'date-fns'
 import { defineStore } from 'pinia'
-import { v4 as uuid } from 'uuid'
 import { computed, reactive, ref, watch } from 'vue'
 
 import { defaultGlobalAddress } from '@/assets/defaults'
@@ -10,13 +9,7 @@ import { useSnackbar } from '@/composables/snackbar'
 import { getAllDataLakeVariablesInfo, getDataLakeVariableInfo, setDataLakeVariableData } from '@/libs/actions/data-lake'
 import { createDataLakeVariable } from '@/libs/actions/data-lake'
 import { altitude_setpoint } from '@/libs/altitude-slider'
-import {
-  getCpuTempCelsius,
-  getKeyDataFromCockpitVehicleStorage,
-  getStatus,
-  getVehicleName,
-  setKeyDataOnCockpitVehicleStorage,
-} from '@/libs/blueos'
+import { getCpuTempCelsius, getStatus, getVehicleName } from '@/libs/blueos'
 import * as Connection from '@/libs/connection/connection'
 import { ConnectionManager } from '@/libs/connection/connection-manager'
 import type { Package } from '@/libs/connection/m2r/messages/mavlink2rest'
