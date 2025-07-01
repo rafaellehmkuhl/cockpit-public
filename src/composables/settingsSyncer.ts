@@ -1,9 +1,8 @@
-import { type RemovableRef, useStorage } from '@vueuse/core'
+import { type RemovableRef } from '@vueuse/core'
 import { diff } from 'jest-diff'
 import { format as prettyFormat } from 'pretty-format'
 import { type MaybeRef, ref, unref, watch } from 'vue'
 
-import { getKeyDataFromCockpitVehicleStorage, getVehicleAddress } from '@/libs/blueos'
 import { settingsManager } from '@/libs/settings-management'
 import { deserialize, isEqual } from '@/libs/utils'
 import type { CockpitSetting } from '@/types/settings-management'
@@ -97,15 +96,4 @@ export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): Rem
   })
 
   return refedValue as RemovableRef<T>
-}
-
-export const getSettingsUsernamesFromBlueOS = async (): Promise<string[]> => {
-  const vehicleAddress = await getVehicleAddress()
-  const maybeUsernames = await getKeyDataFromCockpitVehicleStorage(vehicleAddress, 'settings')
-  if (!maybeUsernames) {
-    return []
-  }
-  return Object.entries(maybeUsernames)
-    .filter(([, value]) => typeof value === 'object' && Object.keys(value).some((key) => key.includes('cockpit-')))
-    .map(([key]) => key)
 }

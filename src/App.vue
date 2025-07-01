@@ -240,7 +240,7 @@ onBeforeMount(async () => {
   }, maxSplashDuration)
 
   while (!isBlueOSUserDataSimilar) {
-    isBlueOSUserDataSimilar = await checkBlueOsUserDataSimilarity(vehicleStore.globalAddress)
+    isBlueOSUserDataSimilar = await checkBlueOsUserDataSimilarity(vehicleStore.globalAddress, missionStore.username)
     if (!isBlueOSUserDataSimilar) await sleep(1000)
   }
 

@@ -444,6 +444,20 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     }
   }
 
+  /**
+   * Get vehicle address. Waits until the vehicle address is available.
+   * @returns {Promise<string>} The vehicle address
+   */
+  async function getVehicleAddress(): Promise<string> {
+    // Wait until we have a global address
+    while (globalAddress.value === undefined) {
+      console.debug('Waiting for vehicle global address on BlueOS sync routine.')
+      await new Promise((r) => setTimeout(r, 1000))
+    }
+
+    return globalAddress.value
+  }
+
   ConnectionManager.onMainConnection.add(() => {
     const newMainConnection = ConnectionManager.mainConnection()
     console.log('Main connection changed:', newMainConnection?.uri().toString())
@@ -637,8 +651,7 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
   const getCurrentVehicleName = async (): Promise<string | undefined> => {
     if (currentVehicleName.value) return currentVehicleName.value
     if (currentVehicleName.value === undefined) {
-      const vehicleNameResponse = await (await getVehicleName(globalAddress.value)).json()
-      currentVehicleName.value = vehicleNameResponse
+      currentVehicleName.value = await getVehicleName(globalAddress.value)
     }
     return currentVehicleName.value
   }
@@ -728,5 +741,6 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     resetMessageIntervalsToCockpitDefault,
     fetchHomeWaypoint,
     setHomeWaypoint,
+    getVehicleAddress,
   }
 })

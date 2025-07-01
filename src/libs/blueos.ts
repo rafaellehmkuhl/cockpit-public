@@ -1,8 +1,6 @@
 import ky, { HTTPError } from 'ky'
 
 import { type ActionConfig } from '@/libs/joystick/protocols/cockpit-actions'
-import { useMainVehicleStore } from '@/stores/mainVehicle'
-import { useMissionStore } from '@/stores/mission'
 import { ExternalWidgetSetupInfo } from '@/types/widgets'
 
 /**
@@ -124,20 +122,13 @@ export const getExtrasJsonFromBlueOsService = async (
   return extraJson
 }
 
-export const getWidgetsFromBlueOS = async (): Promise<ExternalWidgetSetupInfo[]> => {
-  const vehicleStore = useMainVehicleStore()
-
-  // Wait until we have a global address
-  while (vehicleStore.globalAddress === undefined) {
-    await new Promise((r) => setTimeout(r, 1000))
-  }
-
-  const services = await getServicesFromBlueOS(vehicleStore.globalAddress)
+export const getWidgetsFromBlueOS = async (vehicleAddress: string): Promise<ExternalWidgetSetupInfo[]> => {
+  const services = await getServicesFromBlueOS(vehicleAddress)
   const widgets: ExternalWidgetSetupInfo[] = []
   await Promise.all(
     services.map(async (service) => {
-      const extraJson = await getExtrasJsonFromBlueOsService(vehicleStore.globalAddress, service)
-      const baseUrl = blueOsServiceUrl(vehicleStore.globalAddress, service)
+      const extraJson = await getExtrasJsonFromBlueOsService(vehicleAddress, service)
+      const baseUrl = blueOsServiceUrl(vehicleAddress, service)
       if (extraJson !== null) {
         widgets.push(
           ...extraJson.widgets.map((widget) => {
@@ -155,20 +146,13 @@ export const getWidgetsFromBlueOS = async (): Promise<ExternalWidgetSetupInfo[]>
   return widgets
 }
 
-export const getActionsFromBlueOS = async (): Promise<ActionConfig[]> => {
-  const vehicleStore = useMainVehicleStore()
-
-  // Wait until we have a global address
-  while (vehicleStore.globalAddress === undefined) {
-    await new Promise((r) => setTimeout(r, 1000))
-  }
-
-  const services = await getServicesFromBlueOS(vehicleStore.globalAddress)
+export const getActionsFromBlueOS = async (vehicleAddress: string): Promise<ActionConfig[]> => {
+  const services = await getServicesFromBlueOS(vehicleAddress)
   const actions: ActionConfig[] = []
   await Promise.all(
     services.map(async (service) => {
       try {
-        const extraJson = await getExtrasJsonFromBlueOsService(vehicleStore.globalAddress, service)
+        const extraJson = await getExtrasJsonFromBlueOsService(vehicleAddress, service)
         if (extraJson !== null) {
           actions.push(...extraJson.actions)
         }
@@ -267,11 +251,14 @@ export const getBeaconInfo = async (vehicleAddress: string): Promise<Record<stri
   }
 }
 
-export const getVehicleName = async (vehicleAddress: string): Promise<Response> => {
+export const getVehicleName = async (vehicleAddress: string): Promise<string> => {
   try {
     const url = `http://${vehicleAddress}/beacon/v1.0/vehicle_name`
     const vehicleNameResponse = await ky.get(url, { timeout: beaconTimeout, retry: 0 })
-    return vehicleNameResponse
+    if (!vehicleNameResponse.ok) {
+      throw new Error(`Could not fetch vehicle name from beacon. ${vehicleNameResponse.status}`)
+    }
+    return vehicleNameResponse.text()
   } catch (error) {
     throw new Error(`Could not fetch vehicle name from beacon. ${error}`)
   }
@@ -291,9 +278,7 @@ export const getCpuTempCelsius = async (vehicleAddress: string): Promise<number>
 }
 
 // Checks for similarity between all 'cockpit-*' keys stored in BlueOS and the data in localStorage
-export const checkBlueOsUserDataSimilarity = async (vehicleAddress: string): Promise<boolean> => {
-  const missionStore = useMissionStore()
-
+export const checkBlueOsUserDataSimilarity = async (vehicleAddress: string, username: string): Promise<boolean> => {
   // TODO: Use settings manager instead of localStorage
   const storedSettings: Record<string, any> = Object.keys(localStorage)
     .filter((key) => key.startsWith('cockpit-'))
@@ -307,8 +292,7 @@ export const checkBlueOsUserDataSimilarity = async (vehicleAddress: string): Pro
       return acc
     }, {})
 
-  const blueOsData =
-    (await getKeyDataFromCockpitVehicleStorage(vehicleAddress, `settings/${missionStore.username}`)) ?? {}
+  const blueOsData = (await getKeyDataFromCockpitVehicleStorage(vehicleAddress, `settings/${username}`)) ?? {}
 
   const keysInCommon = Object.keys(storedSettings).filter((key) => key in blueOsData)
 
@@ -321,26 +305,12 @@ export const checkBlueOsUserDataSimilarity = async (vehicleAddress: string): Pro
   return true
 }
 
-export const getVehicleAddress = async (): Promise<string> => {
-  const vehicleStore = useMainVehicleStore()
-
-  // Wait until we have a global address
-  while (vehicleStore.globalAddress === undefined) {
-    console.debug('Waiting for vehicle global address on BlueOS sync routine.')
-    await new Promise((r) => setTimeout(r, 1000))
-  }
-
-  return vehicleStore.globalAddress
-}
-
-export const getSettingsUsernamesFromBlueOS = async (): Promise<string[]> => {
-  const vehicleAddress = await getVehicleAddress()
+export const getSettingsUsernamesFromBlueOS = async (vehicleAddress: string): Promise<string[]> => {
   const usernames = await getKeyDataFromCockpitVehicleStorage(vehicleAddress, 'settings')
   return Object.keys(usernames as string[])
 }
 
-export const deleteUsernameOnBlueOS = async (username: string): Promise<void> => {
-  const vehicleAddress = await getVehicleAddress()
+export const deleteUsernameOnBlueOS = async (vehicleAddress: string, username: string): Promise<void> => {
   let allSettings: Record<string, any> = {}
   try {
     allSettings = (await getKeyDataFromCockpitVehicleStorage(vehicleAddress, 'settings')) as Record<string, any>
@@ -357,13 +327,11 @@ export const deleteUsernameOnBlueOS = async (username: string): Promise<void> =>
 
 /**
  * Checks if other GCS is sending MANUAL_CONTROL messages to the vehicle
+ * @param {string} vehicleAddress The address of the vehicle
  * @returns {Promise<boolean>} True if another GCS is sending MANUAL_CONTROL messages (within last 3 seconds)
  */
-export const checkForOtherManualControlSources = async (): Promise<boolean> => {
+export const checkForOtherManualControlSources = async (vehicleAddress: string): Promise<boolean> => {
   try {
-    // Get vehicle address from data-lake
-    const vehicleAddress = await getVehicleAddress()
-
     // Try both component IDs (190 and 240)
     const componentIds = [190, 240]
 
