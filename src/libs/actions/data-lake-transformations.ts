@@ -19,16 +19,16 @@ let globalTransformingFunctions: TransformingFunction[] = []
 
 const loadTransformingFunctions = (): void => {
   const transformingFunctions = settingsManager.getKeyValue(transformingFunctionsKey)
-  if (!transformingFunctions) {
+  if (transformingFunctions === undefined) {
     globalTransformingFunctions = []
     return
   }
-  globalTransformingFunctions = JSON.parse(transformingFunctions)
+  globalTransformingFunctions = transformingFunctions as TransformingFunction[]
   updateTransformingFunctionListeners()
 }
 
 const saveTransformingFunctions = (): void => {
-  settingsManager.setKeyValue(transformingFunctionsKey, JSON.stringify(globalTransformingFunctions))
+  settingsManager.setKeyValue(transformingFunctionsKey, globalTransformingFunctions)
   updateTransformingFunctionListeners()
 }
 

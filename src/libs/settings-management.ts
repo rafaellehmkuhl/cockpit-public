@@ -110,7 +110,7 @@ class SettingsManager {
    * @param {string} vehicleId - The ID of the vehicle to which the setting belongs
    * @returns {any} The value of the setting
    */
-  public getKeyValue = (key: string, userId?: string, vehicleId?: string): any => {
+  public getKeyValue = (key: string, userId?: string, vehicleId?: string): any | undefined => {
     if (userId === undefined) {
       userId = this.currentUser
     }
@@ -717,7 +717,7 @@ class SettingsManager {
    */
   public handleVehicleGettingOnline = async (vehicleAddress: string): Promise<void> => {
     console.log('[SettingsManager]', 'Handling vehicle getting online!')
-    const previousVehicle = this.retrieveLastConnectedVehicle()
+    // const previousVehicle = this.retrieveLastConnectedVehicle()
 
     // Before anything else, back up old-style vehicle settings if needed
     await this.backupOldStyleVehicleSettingsIfNeeded(vehicleAddress)
@@ -735,7 +735,7 @@ class SettingsManager {
     const newSettings: SettingsPackage = {}
 
     // First of all, sync settings with vehicle if possible, so we have both with the "best" values for that user/vehicle combination
-    const bestSettingsWithVehicle = await this.getBestSettingsBetweenLocalAndVehicle(this.currentUser, vehicleId)
+    // const bestSettingsWithVehicle = await this.getBestSettingsBetweenLocalAndVehicle(vehicleAddress, vehicleId)
     // newSettings = this.getMergedSettings(bestSettingsWithVehicle, newSettings)
 
     this.generateSomeNewSettingsForUserAndVehicleIfNeeded(this.currentUser, this.currentVehicle)

@@ -873,10 +873,10 @@ export abstract class ArduPilotVehicle<Modes> extends Vehicle.AbstractVehicle<Mo
     if (customMessageIntervalsStoredString === null) {
       toBeSetIntervals = cockpitDefaultMessageIntervals
     } else {
-      const customMessageIntervals = JSON.parse(customMessageIntervalsStoredString)
+      const customMessageIntervals = customMessageIntervalsStoredString as Record<string, MessageIntervalOptions>
       toBeSetIntervals = { ...cockpitDefaultMessageIntervals, ...customMessageIntervals }
     }
-    settingsManager.setKeyValue(MAVLINK_MESSAGE_INTERVALS_STORAGE_KEY, JSON.stringify(toBeSetIntervals))
+    settingsManager.setKeyValue(MAVLINK_MESSAGE_INTERVALS_STORAGE_KEY, toBeSetIntervals)
 
     // Remove any message that was configured to not be touched
     Object.entries(toBeSetIntervals).forEach(([messageType, options]) => {

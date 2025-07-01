@@ -124,8 +124,8 @@ export const getAllActionLinks = (): Record<string, ActionLink> => {
 const loadSavedLinks = (): void => {
   try {
     const savedLinks = settingsManager.getKeyValue('cockpit-action-links')
-    if (savedLinks) {
-      const links = JSON.parse(savedLinks) as Record<string, Omit<ActionLink, 'lastExecutionTime'>>
+    if (savedLinks !== undefined) {
+      const links = savedLinks as Record<string, Omit<ActionLink, 'lastExecutionTime'>>
       Object.entries(links).forEach(([actionId, link]) => {
         saveActionLink(actionId, link.actionType, link.variables, link.minInterval)
       })
@@ -151,7 +151,7 @@ const saveLinksToPersistentStorage = (): void => {
       }),
       {}
     )
-    settingsManager.setKeyValue('cockpit-action-links', JSON.stringify(linksToSave))
+    settingsManager.setKeyValue('cockpit-action-links', linksToSave)
   } catch (error) {
     console.error('Failed to save action links:', error)
   }
