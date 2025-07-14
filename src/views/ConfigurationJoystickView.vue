@@ -503,7 +503,7 @@
                 />
                 <div class="h-[360px] p-1 overflow-y-auto">
                   <Button
-                    v-for="action in filteredAndSortedJoystickActions()"
+                    v-for="action in filteredAndSortedJoystickActions"
                     :key="action.name"
                     class="w-full my-1 text-sm hover:bg-slate-700 flex flex-col py-2 relative align-center"
                     :class="{ 'bg-slate-700': currentButtonActions[input.id].action.id == action.id }"
@@ -671,23 +671,35 @@ const currentTabVIew = ref('table')
 
 const protocols = Object.values(JoystickProtocol).filter((value) => typeof value === 'string')
 
+// Remove the expensive deep watcher and replace with optimized version
 // Throttled button states implementation for performance optimization
 const throttledButtonStates = ref<Record<number, number | undefined>>({})
 const lastButtonUpdateTime = ref(0)
-const BUTTON_UPDATE_THROTTLE_MS = 100 // Update visual feedback at most every 100ms
+const BUTTON_UPDATE_THROTTLE_MS = 16 // ~60fps for smoother visual feedback
 
+// Optimized shallow watcher instead of deep watcher
+let buttonUpdateScheduled = false
 watch(
   () => currentJoystick.value?.state.buttons,
   (newButtonStates) => {
-    if (!newButtonStates) return
+    if (!newButtonStates || buttonUpdateScheduled) return
 
-    const now = Date.now()
-    if (now - lastButtonUpdateTime.value > BUTTON_UPDATE_THROTTLE_MS) {
-      throttledButtonStates.value = { ...newButtonStates }
-      lastButtonUpdateTime.value = now
-    }
-  },
-  { deep: true }
+    buttonUpdateScheduled = true
+    requestAnimationFrame(() => {
+      const now = Date.now()
+      if (now - lastButtonUpdateTime.value > BUTTON_UPDATE_THROTTLE_MS) {
+        // Only update changed buttons instead of copying entire object
+        for (const [buttonId, value] of Object.entries(newButtonStates)) {
+          if (throttledButtonStates.value[Number(buttonId)] !== value) {
+            throttledButtonStates.value[Number(buttonId)] = value
+          }
+        }
+        lastButtonUpdateTime.value = now
+      }
+      buttonUpdateScheduled = false
+    })
+  }
+  // Removed { deep: true } - this was causing the 730ms blocking task
 )
 
 const isButtonPressed = (buttonId: JoystickButton): boolean => {
@@ -739,18 +751,30 @@ const warnIfJoystickDoesNotSupportExtendedManualControl = async (): Promise<void
   }
 }
 
-const filteredAndSortedJoystickActions = (): JoystickAction[] => {
+/**
+ * Computed property that filters and sorts joystick actions for display
+ */
+const filteredAndSortedJoystickActions = computed((): JoystickAction[] => {
+  const searchLower = searchText.value.toLowerCase()
+  const allowedProtocols = [
+    JoystickProtocol.MAVLinkManualControl,
+    JoystickProtocol.CockpitAction,
+    JoystickProtocol.DataLakeVariable,
+  ]
+
   return buttonActionsToShow.value
-    .filter((action: JoystickAction) => action.name.toLowerCase().includes(searchText.value.toLowerCase()))
-    .filter((action: JoystickAction) => filteredProtocols.includes(action.protocol))
     .filter((action: JoystickAction) => {
+      // Early returns for performance
+      if (!allowedProtocols.some((p) => p === action.protocol)) return false
+      if (idsExcludedJoystickActions.includes(action.id)) return false
+      if (!action.name.toLowerCase().includes(searchLower)) return false
+
       const dataLakeVariableInfo = getDataLakeVariableInfo(action.id)
       if (!dataLakeVariableInfo) return true
       return dataLakeVariableInfo.allowUserToChangeValue && dataLakeVariableInfo.type !== 'string'
     })
-    .filter((action: JoystickAction) => !idsExcludedJoystickActions.includes(action.id))
     .sort((a: JoystickAction, b: JoystickAction) => a.name.localeCompare(b.name))
-}
+})
 
 const headers = ref([
   { text: 'Type', value: 'type' },
@@ -758,18 +782,58 @@ const headers = ref([
   { text: 'Actions', value: 'actions', sortable: false },
 ])
 
+/**
+ * Cache for table items to avoid recreating objects
+ */
+const tableItemsCache = ref<{
+  /**
+cccccccccccccccccccccccccccccc *
+cccccccccccccccccccccccccccccc
+   */
+  key: string
+  /**
+kkkkkkkkkkkkk *
+kkkkkkkkkkkkk
+   */
+  items: any[]
+} | null>(null)
+
+/**
+ * Optimized table items with memoization to reduce object creation
+ */
 const tableItems = computed(() => {
   if (currentJoystick.value === undefined) {
     return []
   }
 
-  const originalAxes = currentJoystick.value.state.axes
-  const axesItems = originalAxes.slice(0, 31).map((_, index) => ({ type: 'axis', id: index }))
+  const axesLength = currentJoystick.value.state.axes.length
+  const buttonsLength = currentJoystick.value.state.buttons.length
+  const cacheKey = `${axesLength}-${buttonsLength}`
 
-  const originalButtons = currentJoystick.value.state.buttons
-  const buttonItems = originalButtons.slice(0, 31).map((_, index) => ({ type: 'button', id: index }))
+  // Check if we can use cached items
+  if (tableItemsCache.value?.key === cacheKey) {
+    return tableItemsCache.value.items
+  }
 
-  return [...axesItems, ...buttonItems]
+  // Create new items if cache miss
+  const axesItems = Array.from({ length: Math.min(31, axesLength) }, (_, index) => ({
+    type: 'axis' as const,
+    id: index,
+  }))
+
+  const buttonItems = Array.from({ length: Math.min(31, buttonsLength) }, (_, index) => ({
+    type: 'button' as const,
+    id: index,
+  }))
+
+  const items = [...axesItems, ...buttonItems]
+
+  // Update cache outside of computed (in nextTick to avoid side effects)
+  nextTick(() => {
+    tableItemsCache.value = { key: cacheKey, items }
+  })
+
+  return items
 })
 
 onUnmounted(() => {
