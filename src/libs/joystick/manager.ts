@@ -28,7 +28,6 @@ export enum EventType {
  * Supported joystick models
  */
 export enum JoystickModel {
-  DualSense = 'DualSense (PS5)',
   DualShock4 = 'DualShock (PS4)',
   XboxOne_Wireless = 'Xbox One Wireless Controller',
   XboxOne_Wired = 'Xbox One Wired Controller',
@@ -45,7 +44,6 @@ export enum JoystickModel {
 
 const JoystickMapVidPid: Map<string, JoystickModel> = new Map([
   // Sony
-  ['054c:0ce6', JoystickModel.DualSense],
   ['054c:09cc', JoystickModel.DualShock4],
   ['045e:02ea', JoystickModel.XboxOne_Wired],
   ['045e:02e0', JoystickModel.XboxOne_Wireless],
