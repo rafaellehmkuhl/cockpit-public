@@ -111,13 +111,13 @@ export const updateCockpitActions = (): void => {
 
 export const loadMavlinkMessageActionConfigs = (): void => {
   const savedActions = settingsManager.getKeyValue('cockpit-mavlink-message-actions')
-  if (savedActions) {
-    registeredMavlinkMessageActionConfigs = JSON.parse(savedActions)
+  if (savedActions !== undefined) {
+    registeredMavlinkMessageActionConfigs = savedActions as Record<string, MavlinkMessageActionConfig>
   }
 }
 
 export const saveMavlinkMessageActionConfigs = (): void => {
-  settingsManager.setKeyValue('cockpit-mavlink-message-actions', JSON.stringify(registeredMavlinkMessageActionConfigs))
+  settingsManager.setKeyValue('cockpit-mavlink-message-actions', registeredMavlinkMessageActionConfigs)
 }
 
 export type MavlinkMessageActionCallback = () => void

@@ -491,8 +491,8 @@ class JoystickManager {
   private loadCalibrationSettings(): void {
     try {
       const stored = settingsManager.getKeyValue(joystickCalibrationOptionsKey)
-      if (stored) {
-        const options = JSON.parse(stored) as Record<JoystickModel, JoystickCalibration>
+      if (stored !== undefined) {
+        const options = stored as Record<JoystickModel, JoystickCalibration>
         this.calibrationOptions = new Map(Object.entries(options).map(([key, value]) => [key as JoystickModel, value]))
       }
     } catch (error) {

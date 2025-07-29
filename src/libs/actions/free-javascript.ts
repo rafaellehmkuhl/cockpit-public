@@ -65,13 +65,13 @@ export const updateCockpitActions = (): void => {
 
 export const loadJavascriptActionConfigs = (): void => {
   const savedActions = settingsManager.getKeyValue('cockpit-javascript-actions')
-  if (savedActions) {
-    registeredJavascriptActionConfigs = JSON.parse(savedActions)
+  if (savedActions !== undefined) {
+    registeredJavascriptActionConfigs = savedActions as Record<string, JavascriptActionConfig>
   }
 }
 
 export const saveJavascriptActionConfigs = (): void => {
-  settingsManager.setKeyValue('cockpit-javascript-actions', JSON.stringify(registeredJavascriptActionConfigs))
+  settingsManager.setKeyValue('cockpit-javascript-actions', registeredJavascriptActionConfigs)
 }
 
 export type JavascriptActionCallback = () => void

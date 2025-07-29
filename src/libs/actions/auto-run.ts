@@ -33,8 +33,8 @@ const intervalTimers: Record<string, number> = {}
  */
 export function getAllAutoRunConfigs(): AutoRunStorage {
   const storedConfig = settingsManager.getKeyValue(STORAGE_KEY)
-  if (!storedConfig) return {}
-  return JSON.parse(storedConfig)
+  if (storedConfig === undefined) return {}
+  return storedConfig as AutoRunStorage
 }
 
 /**
@@ -55,7 +55,7 @@ export function getAutoRunConfig(actionId: string): AutoRunConfig | null {
 export function saveAutoRunConfig(actionId: string, config: AutoRunConfig): void {
   const allConfigs = getAllAutoRunConfigs()
   allConfigs[actionId] = config
-  settingsManager.setKeyValue(STORAGE_KEY, JSON.stringify(allConfigs))
+  settingsManager.setKeyValue(STORAGE_KEY, allConfigs)
 
   // For interval-based configurations, start the interval immediately
   if (config.type === 'interval') {

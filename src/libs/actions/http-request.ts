@@ -101,13 +101,13 @@ export const updateCockpitActions = (): void => {
 
 export const loadHttpRequestActionConfigs = (): void => {
   const savedActions = settingsManager.getKeyValue('cockpit-http-request-actions')
-  if (savedActions) {
-    registeredHttpRequestActionConfigs = JSON.parse(savedActions)
+  if (savedActions !== undefined) {
+    registeredHttpRequestActionConfigs = savedActions as Record<string, HttpRequestActionConfig>
   }
 }
 
 export const saveHttpRequestActionConfigs = (): void => {
-  settingsManager.setKeyValue('cockpit-http-request-actions', JSON.stringify(registeredHttpRequestActionConfigs))
+  settingsManager.setKeyValue('cockpit-http-request-actions', registeredHttpRequestActionConfigs)
 }
 
 export type HttpRequestActionCallback = () => void
