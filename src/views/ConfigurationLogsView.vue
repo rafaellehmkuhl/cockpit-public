@@ -434,7 +434,7 @@ const telemetryDisplayData = reactive(datalogger.telemetryDisplayData)
 
 watch(telemetryDisplayData, (newVal) => {
   console.log(`Updating telemetry display data to ${JSON.stringify(newVal)}`)
-  datalogger.updateTelemetryDisplayData(newVal)
+  datalogger.telemetryDisplayData = newVal
   updateVariables()
 })
 
@@ -442,7 +442,7 @@ const telemetryDisplayOptions = reactive(datalogger.telemetryDisplayOptions)
 
 watch(telemetryDisplayOptions, (newVal) => {
   console.log(`Updating telemetry display options to ${JSON.stringify(newVal)}`)
-  datalogger.updateTelemetryDisplayOptions(newVal)
+  datalogger.telemetryDisplayOptions = newVal
   updateVariables()
 })
 
@@ -454,7 +454,7 @@ const loggedVariables = ref<string[]>([])
 const originalLoggedVariables = ref<string[]>([])
 const otherLoggingElements = ref(otherAvailableLoggingElements)
 const originalOtherLoggingElements = ref(otherAvailableLoggingElements)
-const newFrequency = ref(datalogger.getFrequency())
+const newFrequency = ref(datalogger.frequency)
 const customMessageElements = ref<string[]>([])
 const newMessage = ref('')
 const dragPosition = ref(0)
@@ -584,7 +584,7 @@ const resetAllChips = (): void => {
 }
 
 watch(newFrequency, (newVal) => {
-  datalogger.setFrequency(newVal)
+  datalogger.frequency = newVal
 })
 
 const newFrequencyString = computed({

@@ -103,6 +103,7 @@ const onMouseMove = (e: MouseEvent): void => {
   customPosition.value = { left: newLeft, top: newTop }
 
   if (props.storageKey) {
+    // TODO: Use settings manager instead of localStorage
     localStorage.setItem(props.storageKey, JSON.stringify({ left: newLeft, top: newTop }))
   }
 }
@@ -188,6 +189,7 @@ onClickOutside(modal, () => {
 watch(isVisible, (newVal) => {
   if (newVal) {
     if (props.storageKey) {
+      // TODO: Use settings manager instead of localStorage
       const savedPosition = localStorage.getItem(props.storageKey)
       if (savedPosition) {
         const position = JSON.parse(savedPosition)

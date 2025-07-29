@@ -277,6 +277,7 @@ watch(
   () => userSettings.value,
   (value) => {
     Object.keys(value).forEach((key) => {
+      // TODO: Use settings manager instead of localStorage
       localStorage.setItem(key, isPrimitive(value[key]) ? value[key] : JSON.stringify(value[key]))
     })
   },
@@ -294,6 +295,7 @@ const isPrimitive = (val: any): boolean => val !== Object(val)
 
 const loadUserSettings = async (): Promise<void> => {
   const storedSettings: Record<string, any> = Object.keys(localStorage)
+    // TODO: Use settings manager instead of localStorage
     .filter((key) => key.startsWith('cockpit-'))
     .reduce((acc: Record<string, any>, key: string) => {
       const value = localStorage.getItem(key)

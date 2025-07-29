@@ -844,6 +844,7 @@ class SettingsManager {
 }
 
 export const settingsManager = new SettingsManager()
+console.log('[SettingsManager]', 'Settings manager initialized.')
 
 /**
  * Event handler for when a vehicle comes online
