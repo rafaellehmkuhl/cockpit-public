@@ -1,6 +1,5 @@
 import ky, { HTTPError } from 'ky'
 
-import { getDataLakeVariableData } from '@/libs/actions/data-lake'
 import { type ActionConfig } from '@/libs/joystick/protocols/cockpit-actions'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 import { useMissionStore } from '@/stores/mission'
@@ -363,12 +362,7 @@ export const deleteUsernameOnBlueOS = async (username: string): Promise<void> =>
 export const checkForOtherManualControlSources = async (): Promise<boolean> => {
   try {
     // Get vehicle address from data-lake
-    const vehicleAddressData = getDataLakeVariableData('vehicle-address')
-    const vehicleAddress = typeof vehicleAddressData === 'string' ? vehicleAddressData : undefined
-    if (!vehicleAddress) {
-      console.warn('Vehicle address not found in data-lake or is not a string')
-      return false
-    }
+    const vehicleAddress = await getVehicleAddress()
 
     // Try both component IDs (190 and 240)
     const componentIds = [190, 240]

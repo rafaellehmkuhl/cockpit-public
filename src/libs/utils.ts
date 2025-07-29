@@ -1,9 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useInteractionDialog } from '@/composables/interactionDialog'
-
-const { showDialog } = useInteractionDialog()
-
 export const constrain = (value: number, min: number, max: number): number => {
   return Math.max(Math.min(value, max), min)
 }
@@ -131,9 +127,6 @@ export const sleep = (delay: number): Promise<void> => {
  * @param {number} timeout The time to wait before reloading, in milliseconds. Default value is 500 ms.
  */
 export const reloadCockpit = (timeout = 3000): void => {
-  const restartMessage = `Restarting Cockpit in ${timeout / 1000} seconds...`
-  console.log(restartMessage)
-  showDialog({ message: restartMessage, variant: 'info', timer: timeout })
   setTimeout(() => location.reload(), timeout)
 }
 
