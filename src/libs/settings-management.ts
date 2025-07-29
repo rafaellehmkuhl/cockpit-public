@@ -100,8 +100,7 @@ class SettingsManager {
 
     this.keyValueUpdateTimeouts[key] = setTimeout(async () => {
       const newEpoch = epochChange !== undefined ? epochChange : Date.now()
-      const msg = `[SettingsManager] Updating value of key '${key}' for user '${userId}' and vehicle '${vehicleId}'.`
-      console.log(msg)
+      console.log(`[SettingsManager] Updating value of key '${key}' for user '${userId}' and vehicle '${vehicleId}'.`)
       const newSetting = {
         epochLastChangedLocally: newEpoch,
         value: value,
@@ -791,6 +790,10 @@ class SettingsManager {
     const vehicleId = await this.getVehicleIdFromVehicle(vehicleAddress)
     console.log('[SettingsManager]', 'Got vehicle ID:', vehicleId)
 
+    // Set the current vehicle ID
+    console.log(`[SettingsManager] Setting current vehicle ID to: '${vehicleId}'.`)
+    this.currentVehicle = vehicleId
+
     const newSettings: SettingsPackage = {}
 
     // First of all, sync settings with vehicle if possible, so we have both with the "best" values for that user/vehicle combination
@@ -809,7 +812,7 @@ class SettingsManager {
     this.setLocalSettingsForUserAndVehicle(this.currentUser, this.currentVehicle, newSettings)
 
     // Update last connected to current
-    this.saveLastConnectedVehicle(vehicleId)
+    this.saveLastConnectedVehicle(this.currentVehicle)
   }
 
   /**
