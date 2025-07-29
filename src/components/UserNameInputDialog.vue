@@ -99,6 +99,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useInteractionDialog } from '@/composables/interactionDialog'
 import { openSnackbar } from '@/composables/snackbar'
 import { deleteUsernameOnBlueOS, getSettingsUsernamesFromBlueOS } from '@/libs/blueos'
+import { settingsManager } from '@/libs/settings-management'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 import { useMissionStore } from '@/stores/mission'
 
@@ -157,7 +158,7 @@ const deleteUser = async (username: string): Promise<void> => {
             usernamesStoredOnBlueOS.value = (usernamesStoredOnBlueOS.value ?? []).filter((u) => u !== username)
           } catch (err) {
             try {
-              await loadUsernames()
+              await loadUsernamesFromBlueOS()
               openSnackbar({
                 message: `Failed deleting '${username}'. The list was refreshed. Please try again.`,
                 variant: 'error',
@@ -181,6 +182,13 @@ const deleteUser = async (username: string): Promise<void> => {
 const setNewUsername = (username: string): void => {
   newUsername.value = username
   emit('confirmed', username)
+}
+
+const loadLocalUsernames = (): void => {
+  const locallyStoredUsernames = Object.keys(settingsManager.getLocalSettings())
+  if (locallyStoredUsernames.length) {
+    usernamesStoredOnBlueOS.value = [...new Set([...(usernamesStoredOnBlueOS.value ?? []), ...locallyStoredUsernames])]
+  }
 }
 
 const loadUsernamesFromBlueOS = async (): Promise<void> => {
@@ -217,6 +225,7 @@ const handleEsc = (e: KeyboardEvent): void => {
 
 onMounted(() => {
   window.addEventListener('keydown', handleEsc)
+  loadLocalUsernames()
   if (mainVehicleStore.isVehicleOnline) {
     loadUsernamesFromBlueOS()
     getVehicleName()
