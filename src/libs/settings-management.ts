@@ -23,13 +23,15 @@ import {
 } from './blueos'
 import { deserialize, isEqual, sleep } from './utils'
 
-const syncedSettingsKey = 'cockpit-synced-settings'
-const cockpitLastConnectedVehicleKey = 'cockpit-last-connected-vehicle-id'
-const cockpitLastConnectedUserKey = 'cockpit-last-connected-user'
+export const oldStyleSettingsKey = 'cockpit-old-style-settings'
+export const syncedSettingsKey = 'cockpit-synced-settings'
+export const cockpitLastConnectedVehicleKey = 'cockpit-last-connected-vehicle-id'
+export const cockpitLastConnectedUserKey = 'cockpit-last-connected-user'
+export const fallbackUsername = 'fallback-user'
+export const fallbackVehicleId = 'fallback-vehicle'
 const nullValue = 'null'
-const possibleNullValues = [nullValue, null, undefined, '']
+const possibleNullValues = [fallbackUsername, fallbackVehicleId, nullValue, null, undefined, '']
 const keyValueUpdateDebounceTime = 100
-const oldStyleSettingsKey = 'cockpit-old-style-settings'
 
 /**
  * Manager for synced settings
@@ -51,8 +53,8 @@ const oldStyleSettingsKey = 'cockpit-old-style-settings'
  * newest epoch is preferred. If the epochs are the same, the value from the vehicle are preferred.
  */
 class SettingsManager {
-  public currentUser: string = nullValue
-  public currentVehicle: string = nullValue
+  public currentUser: string = fallbackUsername
+  public currentVehicle: string = fallbackVehicleId
   private listeners: SettingsListeners = {}
   private keyValueUpdateTimeouts: Record<string, ReturnType<typeof setTimeout>> = {}
   private lastLocalUserVehicleSettings: SettingsPackage = {}
@@ -65,6 +67,7 @@ class SettingsManager {
   constructor() {
     console.log('[SettingsManager]', 'Initializing settings manager.')
     this.initLocalSettings()
+    console.log('[SettingsManager]', 'Settings manager initialized.')
   }
 
   /**
@@ -82,11 +85,11 @@ class SettingsManager {
     userId?: string,
     vehicleId?: string
   ): Promise<void> => {
-    if (userId === undefined || userId === null || userId === '') {
-      userId = this.currentUser || nullValue
+    if (this.isNullValue(userId)) {
+      userId = this.currentUser || fallbackUsername
     }
-    if (vehicleId === undefined || vehicleId === null || vehicleId === '') {
-      vehicleId = this.currentVehicle || nullValue
+    if (this.isNullValue(vehicleId)) {
+      vehicleId = this.currentVehicle || fallbackVehicleId
     }
     if (this.keyValueUpdateTimeouts[key]) {
       clearTimeout(this.keyValueUpdateTimeouts[key])
@@ -190,6 +193,10 @@ class SettingsManager {
 
     localSettings[userId][vehicleId] = settings
     this.setLocalSettings(localSettings)
+  }
+
+  private isNullValue = (value: string | undefined | null): boolean => {
+    return possibleNullValues.includes(value) || value === undefined
   }
 
   /**
@@ -506,7 +513,7 @@ class SettingsManager {
   }
 
   private hasVehicleAddress = (): boolean => {
-    return ![nullValue, undefined, null, ''].includes(this.currentVehicleAddress)
+    return !this.isNullValue(this.currentVehicleAddress)
   }
 
   /**
@@ -704,7 +711,7 @@ class SettingsManager {
     if (oldStyleSettingsBackup && Object.keys(deserialize(oldStyleSettingsBackup)).length > 0) {
       console.log('[SettingsManager]', 'Found a backup of cockpit old style settings. Skipping creation of a new one.')
     } else {
-      console.log('[SettingsManager]', 'Did not find a backup for cockpit old style settings. Creating one.')
+      console.warn('[SettingsManager]', 'Did not find a backup for cockpit old style settings. Creating one.')
       // Store all local storage key-value pairs under the key 'cockpit-old-style-settings'
       const oldStyleSettings: Record<string, any> = {}
       for (const key of Object.keys(localStorage).filter((k) => k !== syncedSettingsKey && k !== oldStyleSettingsKey)) {
@@ -719,9 +726,9 @@ class SettingsManager {
     // Load last connected user from storage
     console.log('[SettingsManager]', 'Retrieving last connected user from storage.')
     const storedLastConnectedUser = this.retrieveLastConnectedUser()
-    if (possibleNullValues.includes(storedLastConnectedUser)) {
-      console.log('[SettingsManager]', 'No last connected user found in storage. Setting to null user.')
-      this.currentUser = nullValue
+    if (this.isNullValue(storedLastConnectedUser)) {
+      console.log('[SettingsManager]', 'No last connected user found in storage. Setting to fallback user.')
+      this.currentUser = fallbackUsername
     } else {
       console.log('[SettingsManager]', `Last connected user found in storage: '${storedLastConnectedUser}'.`)
       this.currentUser = storedLastConnectedUser as string
@@ -730,9 +737,9 @@ class SettingsManager {
     // Load last connected vehicle from storage
     console.log('[SettingsManager]', 'Retrieving last connected vehicle from storage.')
     const storedLastConnectedVehicle = this.retrieveLastConnectedVehicle()
-    if (possibleNullValues.includes(storedLastConnectedVehicle)) {
-      console.log('[SettingsManager]', 'No last connected vehicle found in storage. Setting to null vehicle.')
-      this.currentVehicle = nullValue
+    if (this.isNullValue(storedLastConnectedVehicle)) {
+      console.log('[SettingsManager]', 'No last connected vehicle found in storage. Setting to fallback vehicle.')
+      this.currentVehicle = fallbackVehicleId
     } else {
       console.log('[SettingsManager]', `Last connected vehicle found in storage: '${storedLastConnectedVehicle}'.`)
       this.currentVehicle = storedLastConnectedVehicle as string
@@ -803,7 +810,7 @@ class SettingsManager {
   public handleUserChanging = async (username: string): Promise<void> => {
     console.log('[SettingsManager]', `Will handle user change from '${this.currentUser}' to '${username}'.`)
     const previousUser = this.retrieveLastConnectedUser()
-    this.currentUser = username || nullValue
+    this.currentUser = username || fallbackUsername
     console.log('[SettingsManager]', `User changed to '${this.currentUser}'.`)
 
     let newSettings: SettingsPackage = {}
@@ -837,9 +844,9 @@ class SettingsManager {
         const lastUserSettings = this.getSettingsForUserAndVehicle(previousUser, this.currentVehicle)
         newSettings = this.getMergedSettings(lastUserSettings, newSettings)
       } else {
-        console.log(`[SettingsManager] No settings found for last connected user. Copying from null user.`)
-        const nullUserSettings = this.getSettingsForUserAndVehicle(nullValue, this.currentVehicle)
-        newSettings = this.getMergedSettings(nullUserSettings, newSettings)
+        console.log(`[SettingsManager] No settings found for last connected user. Copying from fallback user.`)
+        const fallbackUserSettings = this.getSettingsForUserAndVehicle(fallbackUsername, this.currentVehicle)
+        newSettings = this.getMergedSettings(fallbackUserSettings, newSettings)
       }
     }
 
@@ -887,7 +894,6 @@ class SettingsManager {
 }
 
 export const settingsManager = new SettingsManager()
-console.log('[SettingsManager]', 'Settings manager initialized.')
 
 /**
  * Event handler for when a vehicle comes online
