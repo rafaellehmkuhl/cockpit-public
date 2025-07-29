@@ -55,6 +55,17 @@ function createWindow(): void {
 
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
+    // Open dev tools in development mode and switch to console tab
+    mainWindow.webContents.openDevTools({ mode: 'bottom', activate: true })
+    mainWindow.webContents.once('devtools-opened', () => {
+      // Switch to console panel
+      mainWindow!.webContents.devToolsWebContents?.executeJavaScript(`
+        DevToolsAPI.showPanel('console');
+      `)
+    })
+
+    mainWindow.setSize(1912, 2125)
+    mainWindow.setPosition(-1027, -2130)
   } else {
     mainWindow.loadFile(join(ROOT_PATH.dist, 'index.html'))
   }
