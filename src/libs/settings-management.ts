@@ -22,12 +22,15 @@ import {
   setKeyDataOnCockpitVehicleStorage,
 } from './blueos'
 import { deserialize, isEqual, sleep } from './utils'
+
 const syncedSettingsKey = 'cockpit-synced-settings'
 const cockpitLastConnectedVehicleKey = 'cockpit-last-connected-vehicle-id'
 const cockpitLastConnectedUserKey = 'cockpit-last-connected-user'
 const nullValue = 'null'
+const possibleNullValues = [nullValue, null, undefined, '']
 const keyValueUpdateDebounceTime = 100
 const oldStyleSettingsKey = 'cockpit-old-style-settings'
+
 /**
  * Manager for synced settings
  *
@@ -244,18 +247,20 @@ class SettingsManager {
    */
   private backupLocalOldStyleSettingsIfNeeded = (): void => {
     // Store all local storage key-value pairs under the key 'cockpit-old-style-settings'
-    if (!localStorage.getItem(oldStyleSettingsKey)) {
-      console.log('[SettingsManager]', 'No backup for old-style settings found. Creating one.')
-
-      const oldStyleSettings: Record<string, any> = {}
-      for (const key of Object.keys(localStorage).filter((k) => k !== syncedSettingsKey && k !== oldStyleSettingsKey)) {
-        const value = localStorage.getItem(key)
-        if (value) {
-          oldStyleSettings[key] = deserialize(value)
-        }
-      }
-      localStorage.setItem(oldStyleSettingsKey, JSON.stringify(oldStyleSettings))
+    if (localStorage.getItem(oldStyleSettingsKey)) {
+      console.log('[SettingsManager]', 'Found a backup of cockpit old style settings. Skipping creation of a new one.')
+      return
     }
+
+    console.log('[SettingsManager]', 'Did not find a backup for cockpit old style settings. Creating one.')
+    const oldStyleSettings: Record<string, any> = {}
+    for (const key of Object.keys(localStorage).filter((k) => k !== syncedSettingsKey && k !== oldStyleSettingsKey)) {
+      const value = localStorage.getItem(key)
+      if (value) {
+        oldStyleSettings[key] = deserialize(value)
+      }
+    }
+    localStorage.setItem(oldStyleSettingsKey, JSON.stringify(oldStyleSettings))
   }
 
   private getMigrateOldStyleSettingsPackage = (): SettingsPackage => {
@@ -281,10 +286,10 @@ class SettingsManager {
     // Check if we have settings for current user/vehicle
     if (this.hasSettingsForUserAndVehicle(userId, vehicleId)) {
       // We are good to go
-      console.log('[SettingsManager]', 'We have settings for current user/vehicle. No need for migrations.')
+      console.log('[SettingsManager]', `We have settings for user '${userId}' and vehicle '${vehicleId}'. No need for migrations.`)
     } else {
       // Migrate all old-style local settings to the new format
-      console.log(`[SettingsManager] No settings for current user/vehicle. Migrating old-style settings.`)
+      console.log(`[SettingsManager] No settings for user '${userId}' and vehicle '${vehicleId}'. Migrating old-style settings.`)
       const newSettings = this.getMigrateOldStyleSettingsPackage()
       // TODO: Run without the side effect or it will break stuff
       this.setLocalSettingsForUserAndVehicle(userId, vehicleId, newSettings)
@@ -315,7 +320,7 @@ class SettingsManager {
    */
   private hasSettingsForUserAndVehicle = (userId: string, vehicleId: string): boolean => {
     const localSettings = this.getLocalSettings()
-    return Boolean(localSettings[userId] && localSettings[userId][vehicleId])
+    return Boolean(localSettings[userId]) && Boolean(localSettings[userId][vehicleId])
   }
 
   private getSettingsForUserAndVehicle = (userId: string, vehicleId: string): SettingsPackage => {
@@ -701,12 +706,25 @@ class SettingsManager {
     this.backupLocalOldStyleSettingsIfNeeded()
 
     // Load last connected user from storage
-    console.log('[SettingsManager]', 'Retrieving last connected user and vehicle.')
+    console.log('[SettingsManager]', 'Retrieving last connected user from storage.')
     const storedLastConnectedUser = this.retrieveLastConnectedUser()
+    if (possibleNullValues.includes(storedLastConnectedUser)) {
+      console.log('[SettingsManager]', 'No last connected user found in storage. Setting to null user.')
+      this.currentUser = nullValue
+    } else {
+      console.log('[SettingsManager]', `Last connected user found in storage: '${storedLastConnectedUser}'.`)
+      this.currentUser = storedLastConnectedUser as string
+    }
+
+    console.log('[SettingsManager]', 'Retrieving last connected vehicle from storage.')
     const storedLastConnectedVehicle = this.retrieveLastConnectedVehicle()
-    this.currentUser = storedLastConnectedUser || nullValue
-    this.currentVehicle = storedLastConnectedVehicle || nullValue
-    console.log('[SettingsManager]', `Initiating with user '${this.currentUser}' and vehicle '${this.currentVehicle}'.`)
+    if (possibleNullValues.includes(storedLastConnectedVehicle)) {
+      console.log('[SettingsManager]', 'No last connected vehicle found in storage. Setting to null vehicle.')
+      this.currentVehicle = nullValue
+    } else {
+      console.log('[SettingsManager]', `Last connected vehicle found in storage: '${storedLastConnectedVehicle}'.`)
+      this.currentVehicle = storedLastConnectedVehicle as string
+    }
 
     this.generateSomeNewSettingsForUserAndVehicleIfNeeded(this.currentUser, this.currentVehicle)
   }
@@ -758,7 +776,7 @@ class SettingsManager {
    * @param {string} username - The new username
    */
   public handleUserChanging = async (username: string): Promise<void> => {
-    console.log('[SettingsManager]', `Handling user change from '${this.currentUser}' to '${username}'.`)
+    console.log('[SettingsManager]', `Will handle user change from '${this.currentUser}' to '${username}'.`)
     const previousUser = this.retrieveLastConnectedUser()
     this.currentUser = username || nullValue
     console.log('[SettingsManager]', `User changed to '${this.currentUser}'.`)
@@ -851,6 +869,7 @@ console.log('[SettingsManager]', 'Settings manager initialized.')
  * @param event - The custom event containing vehicle address
  */
 window.addEventListener('vehicle-online', async (event: VehicleOnlineEvent) => {
+  console.log('[SettingsManager]', `Vehicle online event received. Will handle vehicle getting online with address '${event.detail.vehicleAddress}'.`)
   await settingsManager.handleVehicleGettingOnline(event.detail.vehicleAddress)
 })
 
@@ -859,6 +878,7 @@ window.addEventListener('vehicle-online', async (event: VehicleOnlineEvent) => {
  * @param event - The custom event containing username
  */
 window.addEventListener('user-changed', (event: UserChangedEvent) => {
+  console.log('[SettingsManager]', `User change event received. Will handle user change from '${settingsManager.currentUser}' to '${event.detail.username}'.`)
   settingsManager.handleUserChanging(event.detail.username)
 })
 
@@ -867,5 +887,6 @@ window.addEventListener('user-changed', (event: UserChangedEvent) => {
  * @param event - The custom event containing new settings
  */
 window.addEventListener('storage', () => {
+  console.log('[SettingsManager]', 'Storage change event received. Will handle storage change.')
   settingsManager.handleStorageChanging()
 })
