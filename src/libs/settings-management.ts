@@ -60,6 +60,7 @@ class SettingsManager {
   private lastLocalUserVehicleSettings: SettingsPackage = {}
   private currentVehicleAddress: string = nullValue
   private keyValueVehicleUpdateQueue: KeyValueVehicleUpdateQueue = {}
+  private initialLoadingComplete = false
 
   /**
    * Constructor for the SettingsManager
@@ -67,6 +68,7 @@ class SettingsManager {
   constructor() {
     console.log('[SettingsManager]', 'Initializing settings manager.')
     this.initLocalSettings()
+    this.initialLoadingComplete = true
     console.log('[SettingsManager]', 'Settings manager initialized.')
   }
 
@@ -91,9 +93,11 @@ class SettingsManager {
     if (this.isNullValue(vehicleId)) {
       vehicleId = this.currentVehicle || fallbackVehicleId
     }
+
     if (this.keyValueUpdateTimeouts[key]) {
       clearTimeout(this.keyValueUpdateTimeouts[key])
     }
+
     this.keyValueUpdateTimeouts[key] = setTimeout(async () => {
       const newEpoch = epochChange !== undefined ? epochChange : Date.now()
       const msg = `[SettingsManager] Updating value of key '${key}' for user '${userId}' and vehicle '${vehicleId}'.`
@@ -103,10 +107,11 @@ class SettingsManager {
         value: value,
       }
       const localSettings = this.getLocalSettings()
-      localSettings[userId][vehicleId][key] = newSetting
+      localSettings[userId!][vehicleId!][key] = newSetting
       this.setLocalSettings(localSettings)
+      this.performSideEffectOfSettingLocalSettings()
 
-      this.pushKeyValueUpdateToVehicleUpdateQueue(vehicleId, userId, key, value, newEpoch)
+      this.pushKeyValueUpdateToVehicleUpdateQueue(vehicleId!, userId!, key, value, newEpoch)
     }, keyValueUpdateDebounceTime)
   }
 
@@ -204,6 +209,10 @@ class SettingsManager {
    * @returns {void}
    */
   private performSideEffectOfSettingLocalSettings = (): void => {
+    if (!this.initialLoadingComplete) {
+      return
+    }
+
     const settings = this.getLocalSettings()
     if (this.lastLocalUserVehicleSettings !== undefined && Object.keys(settings).length > 0) {
       if (settings[this.currentUser] && settings[this.currentUser][this.currentVehicle]) {
@@ -860,6 +869,7 @@ class SettingsManager {
     }
 
     this.setLocalSettingsForUserAndVehicle(this.currentUser, this.currentVehicle, newSettings)
+    this.performSideEffectOfSettingLocalSettings()
 
     this.saveLastConnectedUser(this.currentUser)
   }
