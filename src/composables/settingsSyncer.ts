@@ -7,9 +7,6 @@ import { settingsManager } from '@/libs/settings-management'
 import { deserialize, isEqual } from '@/libs/utils'
 import type { CockpitSetting } from '@/types/settings-management'
 
-let lastUsernameWaitingLogDate: Date = new Date()
-let lastVehicleIdWaitingLogDate: Date = new Date()
-
 /**
  * This composable will keep a setting in sync between the browser's local storage and BlueOS.
  *
@@ -34,15 +31,15 @@ export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): Rem
   let valueToBeUsedOnStart: T | undefined = undefined
 
   if (valueOnLocalStorage === undefined) {
-    console.log(`settingsSyncer: Key ${key} not found on settings manager. Checking for old style value.`)
+    console.log(`[SettingsSyncer] Key ${key} not found on settings manager. Checking for old style value.`)
     const oldStyleValue = localStorage.getItem(key)
     if (oldStyleValue) {
-      console.log(`settingsSyncer: Key ${key} found on old style. Migrating to new style.`)
+      console.log(`[SettingsSyncer] Key ${key} found on old style. Migrating to new style.`)
       // If the value is not yet defined here, set to the default value
       // Set the epoch to 0 so it's considered old till changed by the user
       settingsManager.setKeyValue(key, deserialize(oldStyleValue), 0)
     } else {
-      console.log(`settingsSyncer: Key ${key} not found on old style. Setting to default value.`)
+      console.log(`[SettingsSyncer] Key ${key} not found on old style. Setting to default value.`)
       settingsManager.setKeyValue(key, unrefedDefaultValue, 0)
     }
     valueToBeUsedOnStart = unrefedDefaultValue as T
@@ -80,7 +77,7 @@ export function useBlueOsStorage<T>(key: string, defaultValue: MaybeRef<T>): Rem
           const truncatedDiff = diffLines.slice(0, 14).join('\n') + '\n...'
           diffToPrint = truncatedDiff
         }
-        console.log(`settingsSyncer: Key ${key} changed on watch:\n${diffToPrint}.`)
+        console.log(`[SettingsSyncer] Key ${key} changed on watch:\n${diffToPrint}.`)
         settingsManager.setKeyValue(key, newValue)
         oldRefedValue = deserialize(JSON.stringify(newValue)) as T
       }, 100)
