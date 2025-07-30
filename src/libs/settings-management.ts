@@ -1,3 +1,4 @@
+/* eslint-disable vue/max-len, prettier/prettier, max-len */
 import { v4 as uuidv4 } from 'uuid'
 
 import {
@@ -610,7 +611,6 @@ class SettingsManager {
           console.debug(`[SettingsManager] No vehicle setting.`)
         }
 
-        /* eslint-disable vue/max-len, prettier/prettier, max-len */
         switch (true) {
           case hasLocalSetting && hasVehicleSetting && isEqual(localSetting, vehicleSetting):
             console.info(`[SettingsManager] Setting key '${key}' to local version (both local and vehicle versions are defined and equal).`)
@@ -642,7 +642,6 @@ class SettingsManager {
             }
             break
         }
-        /* eslint-enable vue/max-len, prettier/prettier, max-len */
       })
     }
 
@@ -733,6 +732,7 @@ class SettingsManager {
           console.warn(`[SettingsManager] No settings for user '${fallbackUsername}' and vehicle '${fallbackVehicleId}'. Migrating old-style settings.`)
           const oldStyleSettings: OldCockpitSettingsPackage = deserialize(localStorage.getItem(oldStyleSettingsKey)!)
           fallbackSettings = this.getMigratedOldStyleSettingsPackage(oldStyleSettings)
+          console.info(`[SettingsManager] Successfully migrated old-style settings to new style.`)
         }
       }
 
@@ -780,7 +780,12 @@ class SettingsManager {
 
     for (const combination of userVehicleCombinationsToTryInOrder) {
       if (combination.user && combination.vehicle && this.hasSettingsForUserAndVehicle(combination.user, combination.vehicle)) {
-        console.info(`[SettingsManager] Found settings for user '${combination.user}' and vehicle '${combination.vehicle}'.`)
+        const isFallback = combination.user !== this.currentUser && combination.vehicle !== this.currentVehicle
+        if (isFallback) {
+          console.info(`[SettingsManager] Found settings for user '${combination.user}' and vehicle '${combination.vehicle}'.`)
+        } else {
+          console.info(`[SettingsManager] Falling back to settings for user '${combination.user}' and vehicle '${combination.vehicle}'.`)
+        }
         toBeUsedUser = combination.user
         toBeUsedVehicle = combination.vehicle
         break
@@ -797,6 +802,7 @@ class SettingsManager {
       console.warn(`[SettingsManager] No settings found for any user/vehicle combination. Migrating old-style settings.`)
       const oldStyleSettings: OldCockpitSettingsPackage = deserialize(localStorage.getItem(oldStyleSettingsKey)!)
       toBeUsedSettings = this.getMigratedOldStyleSettingsPackage(oldStyleSettings)
+      console.info(`[SettingsManager] Successfully migrated old-style settings to new style.`)
     }
 
     // Set the local settings for the user/vehicle combination that we found (or the migrated old-style settings)
