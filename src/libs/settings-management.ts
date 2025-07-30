@@ -361,26 +361,15 @@ class SettingsManager {
   }
 
   private getValidSettingsFromVehicle = async (vehicleAddress: string): Promise<VehicleSettings> => {
-    let settings = {}
-    let successGettingSettings = false
-
-    while (!successGettingSettings) {
-      try {
-        settings = await getKeyDataFromCockpitVehicleStorage(vehicleAddress, 'settings')
-        successGettingSettings = true
-      } catch (error) {
-        if ((error as Error).name === NoPathInBlueOsErrorName) {
-          // No settings found on vehicle. Consider it empty.
-          settings = {}
-        } else {
-          // We had an error getting the settings from the vehicle. We cannot continue otherwise we can be wrongly overwriding the vehicle settings.
-          console.warn(`[SettingsManager] Error getting settings from vehicle. ${error}. Will try again in 1 second...`)
-          await sleep(1000)
-        }
-      }
+    // eslint-disable-next-line vue/max-len, prettier/prettier, max-len
+    const getSettingsFn = (): Promise<VehicleSettings | undefined> => getKeyDataFromCockpitVehicleStorage(vehicleAddress, 'settings')
+    const maybeSettings = await tryACoupleOfTimes(getSettingsFn, 0, 300)
+    if (maybeSettings !== undefined) {
+      return maybeSettings
+    } else {
+      console.warn(`[SettingsManager] No settings found on vehicle. Using empty settings.`)
+      return {}
     }
-
-    return settings
   }
 
   private confirmVehicleIdOrThrow = async (vehicleAddress: string, vehicleId: string): Promise<void> => {
@@ -403,42 +392,26 @@ class SettingsManager {
   }
 
   private getVehicleIdFromVehicle = async (vehicleAddress: string): Promise<string> => {
-    let successGettingId = false
-    let maybeId = undefined
-
-    while (!successGettingId) {
-      try {
-        maybeId = await getKeyDataFromCockpitVehicleStorage(vehicleAddress, 'cockpit-vehicle-id')
-        if (typeof maybeId === 'string') {
-          successGettingId = true
-        } else {
-          maybeId = undefined
-          throw new Error('Vehicle ID is not a string.')
-        }
-      } catch (idFetchError) {
-        console.error(`Could not get vehicle ID. ${(idFetchError as Error).message}. Will try again in 1 second...`)
-        await sleep(1000)
-      }
+    // eslint-disable-next-line vue/max-len, prettier/prettier, max-len
+    const getVehicleIdFn = (): Promise<string | undefined> => getKeyDataFromCockpitVehicleStorage(vehicleAddress, 'cockpit-vehicle-id')
+    const maybeId = await tryACoupleOfTimes(getVehicleIdFn, 0, 300)
+    if (typeof maybeId === 'string') {
+      return maybeId
+    } else {
+      console.error(`[SettingsManager] Vehicle ID is not defined. Generating a new one.`)
+      return this.generateAndPushNewVehicleId(vehicleAddress)
     }
-
-    return maybeId
   }
 
   private generateAndPushNewVehicleId = async (vehicleAddress: string): Promise<string> => {
     const newVehicleId = uuidv4()
     console.log(`Trying to set new vehicle ID '${newVehicleId}' on vehicle '${vehicleAddress}'.`)
 
-    let successSettingId = false
-    while (!successSettingId) {
-      try {
-        await setKeyDataOnCockpitVehicleStorage(vehicleAddress, 'cockpit-vehicle-id', newVehicleId)
-        successSettingId = true
-      } catch (idSetError) {
-        console.error(`Could not set vehicle ID in storage. ${(idSetError as Error).message}`)
-        console.log('Will try setting the vehicle ID again in 1 second...')
-        await sleep(1000)
-      }
-    }
+    // eslint-disable-next-line vue/max-len, prettier/prettier, max-len
+    const setVehicleIdFn = (): Promise<void> => setKeyDataOnCockpitVehicleStorage(vehicleAddress, 'cockpit-vehicle-id', newVehicleId)
+    await tryACoupleOfTimes(setVehicleIdFn, 0, 300)
+
+    console.log(`Successfully set new vehicle ID '${newVehicleId}' on vehicle '${vehicleAddress}'.`)
 
     return newVehicleId
   }
@@ -463,11 +436,7 @@ class SettingsManager {
     }
 
     // Let's first get the settings from the vehicle, so we only update the settings that have changed
-    let vehicleSettings = await this.getValidSettingsFromVehicle(vehicleAddress)
-    if (vehicleSettings === undefined) {
-      console.warn('No vehicle settings found. Using empty settings.')
-      vehicleSettings = {}
-    }
+    const vehicleSettings = await this.getValidSettingsFromVehicle(vehicleAddress)
     await this.confirmVehicleIdOrThrow(vehicleAddress, vehicleId)
 
     while (Object.keys(this.keyValueVehicleUpdateQueue[vehicleId][userId]).length !== 0) {
@@ -531,11 +500,10 @@ class SettingsManager {
       return
     }
 
-    // eslint-disable-next-line vue/max-len, prettier/prettier, max-len
-    const getSettingsFn = (): Promise<VehicleSettings> => getKeyDataFromCockpitVehicleStorage(vehicleAddress, vehicleNewStyleSettingsKey)
-    const vehicleSettings = await tryACoupleOfTimes(getSettingsFn, 0, 300)
+    console.info('[SettingsManager] Retrieving current vehicle settings.')
+    const vehicleSettings = await this.getValidSettingsFromVehicle(vehicleAddress)
 
-    if (vehicleSettings === undefined) {
+    if (Object.keys(vehicleSettings).length === 0) {
       console.warn('[SettingsManager] No vehicle settings found. Skipping backup.')
       return
     } else if (this.areVehicleSettingsInNewStyle(vehicleSettings)) {
@@ -543,7 +511,7 @@ class SettingsManager {
       return
     }
 
-    console.info(`[SettingsManager] No old-style settings backup found on vehicle. Backing up current settings.`)
+    console.info('[SettingsManager] No old-style settings backup found on vehicle. Backing up current settings.')
 
     // eslint-disable-next-line vue/max-len, prettier/prettier, max-len
     const setOldStyleSettingsFn = (): Promise<void> => setKeyDataOnCockpitVehicleStorage(vehicleAddress, vehicleOldStyleSettingsKey, vehicleSettings)
@@ -552,13 +520,10 @@ class SettingsManager {
   }
 
   private migrateOldStyleVehicleSettingsIfNeeded = async (vehicleAddress: string): Promise<void> => {
-    console.info(`[SettingsManager] Checking if vehicle settings are in the new style already.`)
+    console.info('[SettingsManager] Checking if vehicle settings are in the new style already.')
 
-    // eslint-disable-next-line vue/max-len, prettier/prettier, max-len
-    const getSettingsFn = (): Promise<VehicleSettings> => getKeyDataFromCockpitVehicleStorage(vehicleAddress, vehicleNewStyleSettingsKey)
-    const vehicleSettings = await tryACoupleOfTimes(getSettingsFn, 0, 300)
-
-    if (vehicleSettings === undefined) {
+    const vehicleSettings = await this.getValidSettingsFromVehicle(vehicleAddress)
+    if (Object.keys(vehicleSettings).length === 0) {
       console.warn('[SettingsManager] No settings found on vehicle. Skipping migration.')
       return
     }
