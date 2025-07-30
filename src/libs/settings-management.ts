@@ -596,24 +596,24 @@ class SettingsManager {
         const vehicleSetting = vehicleUserSettings[key]
         const localSetting = localUserVehicleSettings[key]
 
-        /* eslint-disable vue/max-len, prettier/prettier, max-len */
-        const hasVehicleSetting = vehicleSetting !== undefined
         const hasLocalSetting = localSetting !== undefined
-
         if (hasLocalSetting) {
-          console.debug(`[SettingsManager] Local setting: ${JSON.stringify(localSetting)}. epochLastChangedLocally: ${localSetting.epochLastChangedLocally}.`)
+          console.debug(`[SettingsManager] Has local setting with epoch ${localSetting.epochLastChangedLocally}.`)
         } else {
           console.debug(`[SettingsManager] No local setting.`)
         }
+
+        const hasVehicleSetting = vehicleSetting !== undefined
         if (hasVehicleSetting) {
-          console.debug(`[SettingsManager] Vehicle setting: ${JSON.stringify(vehicleSetting)}. epochLastChangedLocally: ${vehicleSetting.epochLastChangedLocally}.`)
+          console.debug(`[SettingsManager] Has vehicle setting with epoch ${vehicleSetting.epochLastChangedLocally}.`)
         } else {
           console.debug(`[SettingsManager] No vehicle setting.`)
         }
 
+        /* eslint-disable vue/max-len, prettier/prettier, max-len */
         switch (true) {
           case hasLocalSetting && hasVehicleSetting && isEqual(localSetting, vehicleSetting):
-            console.debug(`[SettingsManager] Setting key '${key}' to local version (both local and vehicle versions are defined and equal).`)
+            console.info(`[SettingsManager] Setting key '${key}' to local version (both local and vehicle versions are defined and equal).`)
             mergedSettings[user][vehicleId][key] = localSetting
             break
           case !hasLocalSetting && !hasVehicleSetting:
@@ -638,10 +638,11 @@ class SettingsManager {
           default:
             mergedSettings[user][vehicleId][key] = {
               epochLastChangedLocally: 0,
-              value: vehicleSetting,
+              value: vehicleSetting.value,
             }
             break
         }
+        /* eslint-enable vue/max-len, prettier/prettier, max-len */
       })
     }
 
