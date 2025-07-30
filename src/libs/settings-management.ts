@@ -847,6 +847,9 @@ class SettingsManager {
     // Update last connected vehicle to the current one
     this.saveLastConnectedVehicle(this.currentVehicle)
 
+    // Apply side effect of setting local settings
+    this.performSideEffectOfSettingLocalSettings()
+
     console.info('[SettingsManager] Successfully synced settings with vehicle!')
   }
 
