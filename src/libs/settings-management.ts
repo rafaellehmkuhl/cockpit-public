@@ -612,30 +612,35 @@ class SettingsManager {
         }
 
         switch (true) {
-          case hasLocalSetting && hasVehicleSetting && isEqual(localSetting, vehicleSetting):
-            console.info(`[SettingsManager] Setting key '${key}' to local version (both local and vehicle versions are defined and equal).`)
+          case hasLocalSetting && hasVehicleSetting && isEqual(localSetting.value, vehicleSetting.value):
+            console.debug(`[SettingsManager] Setting key '${key}' to local version (both local and vehicle versions are defined and equal).`)
             mergedSettings[user][vehicleId][key] = localSetting
             break
           case !hasLocalSetting && !hasVehicleSetting:
-            console.info(`[SettingsManager] Skipping key '${key}' (both local and vehicle versions are undefined).`)
+            console.debug(`[SettingsManager] Skipping key '${key}' (both local and vehicle versions are undefined).`)
             break
           case hasLocalSetting && !hasVehicleSetting:
-            console.info(`[SettingsManager] Setting key '${key}' to local version (local version is defined and vehicle version is undefined or old).`)
+            console.debug(`[SettingsManager] Setting key '${key}' to local version (local version is defined and vehicle version is undefined or old).`)
             mergedSettings[user][vehicleId][key] = localSetting
             break
           case !hasLocalSetting && hasVehicleSetting:
-            console.info(`[SettingsManager] Setting key '${key}' to vehicle version (vehicle version is defined and local version is undefined or old).`)
+            console.debug(`[SettingsManager] Setting key '${key}' to vehicle version (vehicle version is defined and local version is undefined or old).`)
             mergedSettings[user][vehicleId][key] = vehicleSetting
             break
-          case hasLocalSetting && localSetting.epochLastChangedLocally > vehicleSetting.epochLastChangedLocally:
-            console.info(`[SettingsManager] Setting key '${key}' to local version (local version is newer than vehicle version).`)
+          case localSetting.epochLastChangedLocally > vehicleSetting.epochLastChangedLocally:
+            console.debug(`[SettingsManager] Setting key '${key}' to local version (local version is newer than vehicle version).`)
             mergedSettings[user][vehicleId][key] = localSetting
             break
-          case hasVehicleSetting && vehicleSetting.epochLastChangedLocally > localSetting.epochLastChangedLocally:
-            console.info(`[SettingsManager] Setting key '${key}' to vehicle version (vehicle version is newer than local version).`)
+          case vehicleSetting.epochLastChangedLocally > localSetting.epochLastChangedLocally:
+            console.debug(`[SettingsManager] Setting key '${key}' to vehicle version (vehicle version is newer than local version).`)
+            mergedSettings[user][vehicleId][key] = vehicleSetting
+            break
+          case localSetting.epochLastChangedLocally === vehicleSetting.epochLastChangedLocally:
+            console.debug(`[SettingsManager] Setting key '${key}' to vehicle version (both versions have the same epoch).`)
             mergedSettings[user][vehicleId][key] = vehicleSetting
             break
           default:
+            console.debug(`[SettingsManager] Setting key '${key}' to vehicle version (default case).`)
             mergedSettings[user][vehicleId][key] = {
               epochLastChangedLocally: 0,
               value: vehicleSetting.value,
@@ -812,6 +817,8 @@ class SettingsManager {
     console.log('[SettingsManager]', `Getting best settings between local and vehicle for user '${this.currentUser}' and vehicle '${this.currentVehicle}'.`)
     const bestSettingsWithVehicle = await this.getBestSettingsBetweenLocalAndVehicle(vehicleAddress, vehicleId)
     const bestSettingsForCurrentUserAndVehicle = bestSettingsWithVehicle[this.currentUser][this.currentVehicle]
+    console.debug(`[SettingsManager] Best settings for current user and vehicle:`)
+    console.debug(JSON.stringify(bestSettingsForCurrentUserAndVehicle, null, 2))
 
     // Set the local settings to the best settings between local and vehicle for the current user and vehicle
     this.setLocalSettingsForUserAndVehicle(this.currentUser, this.currentVehicle, bestSettingsForCurrentUserAndVehicle)
