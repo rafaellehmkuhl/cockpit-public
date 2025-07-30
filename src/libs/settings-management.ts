@@ -475,14 +475,23 @@ class SettingsManager {
 
   private areVehicleSettingsInNewStyle = (vehicleSettings: VehicleSettings): boolean => {
     // Check if there are keys (users) in the vehicle settings
-    if (Object.keys(vehicleSettings).length === 0) {
-      return false
+    const users = Object.keys(vehicleSettings)
+    if (users.length === 0) {
+      console.debug('[SettingsManager] No users found in vehicle settings. Assuming this is compliant with the new style.')
+      return true
     }
 
     // Check if the values are SettingsPackage
-    return Object.values(vehicleSettings).every((userSettings) => {
-      return userSettings.epochLastChangedLocally !== undefined
-    })
+    for (const user of users) {
+      const userSettings = vehicleSettings[user]
+      for (const key of Object.keys(userSettings)) {
+        if (userSettings[key].epochLastChangedLocally === undefined) {
+          console.debug(`[SettingsManager] User '${user}' has a setting with an undefined epoch. Assuming this is not compliant with the new style.`)
+          return false
+        }
+      }
+    }
+    return true
   }
 
   /**
@@ -530,11 +539,11 @@ class SettingsManager {
     }
 
     if (this.areVehicleSettingsInNewStyle(vehicleSettings)) {
-      console.info('[SettingsManager] Vehicle settings are already in new style. Skipping migration.')
+      console.info('[SettingsManager] Vehicle settings are already in the new style. Skipping migration.')
       return
     }
 
-    console.info('[SettingsManager] Migrating old-style vehicle settings to new style.')
+    console.info('[SettingsManager] Vehicle settings are in the old style. Migrating to the new style.')
 
     const migratedSettings: VehicleSettings = {}
     for (const user of Object.keys(vehicleSettings)) {
@@ -600,6 +609,8 @@ class SettingsManager {
         const hasLocalSetting = localSetting !== undefined
         if (hasLocalSetting) {
           console.debug(`[SettingsManager] Has local setting with epoch ${localSetting.epochLastChangedLocally}.`)
+          console.debug('[SettingsManager] Local setting value:')
+          console.debug(JSON.stringify(localSetting.value, null, 2))
         } else {
           console.debug(`[SettingsManager] No local setting.`)
         }
@@ -607,6 +618,8 @@ class SettingsManager {
         const hasVehicleSetting = vehicleSetting !== undefined
         if (hasVehicleSetting) {
           console.debug(`[SettingsManager] Has vehicle setting with epoch ${vehicleSetting.epochLastChangedLocally}.`)
+          console.debug('[SettingsManager] Vehicle setting value:')
+          console.debug(JSON.stringify(vehicleSetting.value, null, 2))
         } else {
           console.debug(`[SettingsManager] No vehicle setting.`)
         }
@@ -620,11 +633,11 @@ class SettingsManager {
             console.debug(`[SettingsManager] Skipping key '${key}' (both local and vehicle versions are undefined).`)
             break
           case hasLocalSetting && !hasVehicleSetting:
-            console.debug(`[SettingsManager] Setting key '${key}' to local version (local version is defined and vehicle version is undefined or old).`)
+            console.debug(`[SettingsManager] Setting key '${key}' to local version (local version is defined and vehicle version is undefined).`)
             mergedSettings[user][vehicleId][key] = localSetting
             break
           case !hasLocalSetting && hasVehicleSetting:
-            console.debug(`[SettingsManager] Setting key '${key}' to vehicle version (vehicle version is defined and local version is undefined or old).`)
+            console.debug(`[SettingsManager] Setting key '${key}' to vehicle version (vehicle version is defined and local version is undefined).`)
             mergedSettings[user][vehicleId][key] = vehicleSetting
             break
           case localSetting.epochLastChangedLocally > vehicleSetting.epochLastChangedLocally:
@@ -833,6 +846,8 @@ class SettingsManager {
 
     // Update last connected vehicle to the current one
     this.saveLastConnectedVehicle(this.currentVehicle)
+
+    console.info('[SettingsManager] Successfully synced settings with vehicle!')
   }
 
   /**
@@ -896,6 +911,8 @@ class SettingsManager {
     this.performSideEffectOfSettingLocalSettings()
 
     this.saveLastConnectedUser(this.currentUser)
+
+    console.info('[SettingsManager] Successfully switched settings to those of the new user!')
   }
 
   /**
