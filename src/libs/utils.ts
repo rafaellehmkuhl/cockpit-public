@@ -284,9 +284,17 @@ export const deserialize = (serialized: string): any => {
  * @param {() => Promise<T>} fn The function to execute.
  * @param {number} times The number of times to try. Default value is 5. If value is 0, it will try until it succeeds.
  * @param {number} delay The delay between tries in milliseconds. Default value is 1 second.
+ * @param {string} errorMessage The error message to use. Default value is 'Error while trying to execute function'.
  * @returns {Promise<T>} The result of the function.
  */
-export const tryACoupleOfTimes = async <T>(fn: () => Promise<T>, times = 5, delay = 1000): Promise<T> => {
+export const tryACoupleOfTimes = async <T>(
+  fn: () => Promise<T>,
+  times = 5,
+  delay = 1000,
+  errorMessage?: string
+): Promise<T> => {
+  // If the function has no name, use 'function' as the name
+  const defaultErrorMessage = `Error while trying to execute function '${fn.name || 'function'}'`
   for (let i = 0; times === 0 || i < times; i++) {
     try {
       return await fn()
@@ -296,10 +304,10 @@ export const tryACoupleOfTimes = async <T>(fn: () => Promise<T>, times = 5, dela
         throw error
       }
       // If we have not reached the limit of tries, wait for the delay and try again
-      console.warn(`Error while trying to execute function '${fn.name}'. Will try again in ${delay}ms...`)
+      console.warn(`${errorMessage || defaultErrorMessage}. Will try again in ${delay}ms...`)
       await sleep(delay)
     }
   }
   // If we have reached the limit of tries, throw an error
-  throw new Error(`Failed to execute function '${fn.name}' after ${times} tries.`)
+  throw new Error(`Failed to execute function '${fn.name || 'function'}' after ${times} tries. Will stop trying.`)
 }
