@@ -114,6 +114,8 @@ class SettingsManager {
       this.performSideEffectOfSettingLocalSettings()
 
       this.pushKeyValueUpdateToVehicleUpdateQueue(vehicleId!, userId!, key, value, newEpoch)
+      await this.sendKeyValueUpdatesToVehicle(userId!, vehicleId!, this.currentVehicleAddress)
+
     }, keyValueUpdateDebounceTime)
   }
 
@@ -686,25 +688,42 @@ class SettingsManager {
     await this.sendKeyValueUpdatesToVehicle(userId, vehicleId, vehicleAddress)
   }
 
-  /**
-   * Initialize local settings and set up the state based on the flowchart
-   */
-  private initLocalSettings = (): void => {
-    // First of all, backup old-style settings (if not done yet)
-    const oldStyleSettingsBackup = localStorage.getItem(oldStyleSettingsKey)
-    if (oldStyleSettingsBackup && Object.keys(deserialize(oldStyleSettingsBackup)).length > 0) {
-      console.log('[SettingsManager]', 'Found a backup of cockpit old style settings. Skipping creation of a new one.')
-    } else {
-      console.warn('[SettingsManager]', 'Did not find a backup for cockpit old style settings. Creating one.')
-      // Store all local storage key-value pairs under the key 'cockpit-old-style-settings'
-      const oldStyleSettings: Record<string, any> = {}
-      for (const key of Object.keys(localStorage).filter((k) => k !== syncedSettingsKey && k !== oldStyleSettingsKey)) {
+  private isThereAnOldStyleSettingsBackup = (): boolean => {
+    const storedSettings = localStorage.getItem(oldStyleSettingsKey)
+    if (storedSettings === null) {
+      return false
+    }
+    try {
+      const deserializedSettings = deserialize(storedSettings)
+      return Object.keys(deserializedSettings).length > 0
+    } catch (error) {
+      return false
+    }
+  }
+
+  private backupCurrentOldStyleSettings = (): void => {
+    const oldStyleSettings: OldCockpitSettingsPackage = {}
+    const keysToIgnore = [syncedSettingsKey, oldStyleSettingsKey, cockpitLastConnectedUserKey, cockpitLastConnectedVehicleKey]
+    const keysToBackup = Object.keys(localStorage).filter((k) => !keysToIgnore.includes(k))
+      for (const key of keysToBackup) {
         const value = localStorage.getItem(key)
         if (value) {
           oldStyleSettings[key] = deserialize(value)
         }
       }
       localStorage.setItem(oldStyleSettingsKey, JSON.stringify(oldStyleSettings))
+  }
+
+  /**
+   * Initialize local settings and set up the state based on the flowchart
+   */
+  private initLocalSettings = (): void => {
+    // First of all, backup old-style settings (if not done yet)
+    if (this.isThereAnOldStyleSettingsBackup()) {
+      console.log('[SettingsManager]', 'Found a backup of cockpit old style settings. Skipping creation of a new one.')
+    } else {
+      console.warn('[SettingsManager]', 'Did not find a backup for cockpit old style settings. Creating one.')
+      this.backupCurrentOldStyleSettings()
     }
 
     // Load last connected user from storage
@@ -756,6 +775,7 @@ class SettingsManager {
 
       // TODO: Run without the side effect or it will break stuff
       this.setLocalSettingsForUserAndVehicle(this.currentUser, this.currentVehicle, fallbackSettings)
+      this.performSideEffectOfSettingLocalSettings()
     }
   }
 
@@ -765,7 +785,6 @@ class SettingsManager {
    */
   public handleVehicleGettingOnline = async (vehicleAddress: string): Promise<void> => {
     console.log('[SettingsManager]', 'Handling vehicle getting online!')
-    // const previousVehicle = this.retrieveLastConnectedVehicle()
 
     // Before anything else, back up old-style vehicle settings in the vehicle, if needed
     await this.backupOldStyleVehicleSettingsIfNeeded(vehicleAddress)
