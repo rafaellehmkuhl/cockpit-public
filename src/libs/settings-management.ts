@@ -628,7 +628,7 @@ class SettingsManager {
 
         switch (true) {
           case hasLocalSetting && hasVehicleSetting && isEqual(localSetting.value, vehicleSetting.value):
-            console.debug(`[SettingsManager] Setting key '${key}' to local version (both local and vehicle versions are defined and equal).`)
+            console.debug(`[SettingsManager] Setting key '${key}' to the common version (both local and vehicle versions are defined and equal).`)
             mergedSettings[user][vehicleId][key] = localSetting
             break
           case !hasLocalSetting && !hasVehicleSetting:
@@ -945,6 +945,7 @@ class SettingsManager {
     const newSettings = this.getLocalSettings()
     const userVehicleSettings = this.getSettingsForUserAndVehicle(this.currentUser, this.currentVehicle)
     if (isEqual(this.lastLocalUserVehicleSettings, userVehicleSettings)) {
+      console.log('[SettingsManager]', 'No changes in local settings. Skipping.')
       return
     }
 
