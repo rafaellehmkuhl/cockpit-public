@@ -56,8 +56,8 @@ const keyValueUpdateDebounceTime = 100
  * newest epoch is preferred. If the epochs are the same, the value from the vehicle are preferred.
  */
 class SettingsManager {
-  public currentUser: string = fallbackUsername
-  public currentVehicle: string = fallbackVehicleId
+  public currentUsername: string = fallbackUsername
+  public currentVehicleId: string = fallbackVehicleId
   private listeners: SettingsListeners = {}
   private keyValueUpdateTimeouts: Record<string, ReturnType<typeof setTimeout>> = {}
   private lastLocalUserVehicleSettings: SettingsPackage = {}
@@ -91,10 +91,10 @@ class SettingsManager {
     vehicleId?: string
   ): Promise<void> => {
     if (this.isNullValue(userId)) {
-      userId = this.currentUser || fallbackUsername
+      userId = this.currentUsername || fallbackUsername
     }
     if (this.isNullValue(vehicleId)) {
-      vehicleId = this.currentVehicle || fallbackVehicleId
+      vehicleId = this.currentVehicleId || fallbackVehicleId
     }
 
     if (this.keyValueUpdateTimeouts[key]) {
@@ -111,7 +111,7 @@ class SettingsManager {
       const localSettings = this.getLocalSettings()
       localSettings[userId!][vehicleId!][key] = newSetting
       this.setLocalSettings(localSettings)
-      this.performSideEffectOfSettingLocalSettings()
+      this.notifyAllListenersAboutSettingsChange()
 
       this.pushKeyValueUpdateToVehicleUpdateQueue(vehicleId!, userId!, key, value, newEpoch)
       await this.sendKeyValueUpdatesToVehicle(userId!, vehicleId!, this.currentVehicleAddress)
@@ -128,11 +128,11 @@ class SettingsManager {
    */
   public getKeyValue = (key: string, userId?: string, vehicleId?: string): any | undefined => {
     if (userId === undefined) {
-      userId = this.currentUser
+      userId = this.currentUsername
     }
 
     if (vehicleId === undefined) {
-      vehicleId = this.currentVehicle
+      vehicleId = this.currentVehicleId
     }
 
     const localSettings = this.getLocalSettings()
@@ -209,25 +209,25 @@ class SettingsManager {
   }
 
   /**
-   * Performs the side effect of setting local settings. TODO: Check if this is needed.
+   * Notifies listeners of local settings changes, so they can update their UI.
    * @returns {void}
    */
-  private performSideEffectOfSettingLocalSettings = (): void => {
+  private notifyAllListenersAboutSettingsChange = (): void => {
     if (!this.initialLoadingComplete) {
       return
     }
 
     const settings = this.getLocalSettings()
     if (this.lastLocalUserVehicleSettings !== undefined && Object.keys(settings).length > 0) {
-      if (settings[this.currentUser] && settings[this.currentUser][this.currentVehicle]) {
-        Object.keys(settings[this.currentUser][this.currentVehicle]).forEach((key) => {
+      if (settings[this.currentUsername] && settings[this.currentUsername][this.currentVehicleId]) {
+        Object.keys(settings[this.currentUsername][this.currentVehicleId]).forEach((key) => {
           const oldSetting = this.lastLocalUserVehicleSettings[key]
-          const newSetting = settings[this.currentUser][this.currentVehicle][key]
+          const newSetting = settings[this.currentUsername][this.currentVehicleId][key]
           if (!isEqual(oldSetting, newSetting)) {
             this.notifyListenersAboutKeyChange(key, newSetting)
           }
         })
-        this.lastLocalUserVehicleSettings = { ...settings[this.currentUser][this.currentVehicle] }
+        this.lastLocalUserVehicleSettings = { ...settings[this.currentUsername][this.currentVehicleId] }
       }
     }
   }
@@ -595,6 +595,7 @@ class SettingsManager {
     const mergedSettings: LocalSyncedSettings = {}
 
     for (const user of usersToSync) {
+      console.debug(`[SettingsManager] Syncing user '${user}' and vehicle '${vehicleId}'.`)
       const vehicleUserSettings: SettingsPackage = vehicleSettings[user] ?? {}
       const localUserSettings: UserSettings = localSettings[user] ?? {}
       const localUserVehicleSettings: SettingsPackage = localUserSettings[vehicleId] ?? {}
@@ -714,6 +715,17 @@ class SettingsManager {
       localStorage.setItem(oldStyleSettingsKey, JSON.stringify(oldStyleSettings))
   }
 
+  private getSettingsWithEpochZeroed = (settings: SettingsPackage): SettingsPackage => {
+    const settingsWithEpochZeroed: SettingsPackage = {}
+    Object.keys(settings).forEach((key) => {
+      settingsWithEpochZeroed[key] = {
+        epochLastChangedLocally: 0,
+        value: settings[key],
+      }
+    })
+    return settingsWithEpochZeroed
+  }
+
   /**
    * Initialize local settings and set up the state based on the flowchart
    */
@@ -731,10 +743,10 @@ class SettingsManager {
     const storedLastConnectedUser = this.retrieveLastConnectedUser()
     if (this.isNullValue(storedLastConnectedUser)) {
       console.log('[SettingsManager]', 'No last connected user found in storage. Setting to fallback user.')
-      this.currentUser = fallbackUsername
+      this.currentUsername = fallbackUsername
     } else {
       console.log('[SettingsManager]', `Last connected user found in storage: '${storedLastConnectedUser}'.`)
-      this.currentUser = storedLastConnectedUser as string
+      this.currentUsername = storedLastConnectedUser as string
     }
 
     // Load last connected vehicle from storage
@@ -742,26 +754,29 @@ class SettingsManager {
     const storedLastConnectedVehicle = this.retrieveLastConnectedVehicle()
     if (this.isNullValue(storedLastConnectedVehicle)) {
       console.log('[SettingsManager]', 'No last connected vehicle found in storage. Setting to fallback vehicle.')
-      this.currentVehicle = fallbackVehicleId
+      this.currentVehicleId = fallbackVehicleId
     } else {
       console.log('[SettingsManager]', `Last connected vehicle found in storage: '${storedLastConnectedVehicle}'.`)
-      this.currentVehicle = storedLastConnectedVehicle as string
+      this.currentVehicleId = storedLastConnectedVehicle as string
     }
 
+    let settingsToBeUsed: SettingsPackage = {}
+
     // Generate some new settings for current user/vehicle (if needed)
-    if (this.hasSettingsForUserAndVehicle(this.currentUser, this.currentVehicle)) {
+    if (this.hasSettingsForUserAndVehicle(this.currentUsername, this.currentVehicleId)) {
       // We are good to go
-      console.info(`[SettingsManager] We have settings for user '${this.currentUser}' and vehicle '${this.currentVehicle}'. No need for migrations.`)
+      console.info(`[SettingsManager] We have settings for user '${this.currentUsername}' and vehicle '${this.currentVehicleId}'. No need for migrations.`)
+      settingsToBeUsed = this.getSettingsForUserAndVehicle(this.currentUsername, this.currentVehicleId)
     } else {
       // Migrate all old-style local settings to the new format
-      console.warn(`[SettingsManager] No settings for user '${this.currentUser}' and vehicle '${this.currentVehicle}'. Trying to use fallback settings.`)
+      console.warn(`[SettingsManager] No settings for user '${this.currentUsername}' and vehicle '${this.currentVehicleId}'. Trying to use fallback settings.`)
 
       let fallbackSettings: SettingsPackage = {}
-      if (this.hasSettingsForUserAndVehicle(this.currentUser, fallbackVehicleId)) {
-        console.info(`[SettingsManager] We have settings for user '${this.currentUser}' and vehicle '${fallbackVehicleId}'. Using it instead.`)
-        fallbackSettings = this.getSettingsForUserAndVehicle(this.currentUser, fallbackVehicleId)
+      if (this.hasSettingsForUserAndVehicle(this.currentUsername, fallbackVehicleId)) {
+        console.info(`[SettingsManager] We have settings for user '${this.currentUsername}' and vehicle '${fallbackVehicleId}'. Using it instead.`)
+        fallbackSettings = this.getSettingsForUserAndVehicle(this.currentUsername, fallbackVehicleId)
       } else {
-        console.warn(`[SettingsManager] No settings for user '${this.currentUser}' and vehicle '${fallbackVehicleId}'. Trying next fallback settings.`)
+        console.warn(`[SettingsManager] No settings for user '${this.currentUsername}' and vehicle '${fallbackVehicleId}'. Trying next fallback settings.`)
         if (this.hasSettingsForUserAndVehicle(fallbackUsername, fallbackVehicleId)) {
           console.info(`[SettingsManager] We have settings for user '${fallbackUsername}' and vehicle '${fallbackVehicleId}'. Using it instead.`)
           fallbackSettings = this.getSettingsForUserAndVehicle(fallbackUsername, fallbackVehicleId)
@@ -773,10 +788,12 @@ class SettingsManager {
         }
       }
 
-      // TODO: Run without the side effect or it will break stuff
-      this.setLocalSettingsForUserAndVehicle(this.currentUser, this.currentVehicle, fallbackSettings)
-      this.performSideEffectOfSettingLocalSettings()
+      // As it's a fallback, we need to consider it a just-created settings package
+      settingsToBeUsed = this.getSettingsWithEpochZeroed(fallbackSettings)
     }
+
+    this.setLocalSettingsForUserAndVehicle(this.currentUsername, this.currentVehicleId, settingsToBeUsed)
+    this.notifyAllListenersAboutSettingsChange()
   }
 
   /**
@@ -802,26 +819,116 @@ class SettingsManager {
 
     // Set the current vehicle ID
     console.log(`[SettingsManager] Setting current vehicle ID to: '${vehicleId}'.`)
-    this.currentVehicle = vehicleId
+    this.currentVehicleId = vehicleId
 
     let toBeUsedUser: string | undefined | undefined = undefined
     let toBeUsedVehicle: string | undefined | undefined = undefined
 
     const userVehicleCombinationsToTryInOrder = [
-      { user: this.currentUser, vehicle: this.currentVehicle },
-      { user: this.currentUser, vehicle: this.retrieveLastConnectedVehicle() },
-      { user: this.currentUser, vehicle: fallbackVehicleId },
+      { user: this.currentUsername, vehicle: this.currentVehicleId },
+      { user: this.currentUsername, vehicle: this.retrieveLastConnectedVehicle() },
+      { user: this.currentUsername, vehicle: fallbackVehicleId },
       { user: fallbackUsername, vehicle: this.retrieveLastConnectedVehicle() },
       { user: fallbackUsername, vehicle: fallbackVehicleId },
     ]
 
     for (const combination of userVehicleCombinationsToTryInOrder) {
       if (combination.user && combination.vehicle && this.hasSettingsForUserAndVehicle(combination.user, combination.vehicle)) {
-        const isFallback = combination.user !== this.currentUser && combination.vehicle !== this.currentVehicle
+        toBeUsedUser = combination.user
+        toBeUsedVehicle = combination.vehicle
+        break
+      } else {
+        console.warn(`[SettingsManager] No settings for user '${combination.user}' and vehicle '${combination.vehicle}'.`)
+      }
+    }
+
+    let toBeUsedSettings: SettingsPackage = {}
+
+    const didntFindUserAndVehicle = toBeUsedUser === undefined || toBeUsedVehicle === undefined
+    const isCurrentUserAndVehicle = toBeUsedUser === this.currentUsername && toBeUsedVehicle === this.currentVehicleId
+    if (didntFindUserAndVehicle) {
+      console.warn(`[SettingsManager] No settings found for any user/vehicle combination. Migrating old-style settings.`)
+      toBeUsedUser = fallbackUsername
+      toBeUsedVehicle = fallbackVehicleId
+      const oldStyleSettings: OldCockpitSettingsPackage = deserialize(localStorage.getItem(oldStyleSettingsKey)!)
+      toBeUsedSettings = this.getMigratedOldStyleSettingsPackage(oldStyleSettings)
+      console.info(`[SettingsManager] Successfully migrated old-style settings to new style for user '${toBeUsedUser}' and vehicle '${toBeUsedVehicle}'.`)
+    }
+    else if (isCurrentUserAndVehicle) {
+      console.info(`[SettingsManager] Found settings for current user '${toBeUsedUser}' and current vehicle '${toBeUsedVehicle}'.`)
+      toBeUsedSettings = this.getSettingsForUserAndVehicle(toBeUsedUser!, toBeUsedVehicle!)
+    } else {
+      console.info(`[SettingsManager] Falling back to settings for user '${toBeUsedUser}' and vehicle '${toBeUsedVehicle}'.`)
+      const fallbackSettings = this.getSettingsForUserAndVehicle(toBeUsedUser!, toBeUsedVehicle!)
+      // As it's a fallback, we need to consider it a just-created settings package
+      toBeUsedSettings = this.getSettingsWithEpochZeroed(fallbackSettings)
+    }
+
+    // Set the local settings for the user/vehicle combination that we found (or the migrated old-style settings)
+    this.setLocalSettingsForUserAndVehicle(this.currentUsername, this.currentVehicleId, toBeUsedSettings)
+
+    // Now that we have local settings for the current user and vehicle, we can get the best settings between local and vehicle
+    console.log('[SettingsManager]', `Getting best settings between local and vehicle for user '${this.currentUsername}' and vehicle '${this.currentVehicleId}'.`)
+    const bestSettingsWithVehicle = await this.getBestSettingsBetweenLocalAndVehicle(vehicleAddress, vehicleId)
+    const bestSettingsForCurrentUserAndVehicle = bestSettingsWithVehicle[this.currentUsername][this.currentVehicleId]
+    console.debug(`[SettingsManager] Best settings for current user and vehicle:`)
+    console.debug(JSON.stringify(bestSettingsForCurrentUserAndVehicle, null, 2))
+
+    // Set the local settings to the best settings between local and vehicle for the current user and vehicle
+    this.setLocalSettingsForUserAndVehicle(this.currentUsername, this.currentVehicleId, bestSettingsForCurrentUserAndVehicle)
+
+    // Update last connected vehicle to the current one
+    this.saveLastConnectedVehicle(this.currentVehicleId)
+
+    // Apply side effect of setting local settings
+    this.notifyAllListenersAboutSettingsChange()
+
+    // Push the best settings to the vehicle
+    await this.pushSettingsToVehicleUpdateQueue(
+      this.currentUsername,
+      this.currentVehicleId,
+      this.currentVehicleAddress,
+      bestSettingsForCurrentUserAndVehicle
+    )
+
+    console.info('[SettingsManager] Successfully synced settings with vehicle!')
+  }
+
+  /**
+   * Handles a user changing
+   * @param {string} username - The new username
+   */
+  public handleUserChanging = async (username: string): Promise<void> => {
+    console.log('[SettingsManager]', `Will handle user change from '${this.currentUsername}' to '${username}'.`)
+
+    // Set the current user
+    if (possibleNullValues.includes(username)) {
+      console.log(`[SettingsManager] Invalid username. Setting current user to the fallback user.`)
+      this.currentUsername = fallbackUsername
+    } else {
+      console.log(`[SettingsManager] Setting current user to: '${username}'.`)
+      this.currentUsername = username
+    }
+
+    let toBeUsedUser: string | undefined | undefined = undefined
+    let toBeUsedVehicle: string | undefined | undefined = undefined
+
+    const userVehicleCombinationsToTryInOrder = [
+      { user: this.currentUsername, vehicle: this.currentVehicleId },
+      { user: this.currentUsername, vehicle: this.retrieveLastConnectedVehicle() },
+      { user: this.currentUsername, vehicle: fallbackVehicleId },
+      { user: fallbackUsername, vehicle: this.currentVehicleId },
+      { user: fallbackUsername, vehicle: this.retrieveLastConnectedVehicle() },
+      { user: fallbackUsername, vehicle: fallbackVehicleId },
+    ]
+
+    for (const combination of userVehicleCombinationsToTryInOrder) {
+      if (combination.user && combination.vehicle && this.hasSettingsForUserAndVehicle(combination.user, combination.vehicle)) {
+        const isFallback = combination.user !== this.currentUsername && combination.vehicle !== this.currentVehicleId
         if (isFallback) {
-          console.info(`[SettingsManager] Found settings for user '${combination.user}' and vehicle '${combination.vehicle}'.`)
-        } else {
           console.info(`[SettingsManager] Falling back to settings for user '${combination.user}' and vehicle '${combination.vehicle}'.`)
+        } else {
+          console.info(`[SettingsManager] Found settings for user '${combination.user}' and vehicle '${combination.vehicle}'.`)
         }
         toBeUsedUser = combination.user
         toBeUsedVehicle = combination.vehicle
@@ -839,100 +946,40 @@ class SettingsManager {
       console.warn(`[SettingsManager] No settings found for any user/vehicle combination. Migrating old-style settings.`)
       const oldStyleSettings: OldCockpitSettingsPackage = deserialize(localStorage.getItem(oldStyleSettingsKey)!)
       toBeUsedSettings = this.getMigratedOldStyleSettingsPackage(oldStyleSettings)
-      console.info(`[SettingsManager] Successfully migrated old-style settings to new style.`)
+      console.info(`[SettingsManager] Successfully migrated old-style settings to new style for user '${toBeUsedUser}' and vehicle '${toBeUsedVehicle}'.`)
+    }
+
+    if (toBeUsedUser !== this.currentUsername || toBeUsedVehicle !== this.currentVehicleId) {
+      console.warn(`[SettingsManager] User or vehicle are a fallback. Zeroing epochs.`)
+      toBeUsedSettings = this.getSettingsWithEpochZeroed(toBeUsedSettings)
     }
 
     // Set the local settings for the user/vehicle combination that we found (or the migrated old-style settings)
-    this.setLocalSettingsForUserAndVehicle(this.currentUser, this.currentVehicle, toBeUsedSettings)
+    this.setLocalSettingsForUserAndVehicle(this.currentUsername, this.currentVehicleId, toBeUsedSettings)
 
     // Now that we have local settings for the current user and vehicle, we can get the best settings between local and vehicle
-    console.log('[SettingsManager]', `Getting best settings between local and vehicle for user '${this.currentUser}' and vehicle '${this.currentVehicle}'.`)
-    const bestSettingsWithVehicle = await this.getBestSettingsBetweenLocalAndVehicle(vehicleAddress, vehicleId)
-    const bestSettingsForCurrentUserAndVehicle = bestSettingsWithVehicle[this.currentUser][this.currentVehicle]
+    console.log('[SettingsManager]', `Getting best settings between local and vehicle for user '${this.currentUsername}' and vehicle '${this.currentVehicleId}'.`)
+    const bestSettingsWithVehicle = await this.getBestSettingsBetweenLocalAndVehicle(this.currentVehicleAddress, this.currentVehicleId)
+    const bestSettingsForCurrentUserAndVehicle = bestSettingsWithVehicle[this.currentUsername][this.currentVehicleId]
     console.debug(`[SettingsManager] Best settings for current user and vehicle:`)
     console.debug(JSON.stringify(bestSettingsForCurrentUserAndVehicle, null, 2))
 
     // Set the local settings to the best settings between local and vehicle for the current user and vehicle
-    this.setLocalSettingsForUserAndVehicle(this.currentUser, this.currentVehicle, bestSettingsForCurrentUserAndVehicle)
+    this.setLocalSettingsForUserAndVehicle(this.currentUsername, this.currentVehicleId, bestSettingsForCurrentUserAndVehicle)
+
+    // Update last connected user to the current one
+    this.saveLastConnectedUser(this.currentUsername)
+
+    // Apply side effect of setting local settings
+    this.notifyAllListenersAboutSettingsChange()
 
     // Push the best settings to the vehicle
     await this.pushSettingsToVehicleUpdateQueue(
-      this.currentUser,
-      this.currentVehicle,
+      this.currentUsername,
+      this.currentVehicleId,
       this.currentVehicleAddress,
       bestSettingsForCurrentUserAndVehicle
     )
-
-    // Update last connected vehicle to the current one
-    this.saveLastConnectedVehicle(this.currentVehicle)
-
-    // Apply side effect of setting local settings
-    this.performSideEffectOfSettingLocalSettings()
-
-    console.info('[SettingsManager] Successfully synced settings with vehicle!')
-  }
-
-  /**
-   * Handles a user changing
-   * @param {string} username - The new username
-   */
-  public handleUserChanging = async (username: string): Promise<void> => {
-    // TODO: Review this whole function
-    console.log('[SettingsManager]', `Will handle user change from '${this.currentUser}' to '${username}'.`)
-    const previousUser = this.retrieveLastConnectedUser()
-    this.currentUser = username || fallbackUsername
-    console.log('[SettingsManager]', `User changed to '${this.currentUser}'.`)
-
-    let newSettings: SettingsPackage = {}
-    let wasAbleToGetBestSettings = false
-
-    // First of all, sync settings with vehicle if possible, so we have both with the "best" values for that user/vehicle combination
-    if (this.hasVehicleAddress()) {
-      console.log('[SettingsManager]', 'Has vehicle address! Getting best settings with vehicle.')
-      try {
-        const bestSettingsWithVehicle = await this.getBestSettingsBetweenLocalAndVehicle(
-          this.currentUser,
-          this.currentVehicle,
-          this.currentVehicleAddress
-        )
-        newSettings = this.getMergedSettings(bestSettingsWithVehicle, newSettings)
-        wasAbleToGetBestSettings = true
-      } catch (error) {
-        console.error('[SettingsManager]', 'Error getting best settings with vehicle.', error)
-      }
-    }
-
-    // Make sure we have the best settings we can get for the new user and current vehicle
-    if (this.hasSettingsForUserAndVehicle(this.currentUser, this.currentVehicle)) {
-      console.log('[SettingsManager]', 'We have settings for current user/vehicle. No need for migrations.')
-      const currentUserVehicleSettings = this.getSettingsForUserAndVehicle(this.currentUser, this.currentVehicle)
-      newSettings = this.getMergedSettings(currentUserVehicleSettings, newSettings)
-    } else {
-      console.log(`[SettingsManager] No settings for user '${this.currentUser}' and vehicle '${this.currentVehicle}'.`)
-      if (previousUser && this.hasSettingsForUserAndVehicle(previousUser, this.currentVehicle)) {
-        console.log(`[SettingsManager] Copying settings from last connected user '${previousUser}'.`)
-        const lastUserSettings = this.getSettingsForUserAndVehicle(previousUser, this.currentVehicle)
-        newSettings = this.getMergedSettings(lastUserSettings, newSettings)
-      } else {
-        console.log(`[SettingsManager] No settings found for last connected user. Copying from fallback user.`)
-        const fallbackUserSettings = this.getSettingsForUserAndVehicle(fallbackUsername, this.currentVehicle)
-        newSettings = this.getMergedSettings(fallbackUserSettings, newSettings)
-      }
-    }
-
-    if (this.hasVehicleAddress() && wasAbleToGetBestSettings) {
-      await this.pushSettingsToVehicleUpdateQueue(
-        this.currentUser,
-        this.currentVehicle,
-        this.currentVehicleAddress,
-        newSettings
-      )
-    }
-
-    this.setLocalSettingsForUserAndVehicle(this.currentUser, this.currentVehicle, newSettings)
-    this.performSideEffectOfSettingLocalSettings()
-
-    this.saveLastConnectedUser(this.currentUser)
 
     console.info('[SettingsManager] Successfully switched settings to those of the new user!')
   }
@@ -943,7 +990,7 @@ class SettingsManager {
   public handleStorageChanging = (): void => {
     console.log('[SettingsManager]', 'Handling storage change!')
     const newSettings = this.getLocalSettings()
-    const userVehicleSettings = this.getSettingsForUserAndVehicle(this.currentUser, this.currentVehicle)
+    const userVehicleSettings = this.getSettingsForUserAndVehicle(this.currentUsername, this.currentVehicleId)
     if (isEqual(this.lastLocalUserVehicleSettings, userVehicleSettings)) {
       console.log('[SettingsManager]', 'No changes in local settings. Skipping.')
       return
@@ -958,8 +1005,8 @@ class SettingsManager {
 
     if (this.hasVehicleAddress()) {
       this.pushSettingsToVehicleUpdateQueue(
-        this.currentUser,
-        this.currentVehicle,
+        this.currentUsername,
+        this.currentVehicleId,
         this.currentVehicleAddress,
         userVehicleSettings
       )
@@ -983,7 +1030,7 @@ window.addEventListener('vehicle-online', async (event: VehicleOnlineEvent) => {
  * @param event - The custom event containing username
  */
 window.addEventListener('user-changed', (event: UserChangedEvent) => {
-  console.log('[SettingsManager]', `User change event received. Will handle user change from '${settingsManager.currentUser}' to '${event.detail.username}'.`)
+  console.log('[SettingsManager]', `User change event received. Will handle user change from '${settingsManager.currentUsername}' to '${event.detail.username}'.`)
   settingsManager.handleUserChanging(event.detail.username)
 })
 
