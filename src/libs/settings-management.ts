@@ -720,7 +720,7 @@ class SettingsManager {
     Object.keys(settings).forEach((key) => {
       settingsWithEpochZeroed[key] = {
         epochLastChangedLocally: 0,
-        value: settings[key],
+        value: settings[key].value,
       }
     })
     return settingsWithEpochZeroed
