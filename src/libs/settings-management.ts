@@ -30,6 +30,7 @@ export const vehicleNewStyleSettingsKey = 'settings-v2'
 export const syncedSettingsKey = 'cockpit-settings-v2'
 export const cockpitLastConnectedVehicleKey = 'cockpit-last-connected-vehicle-id'
 export const cockpitLastConnectedUserKey = 'cockpit-last-connected-user'
+export const vehicleIdKey = 'cockpit-vehicle-id'
 export const fallbackUsername = 'fallback-user'
 export const fallbackVehicleId = 'fallback-vehicle'
 const nullValue = 'null'
@@ -365,7 +366,7 @@ class SettingsManager {
 
   private getValidSettingsFromVehicle = async (vehicleAddress: string): Promise<VehicleSettings> => {
     // eslint-disable-next-line vue/max-len, prettier/prettier, max-len
-    const getSettingsFn = (): Promise<VehicleSettings | undefined> => getKeyDataFromCockpitVehicleStorage(vehicleAddress, 'settings')
+    const getSettingsFn = (): Promise<VehicleSettings | undefined> => getKeyDataFromCockpitVehicleStorage(vehicleAddress, vehicleNewStyleSettingsKey)
     const maybeSettings = await tryACoupleOfTimes(getSettingsFn, 0, 300)
     if (maybeSettings !== undefined) {
       return maybeSettings
@@ -377,7 +378,7 @@ class SettingsManager {
 
   private confirmVehicleIdOrThrow = async (vehicleAddress: string, vehicleId: string): Promise<void> => {
     try {
-      const idOnVehicle = await getKeyDataFromCockpitVehicleStorage(vehicleAddress, 'cockpit-vehicle-id')
+      const idOnVehicle = await getKeyDataFromCockpitVehicleStorage(vehicleAddress, vehicleIdKey)
       if (idOnVehicle !== vehicleId) {
         throw new Error(
           `Vehicle ID mismatch. Expected '${vehicleId}' and got '${idOnVehicle}' for vehicle on address '${vehicleAddress}'.`
@@ -396,7 +397,7 @@ class SettingsManager {
 
   private getVehicleIdFromVehicle = async (vehicleAddress: string): Promise<string> => {
     // eslint-disable-next-line vue/max-len, prettier/prettier, max-len
-    const getVehicleIdFn = (): Promise<string | undefined> => getKeyDataFromCockpitVehicleStorage(vehicleAddress, 'cockpit-vehicle-id')
+    const getVehicleIdFn = (): Promise<string | undefined> => getKeyDataFromCockpitVehicleStorage(vehicleAddress, vehicleIdKey)
     const maybeId = await tryACoupleOfTimes(getVehicleIdFn, 0, 300)
     if (typeof maybeId === 'string') {
       return maybeId
@@ -411,7 +412,7 @@ class SettingsManager {
     console.log(`Trying to set new vehicle ID '${newVehicleId}' on vehicle '${vehicleAddress}'.`)
 
     // eslint-disable-next-line vue/max-len, prettier/prettier, max-len
-    const setVehicleIdFn = (): Promise<void> => setKeyDataOnCockpitVehicleStorage(vehicleAddress, 'cockpit-vehicle-id', newVehicleId)
+    const setVehicleIdFn = (): Promise<void> => setKeyDataOnCockpitVehicleStorage(vehicleAddress, vehicleIdKey, newVehicleId)
     await tryACoupleOfTimes(setVehicleIdFn, 0, 300)
 
     console.log(`Successfully set new vehicle ID '${newVehicleId}' on vehicle '${vehicleAddress}'.`)
@@ -460,7 +461,7 @@ class SettingsManager {
             epochLastChangedLocally: update.epochChange,
             value: update.value,
           }
-          await setKeyDataOnCockpitVehicleStorage(vehicleAddress, `settings/${userId}/${key}`, setting)
+          await setKeyDataOnCockpitVehicleStorage(vehicleAddress, `${vehicleNewStyleSettingsKey}/${userId}/${key}`, setting)
           delete this.keyValueVehicleUpdateQueue[vehicleId][userId][key]
         } catch (error) {
           const msg = `Error sending key '${key}' for user '${userId}' to vehicle '${vehicleId}'.`
