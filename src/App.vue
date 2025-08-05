@@ -54,6 +54,25 @@
               interfaceStore.isOnSmallScreen && interfaceStore.isOnSmallScreen ? topBarScaleStyle : undefined,
             ]"
           >
+            <div class="flex items-center justify-center gap-x-4">
+              <v-btn
+                id="select-profile"
+                size="small"
+                append-icon="mdi-swap-horizontal"
+                class="bg-[#FFFFFF22] shadow-2 mx-2"
+                variant="flat"
+                @click="missionStore.changeUsername"
+              >
+                switch user
+              </v-btn>
+              <v-switch
+                v-model="alertStore.enableVoiceAlerts"
+                label="Enable voice alerts"
+                color="white"
+                class="mx-2"
+                hide-details
+              />
+            </div>
             <button
               v-if="interfaceStore.mainMenuStyleTrigger === 'burger'"
               class="flex items-center justify-center h-full mr-2 aspect-square top-bar-hamburger"
@@ -163,6 +182,7 @@ import {
   unregisterActionCallback,
 } from '@/libs/joystick/protocols/cockpit-actions'
 import { isElectron, sleep } from '@/libs/utils'
+import { useAlertStore } from '@/stores/alert'
 import { useMissionStore } from '@/stores/mission'
 
 import About from './components/About.vue'
@@ -186,6 +206,7 @@ const widgetStore = useWidgetManagerStore()
 const vehicleStore = useMainVehicleStore()
 const interfaceStore = useAppInterfaceStore()
 const devStore = useDevelopmentStore()
+const alertStore = useAlertStore()
 const missionStore = useMissionStore()
 
 const showAboutDialog = ref(false)
