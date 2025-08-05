@@ -118,6 +118,7 @@ export function getCapturedLogs() {
 export async function backupSettings() {
   try {
     // Collect all localStorage data
+    // TODO: Use settings manager instead of localStorage
     const backupData = {}
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i)
@@ -207,6 +208,7 @@ Found ${Object.keys(backupData).length} setting(s) to import.`
         // Import all settings
         for (const [key, value] of Object.entries(backupData)) {
           if (typeof key === 'string' && typeof value === 'string') {
+            // TODO: Use settings manager instead of localStorage
             localStorage.setItem(key, value)
           }
         }

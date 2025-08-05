@@ -7,6 +7,7 @@ const migrateRenameOfLocalStorageKeys = (): void => {
     'last-tutorial-step': 'cockpit-last-tutorial-step',
     'tutorial-modal': 'cockpit-tutorial-modal',
   }
+  // TODO: Use settings manager instead of localStorage
   Object.entries(oldToNewKeys).forEach(([oldKey, newKey]) => {
     const oldValue = localStorage.getItem(oldKey)
     if (oldValue !== null) {
