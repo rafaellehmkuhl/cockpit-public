@@ -1,7 +1,6 @@
 import { useStorage, useTimestamp } from '@vueuse/core'
 import { differenceInSeconds } from 'date-fns'
 import { defineStore } from 'pinia'
-import { v4 as uuid } from 'uuid'
 import { computed, reactive, ref, watch } from 'vue'
 
 import { defaultGlobalAddress } from '@/assets/defaults'
@@ -10,13 +9,7 @@ import { useSnackbar } from '@/composables/snackbar'
 import { getAllDataLakeVariablesInfo, getDataLakeVariableInfo, setDataLakeVariableData } from '@/libs/actions/data-lake'
 import { createDataLakeVariable } from '@/libs/actions/data-lake'
 import { altitude_setpoint } from '@/libs/altitude-slider'
-import {
-  getCpuTempCelsius,
-  getKeyDataFromCockpitVehicleStorage,
-  getStatus,
-  getVehicleName,
-  setKeyDataOnCockpitVehicleStorage,
-} from '@/libs/blueos'
+import { getCpuTempCelsius, getStatus, getVehicleName } from '@/libs/blueos'
 import * as Connection from '@/libs/connection/connection'
 import { ConnectionManager } from '@/libs/connection/connection-manager'
 import type { Package } from '@/libs/connection/m2r/messages/mavlink2rest'
@@ -110,7 +103,6 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     enabled: false,
   })
 
-  const lastConnectedVehicleId = localStorage.getItem('cockpit-last-connected-vehicle-id') || undefined
   const currentlyConnectedVehicleId = ref<string | undefined>()
 
   const lastHeartbeat = ref<Date>()
@@ -166,6 +158,11 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
   })
 
   watch(isVehicleOnline, (isOnline) => {
+    if (isOnline) {
+      dispatchEvent(new CustomEvent('vehicle-online', { detail: { vehicleAddress: globalAddress.value } }))
+    } else {
+      dispatchEvent(new CustomEvent('vehicle-offline'))
+    }
     if (isOnline) return
     currentlyConnectedVehicleId.value = undefined
   })
@@ -529,35 +526,6 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
       Object.assign(statusGPS, newStatusGPS)
     })
 
-    // Get the ID for the currently connected vehicle, or create one if it does not exist
-    // Try this every 5 seconds until we have an ID
-    const updateVehicleId = async (): Promise<void> => {
-      try {
-        const maybeId = await getKeyDataFromCockpitVehicleStorage(globalAddress.value, 'cockpit-vehicle-id')
-        if (typeof maybeId !== 'string') {
-          throw new Error('Vehicle ID is not a string.')
-        }
-        currentlyConnectedVehicleId.value = maybeId
-        localStorage.setItem('cockpit-last-connected-vehicle-id', currentlyConnectedVehicleId.value)
-      } catch (idFetchError) {
-        console.error(`Could not get vehicle ID from storage. ${(idFetchError as Error).message}`)
-
-        const newVehicleId = uuid()
-        console.log(`Setting new vehicle ID: ${newVehicleId}`)
-        try {
-          await setKeyDataOnCockpitVehicleStorage(globalAddress.value, 'cockpit-vehicle-id', newVehicleId)
-          currentlyConnectedVehicleId.value = newVehicleId
-          localStorage.setItem('cockpit-last-connected-vehicle-id', currentlyConnectedVehicleId.value)
-        } catch (idSetError) {
-          console.error(`Could not set vehicle ID in storage. ${(idSetError as Error).message}`)
-          console.log('Will try setting the vehicle ID again in 5 seconds...')
-          setTimeout(updateVehicleId, 5000)
-        }
-      }
-    }
-
-    updateVehicleId()
-
     const blueOsVariables = {
       cpuTemp: { id: 'blueos/cpu/tempC', name: 'CPU Temperature', type: 'number' },
     }
@@ -742,7 +710,6 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     webRTCSignallingURI,
     customWebRTCSignallingURI,
     defaultWebRTCSignallingURI,
-    lastConnectedVehicleId,
     currentlyConnectedVehicleId,
     cpuLoad,
     lastHeartbeat,
