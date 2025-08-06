@@ -143,6 +143,7 @@
   >
     <SplashScreen v-if="interfaceStore.showSplashScreen" />
   </Transition>
+  <JoystickDiagnostic :visible="showDiagnostic" :target-joystick="targetJoystick" @close="hideDiagnostic" />
 </template>
 
 <script setup lang="ts">
@@ -151,6 +152,7 @@ import { computed, onBeforeMount, onBeforeUnmount, onMounted, ref, watch } from 
 
 import ActionDiscoveryModal from '@/components/ActionDiscoveryModal.vue'
 import GlassModal from '@/components/GlassModal.vue'
+import JoystickDiagnostic from '@/components/joysticks/JoystickDiagnostic.vue'
 import SkullAnimation from '@/components/SkullAnimation.vue'
 import SnackbarContainer from '@/components/SnackbarContainer.vue'
 import Tutorial from '@/components/Tutorial.vue'
@@ -172,6 +174,7 @@ import MiniWidgetContainer from './components/MiniWidgetContainer.vue'
 import SlideToConfirm from './components/SlideToConfirm.vue'
 import SplashScreen from './components/SplashScreen.vue'
 import { openMainMenuIfSafeOrDesired } from './composables/armSafetyDialog'
+import { useJoystickDiagnostic } from './composables/joystickDiagnostic'
 import { useSnackbar } from './composables/snackbar'
 import { checkBlueOsUserDataSimilarity } from './libs/blueos'
 import { useAppInterfaceStore } from './stores/appInterface'
@@ -180,6 +183,7 @@ import { useMainVehicleStore } from './stores/mainVehicle'
 import { useWidgetManagerStore } from './stores/widgetManager'
 import { SubMenuComponent } from './types/general'
 const { openSnackbar } = useSnackbar()
+const { showDiagnostic, targetJoystick, hideDiagnostic } = useJoystickDiagnostic()
 
 const widgetStore = useWidgetManagerStore()
 const vehicleStore = useMainVehicleStore()

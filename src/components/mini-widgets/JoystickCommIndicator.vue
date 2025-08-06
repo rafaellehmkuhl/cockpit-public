@@ -26,8 +26,7 @@
       variant="text-only"
     >
       <template #content>
-        <div class="flex items-center justify-center mb-4 flex-col">
-          <span class="mr-2"></span>
+        <div class="flex items-center justify-center mb-6 flex-col gap-4 -mt-6">
           <v-switch
             v-model="controllerStore.enableForwarding"
             hide-details
@@ -35,6 +34,10 @@
             color="white"
             :disabled="!joystickConnected"
           />
+          <v-btn v-if="joystickConnected" variant="outlined" @click="handleTestJoystick">
+            <FontAwesomeIcon icon="fa-solid fa-stethoscope" class="mr-2" />
+            Test Joystick
+          </v-btn>
         </div>
       </template>
       <template #actions>
@@ -48,6 +51,7 @@
 import { computed, onMounted, ref, toRefs } from 'vue'
 
 import InteractionDialog from '@/components/InteractionDialog.vue'
+import { useJoystickDiagnostic } from '@/composables/joystickDiagnostic'
 import { joystickManager } from '@/libs/joystick/manager'
 import { useControllerStore } from '@/stores/controller'
 import { useWidgetManagerStore } from '@/stores/widgetManager'
@@ -66,6 +70,7 @@ const miniWidget = toRefs(props).miniWidget
 
 const widgetStore = useWidgetManagerStore()
 const controllerStore = useControllerStore()
+const { showDiagnosticModal } = useJoystickDiagnostic()
 const joystickConnected = ref(false)
 
 onMounted(() => {
@@ -88,4 +93,11 @@ const switchLabel = computed(() => {
   if (controllerStore.enableForwarding) return 'Joystick commands enabled'
   return 'Joystick commands paused'
 })
+
+const handleTestJoystick = (): void => {
+  // Close the dialog first
+  widgetStore.miniWidgetManagerVars(miniWidget.value.hash).configMenuOpen = false
+  // Then show the diagnostic modal
+  showDiagnosticModal()
+}
 </script>

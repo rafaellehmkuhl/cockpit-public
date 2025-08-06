@@ -11,6 +11,7 @@ import {
   defaultProtocolMappingVehicleCorrespondency,
 } from '@/assets/joystick-profiles'
 import { useInteractionDialog } from '@/composables/interactionDialog'
+import { useJoystickDiagnostic } from '@/composables/joystickDiagnostic'
 import { useBlueOsStorage } from '@/composables/settingsSyncer'
 import { checkForOtherManualControlSources } from '@/libs/blueos'
 import { MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
@@ -55,6 +56,7 @@ const cockpitStdMappingsKey = 'cockpit-standard-mappings-v2'
 
 export const useControllerStore = defineStore('controller', () => {
   const alertStore = useAlertStore()
+  const { triggerAutoDiagnostic } = useJoystickDiagnostic()
   const joysticks = ref<Map<number, Joystick>>(new Map())
   const updateCallbacks = ref<controllerUpdateCallback[]>([])
   const protocolMappings = useBlueOsStorage(protocolMappingsKey, cockpitStandardToProtocols)
@@ -177,6 +179,9 @@ export const useControllerStore = defineStore('controller', () => {
       const { product_id, vendor_id } = joystickManager.getVidPid(joystick.gamepad.id)
       joysticks.value.set(index, joystick)
       console.info(`Joystick ${index} connected. Model: ${joystick.model} // VID: ${vendor_id} // PID: ${product_id}`)
+
+      // Trigger automatic diagnostic for newly connected joystick
+      triggerAutoDiagnostic(joystick)
 
       if (thereWereJoysticksBefore && enableForwarding.value) {
         console.warn('There are joysticks connected and forwarding already. Skipping joystick conflict check.')
