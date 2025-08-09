@@ -67,19 +67,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - os: macos-13
-          suffix: mac
-          arch: x64
-          extension: dmg
-          latestMetadataName: latest-mac.yml
-          deployCommand: deploy:electron:mac:x64
-
         - os: macos-14
           suffix: mac
-          arch: arm64
+          arch: universal
           extension: dmg
           latestMetadataName: latest-mac.yml
-          deployCommand: deploy:electron:mac:arm64
+          deployCommand: deploy:electron:mac:both
 
         - os: ubuntu-latest
           suffix: linux
@@ -135,7 +128,7 @@ jobs:
           yarn build
 
       - name: Import Apple Certificate and Setup Keychain
-        if: (matrix.os == 'macos-13' || matrix.os == 'macos-14') && github.event_name != 'pull_request'
+        if: (matrix.os == 'macos-14') && github.event_name != 'pull_request'
         env:
           MAC_CERTIFICATE_BASE64: ${{ secrets.MAC_CERTIFICATE_BASE64 }}
           MAC_CERTIFICATE_PWD: ${{ secrets.MAC_CERTIFICATE_PWD }}
@@ -172,7 +165,7 @@ jobs:
           SNAPCRAFT_BUILD_ENVIRONMENT="host" yarn ${{ matrix.deployCommand }}
 
       - name: Deploy (macOS - Release Build)
-        if: (matrix.os == 'macos-13' || matrix.os == 'macos-14') && github.event_name != 'pull_request'
+        if: (matrix.os == 'macos-14') && github.event_name != 'pull_request'
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
@@ -183,7 +176,7 @@ jobs:
           yarn ${{ matrix.deployCommand }}
 
       - name: Deploy (macOS - PR Build)
-        if: (matrix.os == 'macos-13' || matrix.os == 'macos-14') && github.event_name == 'pull_request'
+        if: (matrix.os == 'macos-14') && github.event_name == 'pull_request'
         # No Apple ID env vars here, and 'Import Apple Certificate...' step was skipped, so no CSC_KEYCHAIN_NAME
         run: |
           echo "INFO: Building macOS for Pull Request. Signing and notarization will be skipped."
@@ -195,31 +188,45 @@ jobs:
         run: |
           yarn ${{ matrix.deployCommand }}
 
-      - name: Upload binary artifact
+      - name: Upload binary artifact (non-mac)
+        if: matrix.os != 'macos-14'
         uses: actions/upload-artifact@v4
         with:
           name: Cockpit-${{ matrix.suffix }}-${{ matrix.arch }}-${{ env.VERSION }}.${{ matrix.extension }}
           path: dist/Cockpit-${{ matrix.suffix }}-${{ matrix.arch }}-${{ env.VERSION }}.${{ matrix.extension }}
           if-no-files-found: error
 
+      - name: Upload binary artifacts (mac)
+        if: matrix.os == 'macos-14'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Cockpit-${{ matrix.suffix }}-both-${{ env.VERSION }}.dmg
+          path: |
+            dist/Cockpit-mac-x64-${{ env.VERSION }}.dmg
+            dist/Cockpit-mac-arm64-${{ env.VERSION }}.dmg
+          if-no-files-found: error
+
       - name: Upload diff artifact (mac-only)
-        if: matrix.os == 'macos-13' || matrix.os == 'macos-14'
+        if: matrix.os == 'macos-14'
         uses: actions/upload-artifact@v4
         with:
           name: Cockpit-${{ matrix.suffix }}-${{ matrix.arch }}-${{ env.VERSION }}.zip
           path: dist/Cockpit*.zip
           if-no-files-found: error
 
-      - name: Upload latest metadata artifact
+      - name: Upload latest metadata artifacts (mac)
+        if: matrix.os == 'macos-14'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.latestMetadataName }}-${{ matrix.arch }}
-          path: dist/latest*.yml
+          name: mac-latest-metadata-${{ env.VERSION }}
+          path: |
+            dist/latest-mac.yml
+            dist/latest-mac-arm64.yml
           if-no-files-found: error
 
-      - name: Upload binary release
+      - name: Upload binary release (non-mac)
         uses: svenstaro/upload-release-action@v2
-        if: startsWith(github.ref, 'refs/tags/') && success()
+        if: startsWith(github.ref, 'refs/tags/') && success() && matrix.os != 'macos-14'
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: dist/Cockpit-${{ matrix.suffix }}-${{ matrix.arch }}-${{ env.VERSION }}.${{ matrix.extension }}
@@ -230,21 +237,43 @@ jobs:
 
       - name: Upload diff release (mac-only)
         uses: svenstaro/upload-release-action@v2
-        if: startsWith(github.ref, 'refs/tags/') && success() && (matrix.os == 'macos-13' || matrix.os == 'macos-14')
+        if: startsWith(github.ref, 'refs/tags/') && success() && (matrix.os == 'macos-14')
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: dist/Cockpit-${{ matrix.suffix }}-${{ matrix.arch }}-${{ env.VERSION }}.zip
+          file: dist/Cockpit-mac-*-${{ env.VERSION }}.zip
           tag: ${{ github.ref }}
           overwrite: true
           prerelease: true
           file_glob: true
 
-      - name: Upload latest metadata release
+      - name: Upload latest metadata release (mac)
         uses: svenstaro/upload-release-action@v2
-        if: startsWith(github.ref, 'refs/tags/') && success()
+        if: startsWith(github.ref, 'refs/tags/') && success() && matrix.os == 'macos-14'
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: dist/latest-mac*.yml
+          tag: ${{ github.ref }}
+          overwrite: true
+          prerelease: true
+          file_glob: true
+
+      - name: Upload latest metadata release (non-mac)
+        uses: svenstaro/upload-release-action@v2
+        if: startsWith(github.ref, 'refs/tags/') && success() && matrix.os != 'macos-14'
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: dist/${{ matrix.latestMetadataName }}
+          tag: ${{ github.ref }}
+          overwrite: true
+          prerelease: true
+          file_glob: true
+
+      - name: Upload binary release (mac)
+        uses: svenstaro/upload-release-action@v2
+        if: startsWith(github.ref, 'refs/tags/') && success() && matrix.os == 'macos-14'
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: dist/Cockpit-mac-*-${{ env.VERSION }}.dmg
           tag: ${{ github.ref }}
           overwrite: true
           prerelease: true
