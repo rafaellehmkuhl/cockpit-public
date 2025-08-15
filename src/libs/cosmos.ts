@@ -367,6 +367,14 @@ declare global {
        * Process and convert video chunks using native FFmpeg
        */
       ffmpegProcessAndConvertChunks: (inputFiles: string[], outputPath: string, outputFormat?: string) => Promise<{ success: boolean }>
+      /**
+       * Listen for FFmpeg progress updates
+       */
+      onFFmpegProgress: (callback: (data: { progress: number; message: string }) => void) => void
+      /**
+       * Remove all FFmpeg progress listeners
+       */
+      offFFmpegProgress: () => void
     }
   }
 }
