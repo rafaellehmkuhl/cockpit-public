@@ -11,6 +11,7 @@ import { serialService } from './services/serial'
 import { setupFilesystemStorage } from './services/storage'
 import { setupUserAgentService } from './services/user-agent'
 import { setupWorkspaceService } from './services/workspace'
+import { setupFFmpegService } from './services/ffmpeg'
 
 // Setup the logger service as soon as possible to avoid different behaviors across runtime
 setupElectronLogService()
@@ -84,6 +85,7 @@ setupResourceMonitoringService()
 setupUserAgentService()
 setupWorkspaceService()
 setupJoystickMonitoring()
+setupFFmpegService()
 
 app.whenReady().then(async () => {
   console.log('Electron app is ready.')

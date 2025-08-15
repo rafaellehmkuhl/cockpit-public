@@ -1,7 +1,7 @@
-import { ipcMain, shell } from 'electron'
+import { dialog, ipcMain, shell } from 'electron'
 import { app } from 'electron'
 import * as fs from 'fs/promises'
-import { dirname, join } from 'path'
+import { dirname, join, basename } from 'path'
 
 // Create a new storage interface for filesystem
 export const cockpitFolderPath = join(app.getPath('home'), 'Cockpit')
@@ -66,5 +66,94 @@ export const setupFilesystemStorage = (): void => {
     const videoFolderPath = join(cockpitFolderPath, 'videos')
     await fs.mkdir(videoFolderPath, { recursive: true })
     await shell.openPath(videoFolderPath)
+  })
+  ipcMain.handle('select-folder', async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openDirectory']
+    })
+    return result
+  })
+  ipcMain.handle('read-directory', async (_, path: string) => {
+    try {
+      const files = await fs.readdir(path, { withFileTypes: true })
+      return await Promise.all(files.map(async (file) => {
+        const filePath = join(path, file.name)
+        const stats = await fs.stat(filePath)
+        return {
+          name: file.name,
+          path: filePath,
+          isDirectory: file.isDirectory(),
+          size: stats.size,
+          mtime: stats.mtime
+        }
+      }))
+    } catch (error) {
+      console.error('Error reading directory:', error)
+      return []
+    }
+  })
+
+  ipcMain.handle('delete-file', async (_, path: string) => {
+    try {
+      await fs.unlink(path)
+    } catch (error) {
+      console.error('Error deleting file:', error)
+      throw error
+    }
+  })
+  ipcMain.handle('open-path', async (_, path: string) => {
+    try {
+      await shell.openPath(path)
+    } catch (error) {
+      console.error('Error opening path:', error)
+      throw error
+    }
+  })
+
+        ipcMain.handle('get-default-chunks-folder', async () => {
+    try {
+      // Get user's home directory and construct the correct default path
+      const homeDir = app.getPath('home')
+      const defaultChunksPath = join(homeDir, 'Cockpit', 'videos', 'temporary-video-chunks')
+
+      console.log('Checking default chunks path:', defaultChunksPath)
+
+      // Check if the directory exists
+      try {
+        await fs.access(defaultChunksPath)
+        console.log('Default chunks folder found:', defaultChunksPath)
+        return defaultChunksPath
+      } catch {
+        // Directory doesn't exist, return null to trigger manual selection
+        console.log('Default chunks folder does not exist:', defaultChunksPath)
+        return null
+      }
+    } catch (error) {
+      console.error('Error getting default chunks folder:', error)
+      return null
+    }
+  })
+
+  ipcMain.handle('get-default-output-folder', async () => {
+    try {
+      // Get user's home directory and construct the default output path
+      const homeDir = app.getPath('home')
+      const defaultOutputPath = join(homeDir, 'Cockpit', 'videos')
+
+      console.log('Checking default output path:', defaultOutputPath)
+
+      // Ensure the directory exists (create if it doesn't)
+      try {
+        await fs.mkdir(defaultOutputPath, { recursive: true })
+        console.log('Default output folder ready:', defaultOutputPath)
+        return defaultOutputPath
+      } catch (error) {
+        console.error('Failed to create default output folder:', error)
+        return null
+      }
+    } catch (error) {
+      console.error('Error getting default output folder:', error)
+      return null
+    }
   })
 }
