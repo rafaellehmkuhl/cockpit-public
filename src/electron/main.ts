@@ -10,6 +10,7 @@ import { setupResourceMonitoringService } from './services/resource-monitoring'
 import { serialService } from './services/serial'
 import { setupFilesystemStorage } from './services/storage'
 import { setupWorkspaceService } from './services/workspace'
+import { setupFFmpegService } from './services/ffmpeg'
 
 // Setup the logger service as soon as possible to avoid different behaviors across runtime
 setupElectronLogService()
@@ -82,6 +83,7 @@ setupNetworkService()
 setupResourceMonitoringService()
 setupWorkspaceService()
 setupJoystickMonitoring()
+setupFFmpegService()
 
 app.whenReady().then(async () => {
   console.log('Electron app is ready.')
