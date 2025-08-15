@@ -380,13 +380,16 @@ const processVideo = async (): Promise<void> => {
   processingMessage.value = 'Initializing...'
 
   try {
-    // Check if FFmpeg is available
+    // PHASE 1: Setup (0-5% progress)
+    processingProgress.value = 1
     processingMessage.value = 'Checking FFmpeg availability...'
+
     const ffmpegAvailable = await window.electronAPI?.ffmpegCheckAvailable()
     if (!ffmpegAvailable) {
       throw new Error('FFmpeg is not installed or not available in PATH. Please install FFmpeg first.')
     }
 
+    processingProgress.value = 2
     // Get FFmpeg version for info
     try {
       const version = await window.electronAPI?.ffmpegGetVersion()
@@ -396,7 +399,8 @@ const processVideo = async (): Promise<void> => {
       console.warn('Could not get FFmpeg version:', error)
     }
 
-    processingProgress.value = 10
+    processingProgress.value = 3
+    processingMessage.value = 'Reading chunk files...'
 
     // Get all chunk files for the selected hash
     const files = await window.electronAPI?.readDirectory(selectedInputFolder.value)
@@ -417,8 +421,8 @@ const processVideo = async (): Promise<void> => {
     processedChunkCount.value = chunkFiles.length
     processedChunkFiles.value = chunkFiles.map((f: any) => f.path)
 
-    processingMessage.value = `Found ${chunkFiles.length} chunks to process`
-    processingProgress.value = 20
+    processingProgress.value = 4
+    processingMessage.value = `Preparing ${chunkFiles.length} chunks for processing...`
 
     // Prepare file paths for FFmpeg
     const inputFiles = chunkFiles.map((f: any) => f.path)
@@ -426,11 +430,37 @@ const processVideo = async (): Promise<void> => {
     const outputPath = `${selectedOutputFolder.value}/${outputFilename}`
     outputVideoPath.value = outputPath
 
+    processingProgress.value = 5
     processingMessage.value = 'Starting FFmpeg processing...'
-    processingProgress.value = 30
 
-    // Process with native FFmpeg using re-encoding for better compatibility
+    // PHASE 2: FFmpeg Processing (5-95% progress)
+    // Set up progress listener to receive updates from FFmpeg service
+    if (window.electronAPI?.onFFmpegProgress) {
+      window.electronAPI.onFFmpegProgress(({ progress, message }) => {
+        // Map FFmpeg progress (0-100%) to our range (5-95%)
+        const mappedProgress = 5 + (progress * 0.9) // 5% + (progress * 90%)
+        processingProgress.value = Math.min(95, mappedProgress)
+        processingMessage.value = message
+      })
+    }
+
+    // Start FFmpeg processing
     await window.electronAPI?.ffmpegProcessAndConvertChunks(inputFiles, outputPath, 'mp4')
+
+    // PHASE 3: Cleanup and finalization (95-100% progress)
+    processingProgress.value = 96
+    processingMessage.value = 'Finalizing output...'
+
+    // Clean up progress listener
+    if (window.electronAPI?.offFFmpegProgress) {
+      window.electronAPI.offFFmpegProgress()
+    }
+
+    processingProgress.value = 98
+    processingMessage.value = 'Verifying output file...'
+
+    // Small delay to show finalization steps
+    await new Promise(resolve => setTimeout(resolve, 500))
 
     processingProgress.value = 100
     processingMessage.value = 'Complete!'
@@ -440,6 +470,11 @@ const processVideo = async (): Promise<void> => {
     console.error('Processing error:', error)
     errorMessage.value = error instanceof Error ? error.message : 'Unknown processing error'
     currentStep.value = 'error'
+
+    // Clean up progress listener on error
+    if (window.electronAPI?.offFFmpegProgress) {
+      window.electronAPI.offFFmpegProgress()
+    }
   } finally {
     isProcessing.value = false
   }

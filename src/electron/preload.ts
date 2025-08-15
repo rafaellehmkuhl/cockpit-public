@@ -50,6 +50,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   ffmpegGetVersion: () => ipcRenderer.invoke('ffmpeg-get-version'),
   ffmpegProcessAndConvertChunks: (inputFiles: string[], outputPath: string, outputFormat?: string) =>
     ipcRenderer.invoke('ffmpeg-process-and-convert-chunks', { inputFiles, outputPath, outputFormat }),
+  // FFmpeg progress listener
+  onFFmpegProgress: (callback: (data: { progress: number; message: string }) => void) => {
+    ipcRenderer.on('ffmpeg-progress', (_event, data) => callback(data))
+  },
+  offFFmpegProgress: () => {
+    ipcRenderer.removeAllListeners('ffmpeg-progress')
+  },
   captureWorkspace: (rect?: Electron.Rectangle) => ipcRenderer.invoke('capture-workspace', rect),
   serialListPorts: () => ipcRenderer.invoke('serial-list-ports'),
   serialOpen: (path: string, baudRate?: number) => ipcRenderer.invoke('serial-open', { path, baudRate }),
