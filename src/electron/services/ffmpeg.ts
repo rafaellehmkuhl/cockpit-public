@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { promises as fs } from 'fs'
-import { join, dirname, extname } from 'path'
+import { join, dirname } from 'path'
 import { spawn } from 'child_process'
 
 /**
@@ -288,51 +288,6 @@ export class FFmpegService {
   }
 
   /**
-   * Run an FFprobe command for quick file validation
-   *
-   * FFprobe is a companion tool to FFmpeg that can quickly analyze media files
-   * without processing them. This method was initially used for pre-validation
-   * of video chunks but is currently unused in the final implementation.
-   *
-   * @param args - Command line arguments to pass to FFprobe
-   * @returns Promise that resolves to the FFprobe output string
-   * @throws Error if FFprobe fails or is not found
-   * @private
-   */
-  private async runFFprobeCommand(args: string[]): Promise<string> {
-    return new Promise((resolve, reject) => {
-      // Spawn FFprobe process with provided arguments
-      const process = spawn(this.ffprobePath, args)
-      let output = ''
-      let errorOutput = ''
-
-      // Collect stdout output (main results)
-      process.stdout.on('data', (data) => {
-        output += data.toString()
-      })
-
-      // Collect stderr output (errors and warnings)
-      process.stderr.on('data', (data) => {
-        errorOutput += data.toString()
-      })
-
-      // Handle process spawn errors (e.g., FFprobe not found)
-      process.on('error', (error) => {
-        reject(new Error(`FFprobe process error: ${error.message}`))
-      })
-
-      // Handle process completion
-      process.on('close', (code) => {
-        if (code === 0) {
-          resolve(output.trim())
-        } else {
-          reject(new Error(`FFprobe failed with exit code ${code}. Error: ${errorOutput}`))
-        }
-      })
-    })
-  }
-
-  /**
    * Run an FFmpeg command with progress tracking and quality validation
    *
    * This is the core method that executes FFmpeg commands and implements smart
@@ -528,7 +483,7 @@ export const setupFFmpegService = (): void => {
     }
   })
 
-  /**
+    /**
    * IPC Handler: Process and concatenate video chunks
    * This is the main processing endpoint used by VideoChunkProcessor
    *
@@ -537,7 +492,7 @@ export const setupFFmpegService = (): void => {
    * - Falls back to concat protocol for corrupted chunks (faster)
    * - Falls back to re-encoding for severely corrupted chunks (guaranteed success)
    */
-  ipcMain.handle('ffmpeg-process-and-convert-chunks', async (_, { inputFiles, outputPath, outputFormat }) => {
+  ipcMain.handle('ffmpeg-process-and-convert-chunks', async (event, { inputFiles, outputPath, outputFormat }) => {
     try {
       await ffmpegService.processAndConvertVideoChunks(
         inputFiles,
@@ -546,7 +501,8 @@ export const setupFFmpegService = (): void => {
         (progress, message) => {
           // Log progress to main process console for debugging
           console.log(`FFmpeg Progress: ${progress}% - ${message}`)
-          // TODO: Could send progress back to renderer via IPC if needed
+          // Send progress updates back to renderer process
+          event.sender.send('ffmpeg-progress', { progress, message })
         }
       )
       return { success: true }
