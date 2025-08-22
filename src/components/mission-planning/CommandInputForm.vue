@@ -40,7 +40,7 @@
       <!-- Parameter Inputs -->
       <div v-if="selectedMavCommand" class="flex flex-col gap-2">
         <v-divider class="border-black w-full" />
-        <div class="text-[11px] font-semibold text-center mb-1">Parameters</div>
+        <div class="text-[11px] font-semibold text-center mt-2">Command Parameters</div>
 
         <!-- Nav Command Parameters (4 params) -->
         <template v-if="selectedCommandType === MissionCommandType.MAVLINK_NAV_COMMAND">
@@ -136,17 +136,13 @@ const commandParams = reactive<Record<string, number>>({
 })
 
 const commandTypeOptions = [
-  { name: 'Navigation Command', value: MissionCommandType.MAVLINK_NAV_COMMAND },
-  { name: 'Non-Navigation Command', value: MissionCommandType.MAVLINK_NON_NAV_COMMAND },
+  { name: 'MAVLink Navigation Command', value: MissionCommandType.MAVLINK_NAV_COMMAND },
+  { name: 'MAVLink Non-Navigation Command', value: MissionCommandType.MAVLINK_NON_NAV_COMMAND },
 ]
 
 // Helper function to convert MAV_CMD enum to display name
 const formatCommandName = (command: string): string => {
-  return command
-    .replace('MAV_CMD_', '')
-    .replace(/_/g, ' ')
-    .toLowerCase()
-    .replace(/\b\w/g, (l) => l.toUpperCase())
+  return command.replace('MAV_CMD_', '').replace('NAV_', ' ')
 }
 
 // Generate command options from MavCmd enum

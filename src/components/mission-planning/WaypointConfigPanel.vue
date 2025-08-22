@@ -100,25 +100,25 @@
             :key="index"
             class="flex flex-col p-2 bg-[#EEEEEE22] text-white rounded-md"
           >
-            <div class="flex justify-between items-center mb-2">
-              <div class="flex flex-col">
+            <div class="flex justify-between items-center">
+              <div class="flex flex-col gap-1">
                 <p class="text-[11px] font-semibold">{{ getCommandDisplayName(command.command) }}</p>
                 <p class="text-[10px] opacity-75">{{ command.type.replace('MAVLINK_', '').replace('_', ' ') }}</p>
+                <div class="text-[10px] grid grid-cols-2 gap-1">
+                  <span v-if="command.type === MissionCommandType.MAVLINK_NAV_COMMAND">
+                    P1: {{ command.param1 }} | P2: {{ command.param2 }}<br />
+                    P3: {{ command.param3 }} | P4: {{ command.param4 }}
+                  </span>
+                  <span v-else-if="command.type === MissionCommandType.MAVLINK_NON_NAV_COMMAND">
+                    P1: {{ command.param1 }} | P2: {{ command.param2 }} | P3: {{ command.param3 }}<br />
+                    P4: {{ command.param4 }} | P5: {{ command.x }} | P6: {{ command.y }} | P7: {{ command.z }}
+                  </span>
+                </div>
               </div>
-              <div class="flex gap-1">
+              <div class="flex flex-col gap-1">
                 <v-btn size="x-small" variant="outlined" icon="mdi-pencil" @click="editCommand(index)" />
                 <v-btn size="x-small" variant="outlined" icon="mdi-delete" @click="removeCommand(index)" />
               </div>
-            </div>
-            <div class="text-[10px] grid grid-cols-2 gap-1">
-              <span v-if="command.type === 'MAVLINK_NAV_COMMAND'">
-                P1: {{ command.param1 }} | P2: {{ command.param2 }}<br />
-                P3: {{ command.param3 }} | P4: {{ command.param4 }}
-              </span>
-              <span v-else>
-                P1: {{ command.param1 }} | P2: {{ command.param2 }} | P3: {{ command.param3 }}<br />
-                P4: {{ command.param4 }} | X: {{ command.x }} | Y: {{ command.y }} | Z: {{ command.z }}
-              </span>
             </div>
           </div>
         </div>
@@ -165,7 +165,13 @@ import CommandInputForm from '@/components/mission-planning/CommandInputForm.vue
 import { MavCmd } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { useAppInterfaceStore } from '@/stores/appInterface'
 import { useMissionStore } from '@/stores/mission'
-import { AltitudeReferenceType, MissionCommand, Waypoint, WaypointCoordinates } from '@/types/mission'
+import {
+  AltitudeReferenceType,
+  MissionCommand,
+  MissionCommandType,
+  Waypoint,
+  WaypointCoordinates,
+} from '@/types/mission'
 
 const interfaceStore = useAppInterfaceStore()
 const missionStore = useMissionStore()
