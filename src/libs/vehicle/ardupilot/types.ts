@@ -40,9 +40,9 @@ export const convertCockpitWaypointsToMavlink = (
     cockpitWaypoint.commands.forEach((waypointCommand) => {
       if ([MissionCommandType.MAVLINK_NAV_COMMAND, MissionCommandType.MAVLINK_NON_NAV_COMMAND].includes(waypointCommand.type)) {
         const frameType = mavlinkFrameFromCockpitAltRef(cockpitWaypoint.altitudeReferenceType) || MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT
-        const x = waypointCommand.type === MissionCommandType.MAVLINK_NAV_COMMAND ? round(cockpitWaypoint.coordinates[0] * Math.pow(10, 7)) : waypointCommand.param5
-        const y = waypointCommand.type === MissionCommandType.MAVLINK_NAV_COMMAND ? round(cockpitWaypoint.coordinates[1] * Math.pow(10, 7)) : waypointCommand.param6
-        const z = waypointCommand.type === MissionCommandType.MAVLINK_NAV_COMMAND ? Number(cockpitWaypoint.altitude) : waypointCommand.param7
+        const x = waypointCommand.type === MissionCommandType.MAVLINK_NAV_COMMAND ? round(cockpitWaypoint.coordinates[0] * Math.pow(10, 7)) : waypointCommand.x
+        const y = waypointCommand.type === MissionCommandType.MAVLINK_NAV_COMMAND ? round(cockpitWaypoint.coordinates[1] * Math.pow(10, 7)) : waypointCommand.y
+        const z = waypointCommand.type === MissionCommandType.MAVLINK_NAV_COMMAND ? Number(cockpitWaypoint.altitude) : waypointCommand.z
         mavlinkWaypoints.push({
           target_system: system_id,
           target_component: 1,
@@ -69,16 +69,15 @@ export const convertCockpitWaypointsToMavlink = (
 }
 
 export const convertMavlinkWaypointsToCockpit = (mavlinkWaypoints: Message.MissionItemInt[]): Waypoint[] => {
-
   const cockpitWaypoints: Waypoint[] = []
   mavlinkWaypoints.forEach((mavlinkWaypoint) => {
     if (mavlinkWaypoint.command.type.includes('MAV_CMD_NAV')) {
+      const altitudeReferenceType = cockpitAltRefFromMavlinkFrame(mavlinkWaypoint.frame.type) || AltitudeReferenceType.RELATIVE_TO_HOME
       cockpitWaypoints.push({
         id: uuid(),
         coordinates: [mavlinkWaypoint.x / Math.pow(10, 7), mavlinkWaypoint.y / Math.pow(10, 7)],
         altitude: mavlinkWaypoint.z,
-        altitudeReferenceType:
-          cockpitAltRefFromMavlinkFrame(mavlinkWaypoint.frame.type) || AltitudeReferenceType.RELATIVE_TO_HOME,
+        altitudeReferenceType,
         commands: [{
           type: MissionCommandType.MAVLINK_NAV_COMMAND,
           command: mavlinkWaypoint.command.type,
@@ -96,9 +95,9 @@ export const convertMavlinkWaypointsToCockpit = (mavlinkWaypoints: Message.Missi
         param2: mavlinkWaypoint.param2,
         param3: mavlinkWaypoint.param3,
         param4: mavlinkWaypoint.param4,
-        param5: mavlinkWaypoint.param5,
-        param6: mavlinkWaypoint.param6,
-        param7: mavlinkWaypoint.param7,
+        x: mavlinkWaypoint.x,
+        y: mavlinkWaypoint.y,
+        z: mavlinkWaypoint.z,
       })
     }
   })

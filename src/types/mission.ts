@@ -24,9 +24,9 @@ export type MavlinkNonNavCommand = {
   param2: number
   param3: number
   param4: number
-  param5: number
-  param6: number
-  param7: number
+  x: number
+  y: number
+  z: number
 }
 
 export type MissionCommand = MavlinkNavCommand | MavlinkNonNavCommand
