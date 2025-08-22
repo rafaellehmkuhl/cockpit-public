@@ -1175,22 +1175,23 @@ watch(selectedWaypoint, (newWaypoint, oldWaypoint) => {
     if (oldMarker) {
       oldMarker.setIcon(
         L.divIcon({
-          className: 'marker-icon',
-          iconSize: [16, 16],
-          iconAnchor: [8, 8],
+          html: createWaypointMarkerHtml(oldWaypoint.commands.length, false),
+          className: 'waypoint-marker-icon',
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
         })
       )
     }
   }
   if (newWaypoint) {
     const newMarker = waypointMarkers.value[newWaypoint.id]
-    const markerClass = newWaypoint.id === selectedWaypoint.value?.id ? 'marker-icon selected-marker' : 'marker-icon'
     if (newMarker) {
       newMarker.setIcon(
         L.divIcon({
-          className: markerClass,
-          iconSize: [16, 16],
-          iconAnchor: [8, 8],
+          html: createWaypointMarkerHtml(newWaypoint.commands.length, true),
+          className: 'waypoint-marker-icon',
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
         })
       )
     }
@@ -1244,13 +1245,14 @@ const addWaypoint = (
   })
 
   const markerIcon = L.divIcon({
-    className: 'marker-icon',
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],
+    html: createWaypointMarkerHtml(waypoint.commands.length, false),
+    className: 'waypoint-marker-icon',
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
   })
   newMarker.setIcon(markerIcon)
   const markerTooltip = L.tooltip({
-    content: `${missionStore.currentPlanningWaypoints.length}`,
+    content: '',
     permanent: true,
     direction: 'center',
     className: 'waypoint-tooltip',
@@ -1259,6 +1261,9 @@ const addWaypoint = (
   newMarker.bindTooltip(markerTooltip)
   planningMap.value.addLayer(newMarker)
   waypointMarkers.value[waypointId] = newMarker
+
+  // Update waypoint numbering to account for command counts
+  reNumberWaypoints()
 }
 
 const removeWaypoint = (waypoint: Waypoint): void => {
@@ -1442,6 +1447,16 @@ watch(
   { deep: true }
 )
 
+// Watch for changes in waypoint commands to update numbering
+watch(
+  () => missionStore.currentPlanningWaypoints.map((wp) => wp.commands.length),
+  () => {
+    // Renumber waypoints when command counts change
+    reNumberWaypoints()
+  },
+  { deep: true }
+)
+
 const updateSurveyMarkersPositions = (): void => {
   surveyPolygonVertexesMarkers.value.forEach((marker, index) => {
     const latlng = surveyPolygonVertexesPositions.value[index]
@@ -1542,8 +1557,8 @@ const updateSurveyEdgeAddMarkers = (): void => {
             </svg>
           `,
           className: 'edge-marker',
-          iconSize: [20, 20],
-          iconAnchor: [10, 10],
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
         }),
       })
 
@@ -1681,12 +1696,38 @@ const generateWaypointsFromSurvey = (): void => {
   openSnackbar({ variant: 'success', message: 'Waypoints generated from survey path.', duration: 1000 })
 }
 
+// Helper function to create waypoint marker HTML with command count indicator
+const createWaypointMarkerHtml = (commandCount: number, isSelected = false): string => {
+  const baseClass = isSelected ? 'selected-marker' : 'marker-icon'
+  return `
+    <div class="waypoint-marker-container">
+      <div class="${baseClass} waypoint-main-marker"></div>
+      ${commandCount > 1 ? `<div class="command-count-indicator">${commandCount}</div>` : ''}
+    </div>
+  `
+}
+
 const reNumberWaypoints = (): void => {
-  missionStore.currentPlanningWaypoints.forEach((wp, index) => {
+  let cumulativeCommandCount = 1 // Start numbering from 1
+
+  missionStore.currentPlanningWaypoints.forEach((wp) => {
     const marker = waypointMarkers.value[wp.id]
     if (marker) {
-      marker.getTooltip()?.setContent(`${index + 1}`)
+      marker.getTooltip()?.setContent(`${cumulativeCommandCount}`)
+
+      // Update marker icon to show command count
+      const isSelected = selectedWaypoint.value?.id === wp.id
+      marker.setIcon(
+        L.divIcon({
+          html: createWaypointMarkerHtml(wp.commands.length, isSelected),
+          className: 'waypoint-marker-icon',
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
+        })
+      )
     }
+    // Add the number of commands this waypoint has for the next waypoint's number
+    cumulativeCommandCount += wp.commands.length
   })
 }
 
@@ -1957,9 +1998,10 @@ const addWaypointMarker = (waypoint: Waypoint): void => {
   })
 
   const markerIcon = L.divIcon({
-    className: 'marker-icon',
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],
+    html: createWaypointMarkerHtml(waypoint.commands.length, false),
+    className: 'waypoint-marker-icon',
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
   })
   newMarker.setIcon(markerIcon)
 
@@ -1981,12 +2023,12 @@ watch(selectedWaypoint, (newWaypoint, oldWaypoint) => {
   if (oldWaypoint) {
     const oldMarker = waypointMarkers.value[oldWaypoint.id]
     if (oldMarker) {
-      const markerClass = 'marker-icon'
       oldMarker.setIcon(
         L.divIcon({
-          className: markerClass,
-          iconSize: [16, 16],
-          iconAnchor: [8, 8],
+          html: createWaypointMarkerHtml(oldWaypoint.commands.length, false),
+          className: 'waypoint-marker-icon',
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
         })
       )
       const oldSurvey = surveys.value.find((s) => s.waypoints.some((w) => w.id === oldWaypoint.id))
@@ -2000,12 +2042,12 @@ watch(selectedWaypoint, (newWaypoint, oldWaypoint) => {
   if (newWaypoint) {
     const newMarker = waypointMarkers.value[newWaypoint.id]
     if (newMarker) {
-      const markerClass = 'selected-marker'
       newMarker.setIcon(
         L.divIcon({
-          className: markerClass,
-          iconSize: [16, 16],
-          iconAnchor: [8, 8],
+          html: createWaypointMarkerHtml(newWaypoint.commands.length, true),
+          className: 'waypoint-marker-icon',
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
         })
       )
       const newSurvey = surveys.value.find((s) => s.waypoints.some((w) => w.id === newWaypoint.id))
@@ -2540,18 +2582,57 @@ watch(
   align-items: center;
   justify-content: center;
 }
+.waypoint-marker-icon {
+  background: none;
+  border: none;
+}
+
+.waypoint-marker-container {
+  position: relative;
+  width: 28px;
+  height: 28px;
+}
+
+.waypoint-main-marker {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+}
+
 .marker-icon {
   background-color: #1e498f;
   border: 1px solid #ffffff55;
-  border-radius: 50%;
 }
+
 .selected-marker {
   border: 2px solid #ffff0099;
   background-color: #1e498f;
-  border-radius: 50%;
 }
+
 .green-marker {
   background-color: #034103aa;
+}
+
+.command-count-indicator {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background-color: #ff6b35;
+  color: white;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: bold;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  z-index: 10;
 }
 .waypoint-tooltip {
   background-color: transparent;
