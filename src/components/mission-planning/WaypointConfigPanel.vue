@@ -130,7 +130,7 @@
               </span>
               <span v-else>
                 P1: {{ command.param1 }} | P2: {{ command.param2 }} | P3: {{ command.param3 }}<br>
-                P4: {{ command.param4 }} | P5: {{ command.param5 }} | P6: {{ command.param6 }} | P7: {{ command.param7 }}
+                P4: {{ command.param4 }} | X: {{ command.x }} | Y: {{ command.y }} | Z: {{ command.z }}
               </span>
             </div>
           </div>

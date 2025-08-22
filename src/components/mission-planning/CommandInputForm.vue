@@ -71,10 +71,12 @@
             :key="paramNum"
             class="flex w-full gap-x-4 justify-between items-center text-[12px]"
           >
-            <p class="w-[80px] text-start">Param {{ paramNum }}:</p>
+            <p class="w-[120px] text-start">
+              Param {{ paramNum }} {{ paramNum === 5 ? '(x)' : paramNum === 6 ? '(y)' : paramNum === 7 ? '(z)' : '' }}:
+            </p>
             <div class="flex w-full pr-2 h-[35px] items-center">
               <v-text-field
-                v-model.number="commandParams[`param${paramNum}`]"
+                v-model.number="commandParams[paramNum <= 4 ? `param${paramNum}` : paramNum === 5 ? 'x' : paramNum === 6 ? 'y' : 'z']"
                 type="number"
                 step="any"
                 density="compact"
@@ -128,9 +130,9 @@ const commandParams = reactive<Record<string, number>>({
   param2: 0,
   param3: 0,
   param4: 0,
-  param5: 0,
-  param6: 0,
-  param7: 0,
+  x: 0,
+  y: 0,
+  z: 0,
 })
 
 const commandTypeOptions = [
@@ -212,9 +214,9 @@ const addCommand = (): void => {
           param2: commandParams.param2,
           param3: commandParams.param3,
           param4: commandParams.param4,
-          param5: commandParams.param5,
-          param6: commandParams.param6,
-          param7: commandParams.param7,
+          x: commandParams.x,
+          y: commandParams.y,
+          z: commandParams.z,
         }
 
   emit('commandReady', command)
@@ -245,9 +247,9 @@ watch(
       commandParams.param4 = command.param4
 
       if (command.type === MissionCommandType.MAVLINK_NON_NAV_COMMAND) {
-        commandParams.param5 = command.param5
-        commandParams.param6 = command.param6
-        commandParams.param7 = command.param7
+        commandParams.x = command.x
+        commandParams.y = command.y
+        commandParams.z = command.z
       }
     }
   },
