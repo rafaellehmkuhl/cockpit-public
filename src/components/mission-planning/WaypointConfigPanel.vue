@@ -107,29 +107,17 @@
                 <p class="text-[10px] opacity-75">{{ command.type.replace('MAVLINK_', '').replace('_', ' ') }}</p>
               </div>
               <div class="flex gap-1">
-                <v-btn
-                  size="x-small"
-                  color="primary"
-                  variant="outlined"
-                  icon="mdi-pencil"
-                  @click="editCommand(index)"
-                />
-                <v-btn
-                  size="x-small"
-                  color="error"
-                  variant="outlined"
-                  icon="mdi-delete"
-                  @click="removeCommand(index)"
-                />
+                <v-btn size="x-small" variant="outlined" icon="mdi-pencil" @click="editCommand(index)" />
+                <v-btn size="x-small" variant="outlined" icon="mdi-delete" @click="removeCommand(index)" />
               </div>
             </div>
             <div class="text-[10px] grid grid-cols-2 gap-1">
               <span v-if="command.type === 'MAVLINK_NAV_COMMAND'">
-                P1: {{ command.param1 }} | P2: {{ command.param2 }}<br>
+                P1: {{ command.param1 }} | P2: {{ command.param2 }}<br />
                 P3: {{ command.param3 }} | P4: {{ command.param4 }}
               </span>
               <span v-else>
-                P1: {{ command.param1 }} | P2: {{ command.param2 }} | P3: {{ command.param3 }}<br>
+                P1: {{ command.param1 }} | P2: {{ command.param2 }} | P3: {{ command.param3 }}<br />
                 P4: {{ command.param4 }} | X: {{ command.x }} | Y: {{ command.y }} | Z: {{ command.z }}
               </span>
             </div>
@@ -140,7 +128,6 @@
         <v-btn
           v-if="!showCommandForm"
           class="w-full mb-2"
-          color="primary"
           variant="outlined"
           size="small"
           prepend-icon="mdi-plus"
@@ -174,8 +161,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 
-import CommandInputForm from '@/components/mission-planning/CommandInputForm.vue'
 import ExpansiblePanel from '@/components/ExpansiblePanel.vue'
+import CommandInputForm from '@/components/mission-planning/CommandInputForm.vue'
 import { MavCmd } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { useAppInterfaceStore } from '@/stores/appInterface'
 import { useMissionStore } from '@/stores/mission'

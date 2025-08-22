@@ -76,7 +76,9 @@
             </p>
             <div class="flex w-full pr-2 h-[35px] items-center">
               <v-text-field
-                v-model.number="commandParams[paramNum <= 4 ? `param${paramNum}` : paramNum === 5 ? 'x' : paramNum === 6 ? 'y' : 'z']"
+                v-model.number="
+                  commandParams[paramNum <= 4 ? `param${paramNum}` : paramNum === 5 ? 'x' : paramNum === 6 ? 'y' : 'z']
+                "
                 type="number"
                 step="any"
                 density="compact"
@@ -91,10 +93,8 @@
 
       <!-- Action Buttons -->
       <div v-if="selectedMavCommand" class="flex gap-2 mt-3">
-        <v-btn size="small" color="primary" variant="outlined" @click="addCommand">
-          {{ isEditing ? 'Update' : 'Add' }} Command
-        </v-btn>
-        <v-btn size="small" color="secondary" variant="outlined" @click="cancelCommand"> Cancel </v-btn>
+        <v-btn size="small" variant="outlined" @click="addCommand"> {{ isEditing ? 'Update' : 'Add' }} </v-btn>
+        <v-btn size="small" variant="outlined" @click="cancelCommand"> Cancel </v-btn>
       </div>
     </div>
   </div>
