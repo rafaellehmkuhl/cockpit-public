@@ -1,5 +1,5 @@
 <template>
-  <div class="main-panel flex flex-col h-full" :style="interfaceStore.globalGlassMenuStyles">
+  <div class="flex flex-col h-full" :style="interfaceStore.globalGlassMenuStyles">
     <ExpansiblePanel
       mark-expanded
       compact
@@ -21,7 +21,7 @@
       <template #content>
         <div
           v-if="waypointOnMissionStore?.coordinates"
-          class="flex flex-col justify-center w-full items-center py-1 px-2 mb-2 bg-[#EEEEEE22] text-white rounded-bl-md rounded-br-md"
+          class="flex flex-col justify-center w-full items-center py-1 px-2 my-2 bg-[#EEEEEE22] text-white rounded-bl-md rounded-br-md"
         >
           <div class="flex w-full gap-x-4 my-[4px] justify-between text-[12px] text-center mb-[2px]">
             <p class="w-[50px] text-start">Latitude:</p>
@@ -126,7 +126,7 @@
         <!-- Add New Command Button -->
         <v-btn
           v-if="!showCommandForm"
-          class="w-full my-1 bg-[#62626266] text-white"
+          class="w-full mb-2 bg-[#62626266] text-white"
           variant="plain"
           size="small"
           prepend-icon="mdi-plus"
