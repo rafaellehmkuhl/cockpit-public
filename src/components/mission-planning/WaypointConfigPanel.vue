@@ -14,8 +14,7 @@
           {{
             selectedWaypoint.id === 'home'
               ? 'Home'
-              : `Waypoint  ${missionStore.getWaypointNumber(selectedWaypoint?.id as string)}
-          parameters`
+              : `Waypoint  ${missionStore.getWaypointNumber(selectedWaypoint?.id as string)} parameters`
           }}
         </p>
       </template>
@@ -95,7 +94,7 @@
       </template>
       <template #content>
         <!-- Existing Commands -->
-        <div v-if="waypointOnMissionStore?.commands?.length" class="flex flex-col gap-2 mb-3">
+        <div v-if="waypointOnMissionStore?.commands?.length" class="flex flex-col gap-2 my-2">
           <div
             v-for="(command, index) in waypointOnMissionStore.commands"
             :key="index"
@@ -127,8 +126,8 @@
         <!-- Add New Command Button -->
         <v-btn
           v-if="!showCommandForm"
-          class="w-full mb-2"
-          variant="outlined"
+          class="w-full my-1 bg-[#62626266] text-white"
+          variant="plain"
           size="small"
           prepend-icon="mdi-plus"
           @click="showCommandForm = true"
@@ -242,6 +241,7 @@ watch(
     selectedWaypoint.value = newWaypoint
     editableLat.value = newWaypoint.coordinates[0].toString()
     editableLng.value = newWaypoint.coordinates[1].toString()
+    handleCommandCancel()
   }
 )
 
