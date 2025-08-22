@@ -418,6 +418,7 @@ import SideConfigPanel from '@/components/SideConfigPanel.vue'
 import { useInteractionDialog } from '@/composables/interactionDialog'
 import { useSnackbar } from '@/composables/snackbar'
 import { MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
+import { MavCmd } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { degrees } from '@/libs/utils'
 import { TargetFollower, WhoToFollow } from '@/libs/utils-map'
 import { generateSurveyPath } from '@/libs/utils-map'
@@ -434,6 +435,8 @@ import {
   AltitudeReferenceType,
   ContextMenuTypes,
   instanceOfCockpitMission,
+  MissionCommand,
+  MissionCommandType,
   PointOfInterest,
   Survey,
   SurveyPolygon,
@@ -479,7 +482,16 @@ const uploadMissionToVehicle = async (): Promise<void> => {
     coordinates: home.value,
     altitude: 0,
     altitudeReferenceType: currentWaypointAltitudeRefType.value,
-    commands: [],
+    commands: [
+      {
+        type: MissionCommandType.MAVLINK_NAV_COMMAND,
+        command: MavCmd.MAV_CMD_NAV_WAYPOINT,
+        param1: 0,
+        param2: 5,
+        param3: 0,
+        param4: 999,
+      },
+    ],
   }
   missionItemsToUpload.unshift(homeWaypoint)
 
@@ -1193,12 +1205,29 @@ watch(zoom, (newZoom, oldZoom) => {
 const addWaypoint = (
   coordinates: WaypointCoordinates,
   altitude: number,
-  altitudeReferenceType: AltitudeReferenceType
+  altitudeReferenceType: AltitudeReferenceType,
+  commands?: MissionCommand[]
 ): void => {
   if (planningMap.value === undefined) throw new Error('Map not yet defined')
 
   const waypointId = uuid()
-  const waypoint: Waypoint = { id: waypointId, coordinates, altitude, altitudeReferenceType, commands: [] }
+  const defaultCommands: MissionCommand[] = [
+    {
+      type: MissionCommandType.MAVLINK_NAV_COMMAND,
+      command: MavCmd.MAV_CMD_NAV_WAYPOINT,
+      param1: 0,
+      param2: 5,
+      param3: 0,
+      param4: 999,
+    },
+  ]
+  const waypoint: Waypoint = {
+    id: waypointId,
+    coordinates,
+    altitude,
+    altitudeReferenceType,
+    commands: !commands || commands.length === 0 ? defaultCommands : commands,
+  }
 
   missionStore.currentPlanningWaypoints.push(waypoint)
 
@@ -1312,7 +1341,7 @@ const loadMissionFromFile = async (e: Event): Promise<void> => {
     currentWaypointAltitudeRefType.value = maybeMission['settings']['currentWaypointAltitudeRefType']
     defaultCruiseSpeed.value = maybeMission['settings']['defaultCruiseSpeed']
     maybeMission['waypoints'].forEach((w: Waypoint) => {
-      addWaypoint(w.coordinates, w.altitude, w.altitudeReferenceType)
+      addWaypoint(w.coordinates, w.altitude, w.altitudeReferenceType, w.commands)
     })
   }
   // @ts-ignore: We know the event type and need refactor of the event typing
@@ -2025,7 +2054,7 @@ const loadDraftMission = async (mission: CockpitMission): Promise<void> => {
     defaultCruiseSpeed.value = mission.settings.defaultCruiseSpeed
 
     mission.waypoints.forEach((wp) => {
-      addWaypoint(wp.coordinates, wp.altitude, wp.altitudeReferenceType)
+      addWaypoint(wp.coordinates, wp.altitude, wp.altitudeReferenceType, wp.commands)
     })
     if (!home.value) {
       await tryFetchHome()

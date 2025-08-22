@@ -9,6 +9,7 @@ import { eventCategoriesDefaultMapping } from '@/libs/slide-to-confirm'
 import { reloadCockpit } from '@/libs/utils'
 import {
   AltitudeReferenceType,
+  MissionCommand,
   PointOfInterest,
   PointOfInterestCoordinates,
   Waypoint,
@@ -187,6 +188,36 @@ export const useMissionStore = defineStore('mission', () => {
     vehicleMissionRevision.value += 1
   }
 
+  const addCommandToWaypoint = (waypointId: string, command: MissionCommand): void => {
+    const waypoint = currentPlanningWaypoints.find((w) => w.id === waypointId)
+    if (waypoint === undefined) {
+      throw Error(`Could not add command to waypoint. No waypoint with id ${waypointId} was found.`)
+    }
+    waypoint.commands.push(command)
+  }
+
+  const removeCommandFromWaypoint = (waypointId: string, commandIndex: number): void => {
+    const waypoint = currentPlanningWaypoints.find((w) => w.id === waypointId)
+    if (waypoint === undefined) {
+      throw Error(`Could not remove command from waypoint. No waypoint with id ${waypointId} was found.`)
+    }
+    if (commandIndex < 0 || commandIndex >= waypoint.commands.length) {
+      throw Error(`Invalid command index ${commandIndex} for waypoint ${waypointId}.`)
+    }
+    waypoint.commands.splice(commandIndex, 1)
+  }
+
+  const updateWaypointCommand = (waypointId: string, commandIndex: number, updatedCommand: MissionCommand): void => {
+    const waypoint = currentPlanningWaypoints.find((w) => w.id === waypointId)
+    if (waypoint === undefined) {
+      throw Error(`Could not update command in waypoint. No waypoint with id ${waypointId} was found.`)
+    }
+    if (commandIndex < 0 || commandIndex >= waypoint.commands.length) {
+      throw Error(`Invalid command index ${commandIndex} for waypoint ${waypointId}.`)
+    }
+    waypoint.commands[commandIndex] = updatedCommand
+  }
+
   watch(
     () => [...currentPlanningWaypoints],
     (wps) => persistDraft(wps),
@@ -224,5 +255,8 @@ export const useMissionStore = defineStore('mission', () => {
     alwaysSwitchToFlightMode,
     showMissionCreationTips,
     showChecklistBeforeArm,
+    addCommandToWaypoint,
+    removeCommandFromWaypoint,
+    updateWaypointCommand,
   }
 })

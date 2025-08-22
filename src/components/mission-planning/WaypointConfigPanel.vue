@@ -77,6 +77,89 @@
         </div>
       </template>
     </ExpansiblePanel>
+
+    <!-- Commands Section -->
+    <ExpansiblePanel
+      mark-expanded
+      compact
+      elevation-effect
+      no-bottom-divider
+      darken-content
+      invert-chevron
+      :is-expanded="true"
+    >
+      <template #title>
+        <p class="ml-4 text-center text-[13px] font-normal">
+          Commands ({{ waypointOnMissionStore?.commands?.length || 0 }})
+        </p>
+      </template>
+      <template #content>
+        <!-- Existing Commands -->
+        <div v-if="waypointOnMissionStore?.commands?.length" class="flex flex-col gap-2 mb-3">
+          <div
+            v-for="(command, index) in waypointOnMissionStore.commands"
+            :key="index"
+            class="flex flex-col p-2 bg-[#EEEEEE22] text-white rounded-md"
+          >
+            <div class="flex justify-between items-center mb-2">
+              <div class="flex flex-col">
+                <p class="text-[11px] font-semibold">{{ getCommandDisplayName(command.command) }}</p>
+                <p class="text-[10px] opacity-75">{{ command.type.replace('MAVLINK_', '').replace('_', ' ') }}</p>
+              </div>
+              <div class="flex gap-1">
+                <v-btn
+                  size="x-small"
+                  color="primary"
+                  variant="outlined"
+                  icon="mdi-pencil"
+                  @click="editCommand(index)"
+                />
+                <v-btn
+                  size="x-small"
+                  color="error"
+                  variant="outlined"
+                  icon="mdi-delete"
+                  @click="removeCommand(index)"
+                />
+              </div>
+            </div>
+            <div class="text-[10px] grid grid-cols-2 gap-1">
+              <span v-if="command.type === 'MAVLINK_NAV_COMMAND'">
+                P1: {{ command.param1 }} | P2: {{ command.param2 }}<br>
+                P3: {{ command.param3 }} | P4: {{ command.param4 }}
+              </span>
+              <span v-else>
+                P1: {{ command.param1 }} | P2: {{ command.param2 }} | P3: {{ command.param3 }}<br>
+                P4: {{ command.param4 }} | P5: {{ command.param5 }} | P6: {{ command.param6 }} | P7: {{ command.param7 }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add New Command Button -->
+        <v-btn
+          v-if="!showCommandForm"
+          class="w-full mb-2"
+          color="primary"
+          variant="outlined"
+          size="small"
+          prepend-icon="mdi-plus"
+          @click="showCommandForm = true"
+        >
+          Append New Command
+        </v-btn>
+
+        <!-- Command Input Form -->
+        <CommandInputForm
+          v-if="showCommandForm"
+          :existing-command="editingCommand"
+          :is-editing="editingCommandIndex !== -1"
+          @command-ready="handleCommandReady"
+          @cancel="handleCommandCancel"
+        />
+      </template>
+    </ExpansiblePanel>
+
     <v-btn
       class="absolute bg-[#00000066] text-white bottom-2 right-2"
       variant="plain"
@@ -91,10 +174,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 
+import CommandInputForm from '@/components/mission-planning/CommandInputForm.vue'
 import ExpansiblePanel from '@/components/ExpansiblePanel.vue'
+import { MavCmd } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { useAppInterfaceStore } from '@/stores/appInterface'
 import { useMissionStore } from '@/stores/mission'
-import { AltitudeReferenceType, Waypoint, WaypointCoordinates } from '@/types/mission'
+import { AltitudeReferenceType, MissionCommand, Waypoint, WaypointCoordinates } from '@/types/mission'
 
 const interfaceStore = useAppInterfaceStore()
 const missionStore = useMissionStore()
@@ -121,6 +206,11 @@ const editableLng = ref<string>(selectedWaypoint.value.coordinates[1].toString()
 const editableAltitudeRefType = ref<AltitudeReferenceType>(
   waypointOnMissionStore.value?.altitudeReferenceType || AltitudeReferenceType.RELATIVE_TO_HOME
 )
+
+// Command management variables
+const showCommandForm = ref(false)
+const editingCommand = ref<MissionCommand | undefined>()
+const editingCommandIndex = ref(-1)
 
 watch(editableAltitudeRefType, (newType) => {
   if (waypointOnMissionStore.value) {
@@ -178,6 +268,44 @@ watch(
     }
   }
 )
+
+// Command management functions
+const getCommandDisplayName = (command: MavCmd): string => {
+  // Convert MAV_CMD_NAV_WAYPOINT to "Nav Waypoint"
+  return command
+    .replace('MAV_CMD_', '')
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (l) => l.toUpperCase())
+}
+
+const handleCommandReady = (command: MissionCommand): void => {
+  if (editingCommandIndex.value >= 0) {
+    // Update existing command
+    missionStore.updateWaypointCommand(props.selectedWaypoint.id, editingCommandIndex.value, command)
+  } else {
+    // Add new command
+    missionStore.addCommandToWaypoint(props.selectedWaypoint.id, command)
+  }
+  handleCommandCancel()
+}
+
+const handleCommandCancel = (): void => {
+  showCommandForm.value = false
+  editingCommand.value = undefined
+  editingCommandIndex.value = -1
+}
+
+const editCommand = (index: number): void => {
+  if (!waypointOnMissionStore.value?.commands) return
+  editingCommand.value = waypointOnMissionStore.value.commands[index]
+  editingCommandIndex.value = index
+  showCommandForm.value = true
+}
+
+const removeCommand = (index: number): void => {
+  missionStore.removeCommandFromWaypoint(props.selectedWaypoint.id, index)
+}
 </script>
 <style>
 v-menu__content {
