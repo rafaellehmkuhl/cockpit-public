@@ -37,6 +37,28 @@ export const convertCockpitWaypointsToMavlink = (
 ): Message.MissionItemInt[] => {
   const mavlinkWaypoints: Message.MissionItemInt[] = []
   cockpitWaypoints.forEach((cockpitWaypoint, i) => {
+    if (cockpitWaypoint.commands.length === 0) {
+      const frameType = mavlinkFrameFromCockpitAltRef(cockpitWaypoint.altitudeReferenceType) || MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT
+      mavlinkWaypoints.push({
+        target_system: system_id,
+        target_component: 1,
+        type: MAVLinkType.MISSION_ITEM_INT,
+        seq: i,
+        frame: { type: frameType },
+        command: { type: MavCmd.MAV_CMD_NAV_WAYPOINT },
+        current: 0,
+        autocontinue: 1,
+        param1: 0,
+        param2: 5,
+        param3: 0,
+        param4: 999,
+        x: round(cockpitWaypoint.coordinates[0] * Math.pow(10, 7)),
+        y: round(cockpitWaypoint.coordinates[1] * Math.pow(10, 7)),
+        z: Number(cockpitWaypoint.altitude),
+        mission_type: { type: MavMissionType.MAV_MISSION_TYPE_MISSION },
+      })
+    }
+
     cockpitWaypoint.commands.forEach((waypointCommand) => {
       if ([MissionCommandType.MAVLINK_NAV_COMMAND, MissionCommandType.MAVLINK_NON_NAV_COMMAND].includes(waypointCommand.type)) {
         const frameType = mavlinkFrameFromCockpitAltRef(cockpitWaypoint.altitudeReferenceType) || MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT

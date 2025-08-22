@@ -479,6 +479,7 @@ const uploadMissionToVehicle = async (): Promise<void> => {
     coordinates: home.value,
     altitude: 0,
     altitudeReferenceType: currentWaypointAltitudeRefType.value,
+    commands: [],
   }
   missionItemsToUpload.unshift(homeWaypoint)
 
@@ -1197,7 +1198,7 @@ const addWaypoint = (
   if (planningMap.value === undefined) throw new Error('Map not yet defined')
 
   const waypointId = uuid()
-  const waypoint: Waypoint = { id: waypointId, coordinates, altitude, altitudeReferenceType }
+  const waypoint: Waypoint = { id: waypointId, coordinates, altitude, altitudeReferenceType, commands: [] }
 
   missionStore.currentPlanningWaypoints.push(waypoint)
 
@@ -1614,6 +1615,7 @@ const generateWaypointsFromSurvey = (): void => {
     coordinates: [latLng.lat, latLng.lng],
     altitude: currentWaypointAltitude.value,
     altitudeReferenceType: currentWaypointAltitudeRefType.value,
+    commands: [],
   }))
 
   const insertionIndex = missionStore.currentPlanningWaypoints.length
@@ -1695,6 +1697,7 @@ const regenerateSurveyWaypoints = (angle?: number): void => {
       coordinates: [latLng.lat, latLng.lng],
       altitude: currentWaypointAltitude.value,
       altitudeReferenceType: currentWaypointAltitudeRefType.value,
+      commands: [],
     }))
 
     const firstOldWaypointIndex = missionStore.currentPlanningWaypoints.findIndex(
