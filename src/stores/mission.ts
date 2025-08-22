@@ -13,7 +13,6 @@ import {
   PointOfInterestCoordinates,
   Waypoint,
   WaypointCoordinates,
-  WaypointType,
 } from '@/types/mission'
 
 import { useMainVehicleStore } from './mainVehicle'
@@ -160,7 +159,6 @@ export const useMissionStore = defineStore('mission', () => {
       settings: {
         mapCenter: defaultMapCenter.value,
         zoom: defaultMapZoom.value,
-        currentWaypointType: waypoints[0]?.type || WaypointType.PASS_BY,
         currentWaypointAltitude: waypoints[0]?.altitude || 0,
         currentWaypointAltitudeRefType: waypoints[0]?.altitudeReferenceType || AltitudeReferenceType.RELATIVE_TO_HOME,
         defaultCruiseSpeed: 0,

@@ -437,7 +437,6 @@ import {
   PointOfInterest,
   Survey,
   SurveyPolygon,
-  WaypointType,
 } from '@/types/mission'
 
 const missionStore = useMissionStore()
@@ -479,7 +478,6 @@ const uploadMissionToVehicle = async (): Promise<void> => {
     id: uuid(),
     coordinates: home.value,
     altitude: 0,
-    type: WaypointType.PASS_BY,
     altitudeReferenceType: currentWaypointAltitudeRefType.value,
   }
   missionItemsToUpload.unshift(homeWaypoint)
@@ -590,7 +588,6 @@ const mapCenter = ref<WaypointCoordinates>(missionStore.defaultMapCenter)
 const home = ref<WaypointCoordinates | undefined>(undefined)
 const zoom = ref(missionStore.defaultMapZoom)
 const followerTarget = ref<WhoToFollow | undefined>(undefined)
-const currentWaypointType = ref<WaypointType>(WaypointType.PASS_BY)
 const currentWaypointAltitude = ref(0)
 const defaultCruiseSpeed = ref(1)
 const currentWaypointAltitudeRefType = ref<AltitudeReferenceType>(AltitudeReferenceType.RELATIVE_TO_HOME)
@@ -1154,9 +1151,6 @@ watch(
   [surveyPolygonVertexesPositions, isCreatingSurvey],
   () => {
     updateConfirmButtonPosition()
-    if (isCreatingSurvey.value) {
-      currentWaypointType.value = WaypointType.PASS_BY
-    }
   },
   { immediate: true, deep: true }
 )
@@ -1198,13 +1192,12 @@ watch(zoom, (newZoom, oldZoom) => {
 const addWaypoint = (
   coordinates: WaypointCoordinates,
   altitude: number,
-  type: WaypointType,
   altitudeReferenceType: AltitudeReferenceType
 ): void => {
   if (planningMap.value === undefined) throw new Error('Map not yet defined')
 
   const waypointId = uuid()
-  const waypoint: Waypoint = { id: waypointId, coordinates, altitude, type, altitudeReferenceType }
+  const waypoint: Waypoint = { id: waypointId, coordinates, altitude, altitudeReferenceType }
 
   missionStore.currentPlanningWaypoints.push(waypoint)
 
@@ -1289,7 +1282,6 @@ const saveMissionToFile = async (): Promise<void> => {
     settings: {
       mapCenter: mapCenter.value,
       zoom: zoom.value,
-      currentWaypointType: currentWaypointType.value,
       currentWaypointAltitude: currentWaypointAltitude.value,
       currentWaypointAltitudeRefType: currentWaypointAltitudeRefType.value,
       defaultCruiseSpeed: defaultCruiseSpeed.value,
@@ -1315,12 +1307,11 @@ const loadMissionFromFile = async (e: Event): Promise<void> => {
     }
     mapCenter.value = maybeMission['settings']['mapCenter']
     zoom.value = maybeMission['settings']['zoom']
-    currentWaypointType.value = maybeMission['settings']['currentWaypointType']
     currentWaypointAltitude.value = maybeMission['settings']['currentWaypointAltitude']
     currentWaypointAltitudeRefType.value = maybeMission['settings']['currentWaypointAltitudeRefType']
     defaultCruiseSpeed.value = maybeMission['settings']['defaultCruiseSpeed']
     maybeMission['waypoints'].forEach((w: Waypoint) => {
-      addWaypoint(w.coordinates, w.altitude, w.type, w.altitudeReferenceType)
+      addWaypoint(w.coordinates, w.altitude, w.altitudeReferenceType)
     })
   }
   // @ts-ignore: We know the event type and need refactor of the event typing
@@ -1622,7 +1613,6 @@ const generateWaypointsFromSurvey = (): void => {
     id: uuid(),
     coordinates: [latLng.lat, latLng.lng],
     altitude: currentWaypointAltitude.value,
-    type: currentWaypointType.value,
     altitudeReferenceType: currentWaypointAltitudeRefType.value,
   }))
 
@@ -1704,7 +1694,6 @@ const regenerateSurveyWaypoints = (angle?: number): void => {
       id: uuid(),
       coordinates: [latLng.lat, latLng.lng],
       altitude: currentWaypointAltitude.value,
-      type: currentWaypointType.value,
       altitudeReferenceType: currentWaypointAltitudeRefType.value,
     }))
 
@@ -2028,13 +2017,12 @@ const loadDraftMission = async (mission: CockpitMission): Promise<void> => {
   try {
     mapCenter.value = mission.settings.mapCenter
     zoom.value = mission.settings.zoom
-    currentWaypointType.value = mission.settings.currentWaypointType
     currentWaypointAltitude.value = mission.settings.currentWaypointAltitude
     currentWaypointAltitudeRefType.value = mission.settings.currentWaypointAltitudeRefType
     defaultCruiseSpeed.value = mission.settings.defaultCruiseSpeed
 
     mission.waypoints.forEach((wp) => {
-      addWaypoint(wp.coordinates, wp.altitude, wp.type, wp.altitudeReferenceType)
+      addWaypoint(wp.coordinates, wp.altitude, wp.altitudeReferenceType)
     })
     if (!home.value) {
       await tryFetchHome()
@@ -2092,12 +2080,7 @@ const onMapClick = (e: L.LeafletMouseEvent): void => {
       !interfaceStore.configPanelVisible &&
       isCreatingSimplePath.value
     ) {
-      addWaypoint(
-        [e.latlng.lat, e.latlng.lng],
-        currentWaypointAltitude.value,
-        currentWaypointType.value,
-        currentWaypointAltitudeRefType.value
-      )
+      addWaypoint([e.latlng.lat, e.latlng.lng], currentWaypointAltitude.value, currentWaypointAltitudeRefType.value)
     }
   }
 }
