@@ -4,6 +4,7 @@ import { getDataLakeVariableData } from '@/libs/actions/data-lake'
 import { type ActionConfig } from '@/libs/joystick/protocols/cockpit-actions'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 import { useMissionStore } from '@/stores/mission'
+import { type RawCpuLoadInfo, type RawCpuTempInfo, type RawNetworkInfo } from '@/types/blueos'
 import { ExternalWidgetSetupInfo } from '@/types/widgets'
 
 /**
@@ -62,6 +63,16 @@ interface Service {
 
 export const NoPathInBlueOsErrorName = 'NoPathInBlueOS'
 
+/**
+ * Error returned by BlueOS when a bag of holdings is not found
+ */
+export interface BagOfHoldingsError extends Error {
+  /**
+   * Details about the error
+   */
+  detail: string
+}
+
 const defaultTimeout = 10000
 const quickStatusTimeout = 3000
 const beaconTimeout = 5000
@@ -77,7 +88,7 @@ export const getBagOfHoldingFromVehicle = async (
     const options = { timeout: defaultTimeout, retry: 0 }
     return await ky.get(`${protocol}//${vehicleAddress}/bag/v1.0/get/${bagPath}`, options).json()
   } catch (error) {
-    const errorBody = await (error as HTTPError).response?.json()
+    const errorBody = (await (error as HTTPError).response?.json()) as BagOfHoldingsError
     if (errorBody?.detail === 'Invalid path') {
       const noPathError = new Error(`No data available in BlueOS storage for path '${bagPath}'.`)
       noPathError.name = NoPathInBlueOsErrorName
@@ -205,6 +216,50 @@ export const setKeyDataOnCockpitVehicleStorage = async (
 /* eslint-disable jsdoc/require-jsdoc */
 type RawIpInfo = { ip: string; service_type: string; interface_type: string }
 type IpInfo = { ipv4Address: string; interfaceType: string }
+
+type StreamConfiguration = {
+  type: string
+  encode: string
+  height: number
+  width: number
+  frame_interval: {
+    numerator: number
+    denominator: number
+  }
+}
+
+type VideoSource = {
+  [key: string]: {
+    name: string
+    source?: any
+    device_path?: string
+    type?: any
+  }
+}
+
+type StreamInfo = {
+  id: string
+  running: boolean
+  error: string | null
+  video_and_stream: {
+    name: string
+    stream_information: {
+      endpoints: string[]
+      configuration: StreamConfiguration
+      extended_configuration: any
+    }
+    video_source: VideoSource
+  }
+}
+
+export type ProcessedStreamInfo = {
+  name: string
+  sourceName: string
+  width: number
+  height: number
+  fps: number
+  running: boolean
+}
 /* eslint-enable jsdoc/require-jsdoc */
 
 export const getIpsInformationFromVehicle = async (vehicleAddress: string): Promise<IpInfo[]> => {
@@ -278,9 +333,6 @@ export const getVehicleName = async (vehicleAddress: string): Promise<Response> 
   }
 }
 
-// eslint-disable-next-line jsdoc/require-jsdoc
-type RawCpuTempInfo = { name: string; temperature: number; maximum_temperature: number; critical_temperature: number }
-
 export const getCpuTempCelsius = async (vehicleAddress: string): Promise<number> => {
   try {
     const url = `${protocol}//${vehicleAddress}/system-information/system/temperature`
@@ -288,6 +340,28 @@ export const getCpuTempCelsius = async (vehicleAddress: string): Promise<number>
     return cpuTempRawInfo[0].temperature
   } catch (error) {
     throw new Error(`Could not get temperature of the BlueOS CPU. ${error}`)
+  }
+}
+
+export const getCpusInfo = async (vehicleAddress: string): Promise<RawCpuLoadInfo[]> => {
+  try {
+    const url = `${protocol}//${vehicleAddress}/system-information/system/cpu`
+    const cpuLoadRawInfo: RawCpuLoadInfo[] = await ky.get(url, { timeout: defaultTimeout }).json()
+    return cpuLoadRawInfo
+  } catch (error) {
+    throw new Error(`Could not get load of the BlueOS CPU. ${error}`)
+  }
+}
+
+export const getNetworkInfo = async (vehicleAddress: string): Promise<RawNetworkInfo[]> => {
+  try {
+    const url = `${protocol}//${vehicleAddress}/system-information/system/network`
+    const networkRawInfo: RawNetworkInfo[] = await ky.get(url, { timeout: defaultTimeout }).json()
+    return networkRawInfo.filter((network) => {
+      return (network.name.includes('wlan') || network.name.includes('eth')) && !network.name.startsWith('v')
+    })
+  } catch (error) {
+    throw new Error(`Could not get network information from BlueOS. ${error}`)
   }
 }
 
@@ -407,5 +481,44 @@ export const checkForOtherManualControlSources = async (): Promise<boolean> => {
   } catch (error) {
     console.error('Error checking for other MANUAL_CONTROL sources:', error)
     return false
+  }
+}
+
+export const getStreamInformationFromVehicle = async (vehicleAddress: string): Promise<ProcessedStreamInfo[]> => {
+  try {
+    const url = `${protocol}//${vehicleAddress}:6020/streams`
+    const options = { timeout: defaultTimeout, retry: 0 }
+    const rawStreamsInfo: StreamInfo[] = await ky.get(url, options).json()
+
+    return rawStreamsInfo.map((stream) => {
+      const config = stream.video_and_stream.stream_information.configuration
+      const videoSource = stream.video_and_stream.video_source
+
+      // Extract source name from the video source object
+      let sourceName = 'Unknown'
+      const sourceKeys = Object.keys(videoSource)
+      if (sourceKeys.length > 0) {
+        const sourceType = videoSource[sourceKeys[0]]
+        sourceName = sourceType.name || 'Unknown'
+      }
+
+      // Calculate FPS from frame_interval
+      let fps = 0
+      if (config.frame_interval) {
+        fps = config.frame_interval.denominator / config.frame_interval.numerator
+      }
+
+      return {
+        name: stream.video_and_stream.name,
+        sourceName,
+        width: config.width,
+        height: config.height,
+        fps,
+        running: stream.running,
+      }
+    })
+  } catch (error) {
+    console.error('Could not get stream information from vehicle:', error)
+    return []
   }
 }

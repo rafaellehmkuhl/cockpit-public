@@ -45,6 +45,7 @@ export const useVideoStore = defineStore('video', () => {
   console.debug('[WebRTC] Using webrtc-adapter for', adapter.browserDetails)
 
   const streamsCorrespondency = useBlueOsStorage<VideoStreamCorrespondency[]>('cockpit-streams-correspondency', [])
+  const ignoredStreamExternalIds = useBlueOsStorage<string[]>('cockpit-ignored-stream-external-ids', [])
   const allowedIceIps = useBlueOsStorage<string[]>('cockpit-allowed-stream-ips', [])
   const enableAutoIceIpFetch = useBlueOsStorage('cockpit-enable-auto-ice-ip-fetch', true)
   const allowedIceProtocols = useBlueOsStorage<string[]>('cockpit-allowed-stream-protocols', [])
@@ -71,19 +72,40 @@ export const useVideoStore = defineStore('video', () => {
   }
 
   const initializeStreamsCorrespondency = (): void => {
-    if (streamsCorrespondency.value.length >= namesAvailableStreams.value.length) return
+    // Get list of external streams that are already mapped
+    const alreadyMappedExternalIds = streamsCorrespondency.value.map((corr) => corr.externalId)
 
-    // If there are more external streams available than the ones in the correspondency, add the extra ones
-    const newCorrespondency: VideoStreamCorrespondency[] = []
+    // Find external streams that don't have a mapping yet and are not ignored
+    const unmappedExternalStreams = namesAvailableStreams.value.filter((streamName) => {
+      return !alreadyMappedExternalIds.includes(streamName) && !ignoredStreamExternalIds.value.includes(streamName)
+    })
+
+    // If there are no unmapped streams, no need to add any new correspondences
+    if (unmappedExternalStreams.length === 0) return
+
+    // Generate internal names for new streams, making sure they don't conflict with existing ones
+    const existingInternalNames = streamsCorrespondency.value.map((corr) => corr.name)
+    const newCorrespondencies: VideoStreamCorrespondency[] = []
+
     let i = 1
-    namesAvailableStreams.value.forEach((streamName) => {
-      newCorrespondency.push({
-        name: `Stream ${i}`,
+    unmappedExternalStreams.forEach((streamName) => {
+      // Find the next available internal name (Stream 1, Stream 2, etc.)
+      let internalName = `Stream ${i}`
+      while (existingInternalNames.includes(internalName)) {
+        i++
+        internalName = `Stream ${i}`
+      }
+
+      newCorrespondencies.push({
+        name: internalName,
         externalId: streamName,
       })
+      existingInternalNames.push(internalName) // Track this name to avoid duplicates
       i++
     })
-    streamsCorrespondency.value = newCorrespondency
+
+    // Add new correspondences to the existing ones instead of replacing them
+    streamsCorrespondency.value = [...streamsCorrespondency.value, ...newCorrespondencies]
   }
 
   watch(namesAvailableStreams, () => {
@@ -107,6 +129,15 @@ export const useVideoStore = defineStore('video', () => {
       availableIceIps.value = [...availableIceIps.value, ...newIps]
 
       const updatedStream = mainWebRTCManager.availableStreams.value.find((s) => s.name === streamName)
+
+      // Checks if the stream has changed, and if so, it will close the old connections
+      if (isEqual(updatedStream, activeStreams.value[streamName]!.stream)) return
+      const oldStreamData = activeStreams.value[streamName]
+      if (oldStreamData && oldStreamData.webRtcManager) {
+        console.log(`[FIX] Stream '${streamName}' has changed. Closing the old connection.`)
+        oldStreamData.webRtcManager.endAllSessions()
+      }
+
       if (isEqual(updatedStream, activeStreams.value[streamName]!.stream)) return
 
       // Whenever the stream is to be updated we first reset it's variables (activateStream method), so
@@ -980,6 +1011,12 @@ export const useVideoStore = defineStore('video', () => {
   }
 
   const renameStreamInternalNameById = (streamID: string, newInternalName: string): void => {
+    // Check if the new internal name is already taken
+    const isNameTaken = streamsCorrespondency.value.some((stream) => stream.name === newInternalName)
+    if (isNameTaken) {
+      throw new Error(`The internal name '${newInternalName}' is already taken.`)
+    }
+
     const streamCorr = streamsCorrespondency.value.find((stream) => stream.externalId === streamID)
 
     if (streamCorr) {
@@ -995,14 +1032,79 @@ export const useVideoStore = defineStore('video', () => {
         delete activeStreams.value[oldInternalName]
       }
       lastRenamedStreamName.value = newInternalName
-      console.log(`Stream internal name updated from '${oldInternalName}' to '${newInternalName}'.`)
     } else {
-      console.warn(`Stream with ID '${streamID}' not found.`)
-      openSnackbar({
-        variant: 'error',
-        message: `Stream with ID '${streamID}' not found.`,
-        duration: 3000,
-      })
+      throw new Error(`Stream with ID '${streamID}' not found.`)
+    }
+  }
+
+  const deleteStreamCorrespondency = (externalId: string): void => {
+    const streamIndex = streamsCorrespondency.value.findIndex((stream) => stream.externalId === externalId)
+
+    if (streamIndex !== -1) {
+      const stream = streamsCorrespondency.value[streamIndex]
+
+      // Add to ignored list
+      if (!ignoredStreamExternalIds.value.includes(externalId)) {
+        ignoredStreamExternalIds.value = [...ignoredStreamExternalIds.value, externalId]
+      }
+
+      // Remove from correspondency list
+      streamsCorrespondency.value.splice(streamIndex, 1)
+
+      // Clean up all resources for the stream
+      if (activeStreams.value[externalId]) {
+        const externalStreamData = activeStreams.value[externalId]
+
+        // Stop recording if it's active
+        if (externalStreamData?.mediaRecorder && externalStreamData.mediaRecorder.state === 'recording') {
+          externalStreamData.mediaRecorder.stop()
+        }
+
+        // Stop all tracks in the media stream
+        if (externalStreamData?.mediaStream) {
+          externalStreamData.mediaStream.getTracks().forEach((track) => {
+            track.stop()
+            console.log(`Stopped track: ${track.kind} for external stream '${externalId}'`)
+          })
+        }
+
+        // Close WebRTC connection
+        if (externalStreamData?.webRtcManager) {
+          try {
+            externalStreamData.webRtcManager.close(`External stream '${externalId}' was ignored by user`)
+            console.log(`Stopped WebRTC manager for external stream '${externalId}'`)
+          } catch (error) {
+            console.warn(`Error stopping WebRTC manager for external stream '${externalId}':`, error)
+          }
+        }
+
+        delete activeStreams.value[externalId]
+        console.log(`Cleaned up all resources for external stream '${externalId}'`)
+      }
+
+      openSnackbar({ variant: 'success', message: `Stream '${stream.name}' deleted and added to ignored list.` })
+    } else {
+      openSnackbar({ variant: 'warning', message: `Stream with external ID '${externalId}' not found.` })
+    }
+  }
+
+  const restoreIgnoredStream = (externalId: string): void => {
+    const ignoredIndex = ignoredStreamExternalIds.value.indexOf(externalId)
+
+    if (ignoredIndex !== -1) {
+      // Remove from ignored list
+      ignoredStreamExternalIds.value.splice(ignoredIndex, 1)
+
+      if (namesAvailableStreams.value.includes(externalId)) {
+        // Trigger re-initialization to add it back to correspondency if it's still available
+        initializeStreamsCorrespondency()
+      } else {
+        openSnackbar({ variant: 'warning', message: `Stream '${externalId}' not available anymore.` })
+      }
+
+      openSnackbar({ variant: 'success', message: `Stream '${externalId}' restored from ignored list.` })
+    } else {
+      openSnackbar({ variant: 'warning', message: `Stream with external ID '${externalId}' not on ignored list.` })
     }
   }
 
@@ -1031,6 +1133,7 @@ export const useVideoStore = defineStore('video', () => {
     videoStorage,
     tempVideoStorage,
     streamsCorrespondency,
+    ignoredStreamExternalIds,
     namessAvailableAbstractedStreams,
     externalStreamId,
     discardProcessedFilesFromVideoDB,
@@ -1060,5 +1163,7 @@ export const useVideoStore = defineStore('video', () => {
     activeStreams,
     renameStreamInternalNameById,
     lastRenamedStreamName,
+    deleteStreamCorrespondency,
+    restoreIgnoredStream,
   }
 })
