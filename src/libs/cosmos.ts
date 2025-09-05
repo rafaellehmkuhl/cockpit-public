@@ -339,6 +339,15 @@ declare global {
        * @returns The current User-Agent string
        */
       getCurrentUserAgent: () => string
+      /**
+       * Get system information including platform and architecture
+       * @returns Promise containing system information
+       */
+      getSystemInfo: () => Promise<{
+        platform: string
+        arch: string
+        processArch: string
+      }>
     }
   }
 }
