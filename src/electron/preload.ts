@@ -39,6 +39,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   openCockpitFolder: () => ipcRenderer.invoke('open-cockpit-folder'),
   openVideoFolder: () => ipcRenderer.invoke('open-video-folder'),
+  selectFolder: () => ipcRenderer.invoke('select-folder'),
+  readDirectory: (path: string) => ipcRenderer.invoke('read-directory', path),
+  deleteFile: (path: string) => ipcRenderer.invoke('delete-file', path),
+  openPath: (path: string) => ipcRenderer.invoke('open-path', path),
+  getDefaultChunksFolder: () => ipcRenderer.invoke('get-default-chunks-folder'),
+  getDefaultOutputFolder: () => ipcRenderer.invoke('get-default-output-folder'),
+  // FFmpeg native processing
+  ffmpegCheckAvailable: () => ipcRenderer.invoke('ffmpeg-check-available'),
+  ffmpegGetVersion: () => ipcRenderer.invoke('ffmpeg-get-version'),
+  ffmpegProcessAndConvertChunks: (inputFiles: string[], outputPath: string, outputFormat?: string) =>
+    ipcRenderer.invoke('ffmpeg-process-and-convert-chunks', { inputFiles, outputPath, outputFormat }),
+  // FFmpeg progress listener
+  onFFmpegProgress: (callback: (data: { progress: number; message: string }) => void) => {
+    ipcRenderer.on('ffmpeg-progress', (_event, data) => callback(data))
+  },
+  offFFmpegProgress: () => {
+    ipcRenderer.removeAllListeners('ffmpeg-progress')
+  },
   captureWorkspace: (rect?: Electron.Rectangle) => ipcRenderer.invoke('capture-workspace', rect),
   serialListPorts: () => ipcRenderer.invoke('serial-list-ports'),
   serialOpen: (path: string, baudRate?: number) => ipcRenderer.invoke('serial-open', { path, baudRate }),

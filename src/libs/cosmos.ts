@@ -349,6 +349,56 @@ declare global {
          */
         processArch: string
       }>
+      /**
+       * Select a folder using dialog
+       */
+      selectFolder: () => Promise<{ canceled: boolean; filePaths?: string[] }>
+      /**
+       * Read directory contents
+       */
+      readDirectory: (path: string) => Promise<Array<{
+        name: string
+        path: string
+        isDirectory: boolean
+        size: number
+        mtime: Date
+      }>>
+      /**
+       * Delete a file
+       */
+      deleteFile: (path: string) => Promise<void>
+    /**
+     * Open path in system file manager
+     */
+    openPath: (path: string) => Promise<void>
+    /**
+     * Get the default video chunks folder path
+     */
+    getDefaultChunksFolder: () => Promise<string | null>
+    /**
+     * Get the default video output folder path
+     */
+    getDefaultOutputFolder: () => Promise<string | null>
+      /**
+       * Check if FFmpeg is available on the system
+       */
+      ffmpegCheckAvailable: () => Promise<boolean>
+      /**
+       * Get FFmpeg version information
+       */
+      ffmpegGetVersion: () => Promise<string>
+      /**
+       * Process and convert video chunks using native FFmpeg
+       */
+      ffmpegProcessAndConvertChunks: (inputFiles: string[], outputPath: string, outputFormat?: string) => Promise<{ success: boolean }>
+      /**
+       * Listen for FFmpeg progress updates
+       */
+      onFFmpegProgress: (callback: (data: { progress: number; message: string }) => void) => void
+      /**
+       * Remove all FFmpeg progress listeners
+       */
+      offFFmpegProgress: () => void
     }
   }
 }

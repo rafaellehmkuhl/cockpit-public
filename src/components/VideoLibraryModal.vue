@@ -544,6 +544,9 @@
               {{ loadingData ? 'Loading' : 'No videos on storage' }}
             </div>
           </template>
+          <template v-if="currentTab === 'processing'">
+            <VideoChunkProcessor />
+          </template>
         </div>
       </div>
     </div>
@@ -693,6 +696,7 @@ import { SnapshotLibraryFile } from '@/types/snapshot'
 import { VideoLibraryFile, VideoLibraryLogFile } from '@/types/video'
 
 import InteractionDialog from './InteractionDialog.vue'
+import VideoChunkProcessor from './VideoChunkProcessor.vue'
 
 const videoStore = useVideoStore()
 const interfaceStore = useAppInterfaceStore()
@@ -776,6 +780,7 @@ const dialogStyle = computed(() => {
 const menuButtons = [
   { name: 'Videos', icon: 'mdi-video-outline', selected: true, disabled: false, tooltip: '' },
   { name: 'Snapshots', icon: 'mdi-image-outline', selected: false, disabled: false, tooltip: '' },
+  { name: 'Processing', icon: 'mdi-cog-outline', selected: false, disabled: !isElectron(), tooltip: isElectron() ? '' : 'Only available in desktop version' },
 ]
 
 const fileActionButtons = computed(() => [
