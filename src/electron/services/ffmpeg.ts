@@ -103,14 +103,129 @@ export class FFmpegService {
   }
 
   /**
+   * Extract and reconstruct video from corrupted H.264 chunks
+   *
+   * This method handles severely corrupted H.264 streams by:
+   * 1. Attempting to extract individual frames using aggressive error recovery
+   * 2. Reconstructing frames into a playable video sequence
+   * 3. Using liberal error tolerance to recover as much content as possible
+   *
+   * @param inputFiles - Array of paths to corrupted video chunk files
+   * @param outputPath - Path where the reconstructed video should be saved
+   * @param onProgress - Optional callback for progress updates (0-100%)
+   * @private
+   */
+  private async extractFramesFromCorruptedChunks(
+    inputFiles: string[],
+    outputPath: string,
+    onProgress?: (progress: number, message: string) => void
+  ): Promise<void> {
+    console.log('Attempting frame extraction from corrupted H.264 chunks...')
+
+    const tempDir = dirname(outputPath)
+    const extractedFramesDir = join(tempDir, `extracted_frames_${Date.now()}`)
+    await fs.mkdir(extractedFramesDir, { recursive: true })
+
+    let totalExtractedFrames = 0
+
+    try {
+      // Process each chunk individually with maximum error tolerance
+      for (let i = 0; i < inputFiles.length; i++) {
+        const inputFile = inputFiles[i]
+        const progress = (i / inputFiles.length) * 80 // Reserve 20% for final assembly
+
+        onProgress?.(progress, `Extracting frames from chunk ${i + 1}/${inputFiles.length}...`)
+
+        try {
+          const stats = await fs.stat(inputFile)
+          if (stats.size === 0 || stats.size === 1) {
+            console.log(`Skipping empty chunk: ${inputFile}`)
+            continue
+          }
+
+          // Extract frames with maximum error tolerance
+          const framePattern = join(extractedFramesDir, `chunk_${i}_frame_%06d.png`)
+
+          await this.runFFmpegCommand([
+            '-err_detect', 'ignore_err',           // Ignore all errors
+            '-skip_frame', 'nokey',                // Skip to key frames only (more reliable)
+            '-fflags', '+genpts+igndts+discardcorrupt', // Generate timestamps, ignore corruption
+            '-analyzeduration', '100M',            // Analyze deeply
+            '-probesize', '100M',                  // Large probe for corrupted data
+            '-f', 'h264',                          // Force H.264 format
+            '-i', inputFile,
+            '-an',                                 // No audio
+            '-vsync', 'vfr',                       // Variable frame rate (handle gaps)
+            '-frame_pts', '1',                     // Include timing info
+            '-f', 'image2',                        // Output as image sequence
+            '-y',
+            framePattern
+          ])
+
+          // Count extracted frames from this chunk
+          const extractedFiles = await fs.readdir(extractedFramesDir)
+          const chunkFrames = extractedFiles.filter(f => f.startsWith(`chunk_${i}_frame_`)).length
+          totalExtractedFrames += chunkFrames
+
+          console.log(`Extracted ${chunkFrames} frames from chunk ${i}`)
+
+        } catch (error) {
+          console.warn(`Failed to extract frames from chunk ${inputFile}:`, error)
+          // Continue with next chunk - don't fail entire process
+        }
+      }
+
+      if (totalExtractedFrames === 0) {
+        throw new Error('No frames could be extracted from any chunks')
+      }
+
+      console.log(`Total extracted frames: ${totalExtractedFrames}`)
+      onProgress?.(85, `Reconstructing video from ${totalExtractedFrames} extracted frames...`)
+
+      // Reconstruct video from extracted frames
+      const framePattern = join(extractedFramesDir, 'chunk_*_frame_%06d.png')
+
+      await this.runFFmpegCommand([
+        '-framerate', '30',                        // Assume 30fps
+        '-pattern_type', 'glob',                   // Use glob pattern
+        '-i', join(extractedFramesDir, 'chunk_*_frame_*.png'),
+        '-c:v', 'libx264',                         // Re-encode with H.264
+        '-preset', 'medium',                       // Good quality/speed balance
+        '-crf', '18',                              // High quality
+        '-pix_fmt', 'yuv420p',                     // Standard pixel format
+        '-r', '30',                                // Output framerate
+        '-movflags', '+faststart',                 // Optimize for web
+        '-y',
+        outputPath
+      ])
+
+      onProgress?.(100, 'Frame extraction and reconstruction complete')
+
+    } finally {
+      // Clean up extracted frames
+      try {
+        const extractedFiles = await fs.readdir(extractedFramesDir)
+        for (const file of extractedFiles) {
+          await fs.unlink(join(extractedFramesDir, file))
+        }
+        await fs.rmdir(extractedFramesDir)
+        console.log(`Cleaned up ${extractedFramesDir}`)
+      } catch (error) {
+        console.warn('Failed to clean up extracted frames:', error)
+      }
+    }
+  }
+
+  /**
    * Process video chunks by concatenating them using FFmpeg
    *
-   * This is the core video processing method that implements a three-tier strategy
+   * This is the core video processing method that implements a four-tier strategy
    * for handling different types of video chunk corruption:
    *
    * 1. Concat Demuxer: Fast, accurate timestamps (best for clean chunks)
    * 2. Concat Protocol: Faster, handles corruption better (fallback for corrupted chunks)
    * 3. Re-encoding: Slowest but fixes everything (last resort)
+   * 4. Frame Extraction: Extract individual frames from severely corrupted chunks (recovery mode)
    *
    * The method includes smart failure detection that catches cases where FFmpeg
    * reports success but actually processed very few frames due to corruption.
@@ -221,23 +336,35 @@ export class FFmpegService {
           // TIER 3: Final fallback - Re-encode to fix corrupted H.264 streams
           // This is the slowest method but guarantees a working output by completely
           // re-encoding the video. Used when both concat methods fail due to severe corruption.
-          await this.runFFmpegCommand([
-            '-analyzeduration', '10M',         // Extended analysis for corrupted streams
-            '-probesize', '50M',              // Large probe size to handle corruption
-            '-i', `concat:${concatInput}`,    // Input: concat protocol (more robust than demuxer)
-            '-c:v', 'libx264',               // Re-encode video with H.264 encoder
-            '-preset', 'fast',               // Encoding speed preset (fast but good quality)
-            '-crf', '18',                    // Constant Rate Factor: 18 = high quality
-            '-pix_fmt', 'yuv420p',           // Standard pixel format for compatibility
-            '-ignore_unknown',                // Skip unknown streams
-            '-fflags', '+genpts+igndts',      // Generate proper timestamps
-            '-avoid_negative_ts', 'make_zero', // Fix timestamp issues
-            '-max_muxing_queue_size', '1024', // Handle large data streams
-            '-err_detect', 'ignore_err',      // Continue despite minor errors
-            '-movflags', '+faststart',        // Optimize for web streaming
-            '-y',                             // Overwrite output
-            outputPath
-          ], onProgress, inputFiles.length)
+          try {
+            await this.runFFmpegCommand([
+              '-analyzeduration', '10M',         // Extended analysis for corrupted streams
+              '-probesize', '50M',              // Large probe size to handle corruption
+              '-i', `concat:${concatInput}`,    // Input: concat protocol (more robust than demuxer)
+              '-c:v', 'libx264',               // Re-encode video with H.264 encoder
+              '-preset', 'fast',               // Encoding speed preset (fast but good quality)
+              '-crf', '18',                    // Constant Rate Factor: 18 = high quality
+              '-pix_fmt', 'yuv420p',           // Standard pixel format for compatibility
+              '-ignore_unknown',                // Skip unknown streams
+              '-fflags', '+genpts+igndts',      // Generate proper timestamps
+              '-avoid_negative_ts', 'make_zero', // Fix timestamp issues
+              '-max_muxing_queue_size', '1024', // Handle large data streams
+              '-err_detect', 'ignore_err',      // Continue despite minor errors
+              '-movflags', '+faststart',        // Optimize for web streaming
+              '-y',                             // Overwrite output
+              outputPath
+            ], onProgress, inputFiles.length)
+          } catch (thirdError) {
+            console.warn('All concat methods failed, trying frame extraction as final fallback:', thirdError)
+            onProgress?.(85, 'Trying frame extraction for severely corrupted chunks...')
+
+            // TIER 4: Frame extraction for severely corrupted chunks
+            // This is the most aggressive recovery method that extracts individual frames
+            // from corrupted H.264 streams and reconstructs them into a playable video
+            await this.extractFramesFromCorruptedChunks(inputFiles, outputPath, (progress, message) => {
+              onProgress?.(85 + (progress * 0.15), message) // 85% to 100%
+            })
+          }
         }
       }
 
@@ -369,10 +496,15 @@ export class FFmpegService {
           // CRITICAL: Even if exit code is 0, validate output quality
           // This catches cases where FFmpeg "succeeds" but processes almost nothing
 
-          if (hasH264Errors && processedFrames < 10) {
+          if (hasH264Errors && processedFrames < 100) {
             // Very few frames + H.264 errors = likely failed processing
             console.warn('FFmpeg "succeeded" but likely failed due to H.264 corruption - very few frames processed')
             reject(new Error(`FFmpeg processed only ${processedFrames} frames with H.264 errors. Likely corrupted stream.`))
+          } else if (expectedInputCount && expectedInputCount > 10 && processedFrames < (expectedInputCount * 5)) {
+            // For large chunk counts, expect much more frames per chunk
+            // Each chunk should have at least 5 frames on average (very conservative)
+            console.warn(`FFmpeg processed only ${processedFrames} frames from ${expectedInputCount} input chunks`)
+            reject(new Error(`FFmpeg processed only ${processedFrames} frames from ${expectedInputCount} expected chunks. Likely incomplete processing.`))
           } else if (expectedInputCount && processedFrames < (expectedInputCount * 0.1)) {
             // Processed less than 10% of expected frames = incomplete processing
             console.warn(`FFmpeg processed only ${processedFrames} frames from ${expectedInputCount} input chunks`)
