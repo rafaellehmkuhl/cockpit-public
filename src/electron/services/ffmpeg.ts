@@ -476,7 +476,7 @@ export class FFmpegService {
 
         // Parse progress information and notify callback
         if (onProgress) {
-          this.parseFFmpegProgress(output, onProgress)
+          this.parseFFmpegProgress(output, onProgress, expectedInputCount)
         }
       })
 
@@ -530,44 +530,141 @@ export class FFmpegService {
    * This method extracts useful progress indicators and converts them
    * to percentage values for the UI progress bar.
    *
-   * Note: Since we don't know the total video duration beforehand,
-   * progress estimation is approximate and primarily for user feedback.
+   * Enhanced to provide better progress estimation and detailed logging.
    *
    * @param output - Raw stderr output line from FFmpeg
    * @param onProgress - Callback to report progress updates
+   * @param expectedInputCount - Number of input files for better progress estimation
    * @private
    */
-  private parseFFmpegProgress(output: string, onProgress: (progress: number, message: string) => void): void {
-    // FFmpeg outputs progress information in stderr with various patterns
+  private parseFFmpegProgress(
+    output: string,
+    onProgress: (progress: number, message: string) => void,
+    expectedInputCount?: number
+  ): void {
+    // Clean up the output line for better parsing
+    const line = output.trim()
 
-    // Pattern 1: time=HH:MM:SS.DD - current processing time position
-    const timeMatch = output.match(/time=(\d{2}):(\d{2}):(\d{2})\.(\d{2})/)
+    // Pattern 1: Full progress line with multiple metrics
+    // Example: frame= 1234 fps=30 q=23.0 size= 12345kB time=00:01:23.45 bitrate=1234.5kbits/s speed=1.2x
+    const fullProgressMatch = line.match(/frame=\s*(\d+).*?time=(\d{2}):(\d{2}):(\d{2})\.(\d{2}).*?speed=\s*([0-9.]+)x/)
+    if (fullProgressMatch) {
+      const frame = parseInt(fullProgressMatch[1])
+      const hours = parseInt(fullProgressMatch[2])
+      const minutes = parseInt(fullProgressMatch[3])
+      const seconds = parseInt(fullProgressMatch[4])
+      const speed = parseFloat(fullProgressMatch[6])
+
+      const totalSeconds = hours * 3600 + minutes * 60 + seconds
+
+      // Better progress estimation based on frames and time
+      let progress = 0
+      if (expectedInputCount && expectedInputCount > 5) {
+        // For large chunk counts, estimate based on processing rate
+        const estimatedFramesPerChunk = 150 // Conservative estimate (5 seconds at 30fps)
+        const expectedTotalFrames = expectedInputCount * estimatedFramesPerChunk
+        progress = Math.min(90, (frame / expectedTotalFrames) * 100)
+      } else {
+        // Fallback to time-based estimation
+        progress = Math.min(90, totalSeconds * 3)
+      }
+
+      const speedInfo = speed ? ` (${speed}x speed)` : ''
+      onProgress(progress, `Processed ${frame} frames, time: ${fullProgressMatch[2]}:${fullProgressMatch[3]}:${fullProgressMatch[4]}${speedInfo}`)
+      return
+    }
+
+    // Pattern 2: time=HH:MM:SS.DD - current processing time position
+    const timeMatch = line.match(/time=(\d{2}):(\d{2}):(\d{2})\.(\d{2})/)
     if (timeMatch) {
       const hours = parseInt(timeMatch[1])
       const minutes = parseInt(timeMatch[2])
       const seconds = parseInt(timeMatch[3])
       const totalSeconds = hours * 3600 + minutes * 60 + seconds
 
-      // Since we don't know total duration, estimate progress based on time processed
-      // This is a rough heuristic that works reasonably well for typical recordings
-      onProgress(Math.min(95, totalSeconds * 2), `Processing: ${timeMatch[0]}`)
+      // Improved progress estimation
+      let progress = 0
+      if (expectedInputCount && expectedInputCount > 10) {
+        // For many chunks, progress more conservatively
+        progress = Math.min(85, totalSeconds * 1.5)
+      } else {
+        // For fewer chunks, can progress faster
+        progress = Math.min(90, totalSeconds * 3)
+      }
+
+      onProgress(progress, `Processing time: ${timeMatch[0]}`)
       return
     }
 
-    // Pattern 2: frame=NNNN - number of frames processed
-    const frameMatch = output.match(/frame=\s*(\d+)/)
+    // Pattern 3: frame=NNNN - number of frames processed
+    const frameMatch = line.match(/frame=\s*(\d+)/)
     if (frameMatch) {
       const frame = parseInt(frameMatch[1])
-      // Rough progress estimate assuming ~30fps and unknown total duration
-      // This provides some progress feedback even when time info is unavailable
-      const estimatedProgress = Math.min(90, frame / 30) // Very rough estimate
-      onProgress(estimatedProgress, `Processing frame ${frame}`)
+
+      let progress = 0
+      if (expectedInputCount && expectedInputCount > 5) {
+        // Better frame-based estimation for multiple chunks
+        const estimatedFramesPerChunk = 150 // 5 seconds at 30fps
+        const expectedTotalFrames = expectedInputCount * estimatedFramesPerChunk
+        progress = Math.min(85, (frame / expectedTotalFrames) * 100)
+      } else {
+        // Fallback estimation
+        progress = Math.min(80, frame / 100)
+      }
+
+      onProgress(progress, `Processed ${frame} frames`)
       return
     }
 
-    // Pattern 3: Various completion indicators
-    if (output.includes('Overwrite? [y/N]')) {
-      onProgress(95, 'Finalizing output...')
+    // Pattern 4: Input file processing indicators
+    if (line.includes('Opening \'') || line.includes('Input #')) {
+      onProgress(15, 'Analyzing input files...')
+      return
+    }
+
+    // Pattern 5: Stream mapping and codec information
+    if (line.includes('Stream mapping:') || line.includes('Video:') || line.includes('Audio:')) {
+      onProgress(20, 'Setting up stream processing...')
+      return
+    }
+
+    // Pattern 6: Various processing phases
+    if (line.includes('Press [q] to stop')) {
+      onProgress(25, 'Starting frame processing...')
+      return
+    }
+
+    // Pattern 7: Completion indicators
+    if (line.includes('Overwrite? [y/N]')) {
+      onProgress(95, 'Finalizing output file...')
+      return
+    }
+
+    if (line.includes('muxing overhead:') || line.includes('video:') && line.includes('audio:')) {
+      onProgress(98, 'Writing final metadata...')
+      return
+    }
+
+    // Pattern 8: Error and warning indicators for better user feedback
+    if (line.includes('Error') || line.includes('ERROR')) {
+      onProgress(-1, `Error: ${line}`) // -1 indicates error without changing progress
+      return
+    }
+
+    if (line.includes('Warning') || line.includes('WARNING')) {
+      onProgress(-1, `Warning: ${line}`) // -1 indicates warning without changing progress
+      return
+    }
+
+    // Pattern 9: Concatenation-specific messages
+    if (line.includes('concat:')) {
+      onProgress(30, 'Concatenating video chunks...')
+      return
+    }
+
+    if (line.includes('Non-monotonous DTS') || line.includes('PTS')) {
+      onProgress(-1, 'Fixing timestamp issues...') // Common with concatenation
+      return
     }
   }
 }

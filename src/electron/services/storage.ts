@@ -156,4 +156,23 @@ export const setupFilesystemStorage = (): void => {
       return null
     }
   })
+
+  ipcMain.handle('get-file-stats', async (_, path: string) => {
+    try {
+      const stats = await fs.stat(path)
+      return {
+        exists: true,
+        size: stats.size,
+        mtime: stats.mtime,
+        isDirectory: stats.isDirectory(),
+        isFile: stats.isFile()
+      }
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        return { exists: false }
+      }
+      console.error('Error getting file stats:', error)
+      throw error
+    }
+  })
 }

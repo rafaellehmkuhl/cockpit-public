@@ -367,6 +367,16 @@ declare global {
        * Delete a file
        */
       deleteFile: (path: string) => Promise<void>
+      /**
+       * Get file statistics (size, existence, etc.)
+       */
+      getFileStats: (path: string) => Promise<{
+        exists: boolean
+        size?: number
+        mtime?: Date
+        isDirectory?: boolean
+        isFile?: boolean
+      }>
     /**
      * Open path in system file manager
      */

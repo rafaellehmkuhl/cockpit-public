@@ -43,6 +43,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readDirectory: (path: string) => ipcRenderer.invoke('read-directory', path),
   deleteFile: (path: string) => ipcRenderer.invoke('delete-file', path),
   openPath: (path: string) => ipcRenderer.invoke('open-path', path),
+  getFileStats: (path: string) => ipcRenderer.invoke('get-file-stats', path),
   getDefaultChunksFolder: () => ipcRenderer.invoke('get-default-chunks-folder'),
   getDefaultOutputFolder: () => ipcRenderer.invoke('get-default-output-folder'),
   // FFmpeg native processing
