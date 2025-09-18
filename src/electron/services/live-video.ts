@@ -128,16 +128,17 @@ const finalizeLiveVideoConcat = async (processId: string): Promise<void> => {
   try {
     console.log(`Live concat process ${processId} finalized successfully (binary concatenation)`)
 
-    // For binary concatenation, we're already done - the file has been built incrementally
-    // We might want to run a quick FFmpeg process to fix any potential issues
+    // Binary concatenation creates invalid WebM structure with H.264 content
+    // Fix by converting to proper MP4 container with rebuilt metadata
+    const outputMp4 = process.outputPath.replace('.webm', '.mp4')
     const ffmpegArgs = [
       '-i', process.outputPath,
-      '-c', 'copy',
-      '-fflags', '+genpts',
-      '-avoid_negative_ts', 'make_zero',
-      '-movflags', '+faststart',
+      '-c', 'copy',                    // Don't re-encode, just fix container
+      '-fflags', '+genpts',            // Generate presentation timestamps
+      '-avoid_negative_ts', 'make_zero', // Fix timestamp issues
+      '-movflags', '+faststart',       // Optimize for web playback
       '-y',
-      `${process.outputPath}.fixed.webm`
+      outputMp4
     ]
 
     return new Promise((resolve, reject) => {
@@ -148,40 +149,40 @@ const finalizeLiveVideoConcat = async (processId: string): Promise<void> => {
       })
 
       ffmpegProcess.on('error', (error) => {
-        console.warn(`Final FFmpeg process error (${processId}):`, error)
-        // Don't fail - the binary concatenated file might still be usable
-        resolve()
+        console.error(`Critical FFmpeg process error (${processId}):`, error)
+        activeConcatProcesses.delete(processId)
+        reject(new Error(`Failed to fix live concatenated video: ${error.message}`))
       })
 
       ffmpegProcess.on('close', (code) => {
         if (code === 0) {
-          // Replace original with fixed version
-          fs.rename(`${process.outputPath}.fixed.webm`, process.outputPath)
+          // Replace original WebM with fixed MP4 version, then remove original
+          fs.rename(outputMp4, process.outputPath.replace('.webm', '.mp4'))
+            .then(() => fs.unlink(process.outputPath)) // Remove broken WebM
             .then(() => {
-              console.log(`Live concat process ${processId} finalized and fixed successfully`)
+              console.log(`Live concat process ${processId} converted to MP4 successfully`)
               activeConcatProcesses.delete(processId)
               resolve()
             })
-            .catch(() => {
-              // If rename fails, original file is still there
-              console.log(`Live concat process ${processId} finalized (could not apply fixes)`)
+            .catch((error) => {
+              console.error(`Failed to finalize MP4 conversion:`, error)
               activeConcatProcesses.delete(processId)
-              resolve()
+              reject(new Error(`Failed to finalize video: ${error.message}`))
             })
         } else {
-          console.log(`Live concat process ${processId} finalized (FFmpeg fixes failed, using original)`)
+          console.error(`FFmpeg failed to convert live video to MP4 (exit code: ${code})`)
           activeConcatProcesses.delete(processId)
-          resolve()
+          reject(new Error(`FFmpeg failed to fix video structure (exit code: ${code})`))
         }
       })
 
-      // Set timeout for finalization
+      // Set timeout for finalization - this is critical for video playability
       setTimeout(() => {
-        console.warn(`Live concat process ${processId} timeout, using original file`)
+        console.error(`Live concat process ${processId} timeout during fixing`)
         ffmpegProcess.kill('SIGKILL')
         activeConcatProcesses.delete(processId)
-        resolve()
-      }, 30000) // 30 second timeout for final processing
+        reject(new Error('Video fixing process timed out'))
+      }, 60000) // 60 second timeout for final processing
     })
 
   } catch (error) {

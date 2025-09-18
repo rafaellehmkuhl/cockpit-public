@@ -463,6 +463,7 @@ export const useVideoStore = defineStore('video', () => {
       try {
         const outputPath = await window.electronAPI.getDefaultOutputFolder()
         if (outputPath) {
+          // Start with .webm for binary concatenation, will be converted to .mp4 during finalization
           const liveOutputPath = `${outputPath}/${fileName}.webm`
           liveProcessor = createLiveVideoProcessor(
             recordingHash,
