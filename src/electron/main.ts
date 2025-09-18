@@ -13,6 +13,7 @@ import { setupSystemInfoService } from './services/system-info'
 import { setupUserAgentService } from './services/user-agent'
 import { setupWorkspaceService } from './services/workspace'
 import { setupFFmpegService } from './services/ffmpeg'
+import { setupLiveVideoService } from './services/live-video'
 
 // Setup the logger service as soon as possible to avoid different behaviors across runtime
 setupElectronLogService()
@@ -88,6 +89,7 @@ setupUserAgentService()
 setupWorkspaceService()
 setupJoystickMonitoring()
 setupFFmpegService()
+setupLiveVideoService()
 
 app.whenReady().then(async () => {
   console.log('Electron app is ready.')

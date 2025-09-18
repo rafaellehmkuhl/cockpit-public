@@ -257,6 +257,19 @@
                 Video Library
               </v-btn>
             </div>
+            <div class="flex items-center justify-start w-[96%] ml-2">
+              <v-checkbox
+                v-model="videoStore.enableLiveProcessing"
+                label="Live video processing (Electron)"
+                class="text-sm mx-2"
+                hide-details
+              />
+              <v-tooltip text="Process videos in real-time during recording for instant availability when recording stops">
+                <template #activator="{ props }">
+                  <v-icon v-bind="props" class="ml-2 text-slate-400">mdi-information-outline</v-icon>
+                </template>
+              </v-tooltip>
+            </div>
             <div class="flex items-center justify-start w-[50%] ml-2">
               <v-checkbox
                 v-model="videoStore.zipMultipleFiles"

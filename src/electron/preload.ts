@@ -58,6 +58,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
   offFFmpegProgress: () => {
     ipcRenderer.removeAllListeners('ffmpeg-progress')
   },
+  // Live video processing
+  createTempDirectory: (prefix: string) => ipcRenderer.invoke('create-temp-directory', prefix),
+  writeBlobToFile: async (blob: Blob, filePath: string) => {
+    const arrayBuffer = await blob.arrayBuffer()
+    return ipcRenderer.invoke('write-blob-to-file', new Uint8Array(arrayBuffer), filePath)
+  },
+  startLiveVideoConcat: (firstChunkPath: string, outputPath: string) =>
+    ipcRenderer.invoke('start-live-video-concat', firstChunkPath, outputPath),
+  appendChunkToLiveConcat: (processId: string, chunkPath: string) =>
+    ipcRenderer.invoke('append-chunk-to-live-concat', processId, chunkPath),
+  finalizeLiveVideoConcat: (processId: string) => ipcRenderer.invoke('finalize-live-video-concat', processId),
+  killLiveVideoConcat: (processId: string) => ipcRenderer.invoke('kill-live-video-concat', processId),
+  removeTempDirectory: (dirPath: string) => ipcRenderer.invoke('remove-temp-directory', dirPath),
+  onLiveVideoProgress: (callback: (data: { progress: number; message: string }) => void) => {
+    ipcRenderer.on('live-video-progress', (_event, data) => callback(data))
+  },
+  offLiveVideoProgress: () => {
+    ipcRenderer.removeAllListeners('live-video-progress')
+  },
   captureWorkspace: (rect?: Electron.Rectangle) => ipcRenderer.invoke('capture-workspace', rect),
   serialListPorts: () => ipcRenderer.invoke('serial-list-ports'),
   serialOpen: (path: string, baudRate?: number) => ipcRenderer.invoke('serial-open', { path, baudRate }),

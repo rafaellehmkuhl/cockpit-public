@@ -12,6 +12,7 @@ import { useInteractionDialog } from '@/composables/interactionDialog'
 import { useBlueOsStorage } from '@/composables/settingsSyncer'
 import { useSnackbar } from '@/composables/snackbar'
 import { WebRTCManager } from '@/composables/webRTC'
+import { createLiveVideoProcessor, LiveVideoProcessor } from '@/libs/live-video-processor'
 import { getIpsInformationFromVehicle } from '@/libs/blueos'
 import eventTracker from '@/libs/external-telemetry/event-tracking'
 import { availableCockpitActions, registerActionCallback } from '@/libs/joystick/protocols/cockpit-actions'
@@ -57,8 +58,11 @@ export const useVideoStore = defineStore('video', () => {
   const unprocessedVideos = useStorage<{ [key in string]: UnprocessedVideoInfo }>('cockpit-unprocessed-video-info', {})
   const timeNow = useTimestamp({ interval: 500 })
   const autoProcessVideos = useBlueOsStorage('cockpit-auto-process-videos', true)
+  const enableLiveProcessing = useBlueOsStorage('cockpit-enable-live-processing', true)
   const lastRenamedStreamName = ref('')
   const isRecordingAllStreams = ref(false)
+  const liveProcessors = ref<{ [key: string]: LiveVideoProcessor }>({})
+  const recordingStates = ref<{ [key: string]: boolean }>({})
 
   const namesAvailableStreams = computed(() => mainWebRTCManager.availableStreams.value.map((stream) => stream.name))
 
@@ -208,12 +212,32 @@ export const useVideoStore = defineStore('video', () => {
    * @returns {boolean}
    */
   const isRecording = (streamName: string): boolean => {
-    if (activeStreams.value[streamName] === undefined) activateStream(streamName)
+    console.log(`VideoStore.isRecording("${streamName}")`)
+    console.log(`  recordingStates:`, recordingStates.value)
+    console.log(`  activeStreams keys:`, Object.keys(activeStreams.value))
 
-    return (
-      activeStreams.value[streamName]!.mediaRecorder !== undefined &&
-      activeStreams.value[streamName]!.mediaRecorder!.state === 'recording'
-    )
+    // First check our reliable recording state
+    if (recordingStates.value[streamName]) {
+      console.log(`  Recording state: true (from recordingStates)`)
+      return true
+    }
+
+    if (activeStreams.value[streamName] === undefined) {
+      console.log(`  Stream "${streamName}" not found, activating...`)
+      activateStream(streamName)
+    }
+
+    const streamData = activeStreams.value[streamName]
+    const hasMediaRecorder = streamData?.mediaRecorder !== undefined
+    const recorderState = streamData?.mediaRecorder?.state
+    const isCurrentlyRecording = hasMediaRecorder && recorderState === 'recording'
+
+    console.log(`  streamData exists: ${!!streamData}`)
+    console.log(`  hasMediaRecorder: ${hasMediaRecorder}`)
+    console.log(`  recorderState: ${recorderState}`)
+    console.log(`  isCurrentlyRecording: ${isCurrentlyRecording}`)
+
+    return isCurrentlyRecording
   }
 
   /**
@@ -221,6 +245,12 @@ export const useVideoStore = defineStore('video', () => {
    * @param {string} streamName - Name of the stream
    */
   const stopRecording = (streamName: string): void => {
+    console.log(`VideoStore.stopRecording("${streamName}")`)
+
+    // Clear recording state immediately
+    recordingStates.value[streamName] = false
+    console.log(`  Set recordingStates["${streamName}"] = false`)
+
     if (activeStreams.value[streamName] === undefined) activateStream(streamName)
 
     const timeRecordingStart = activeStreams.value[streamName]?.timeRecordingStart
@@ -372,19 +402,32 @@ export const useVideoStore = defineStore('video', () => {
    * @param {string} streamName - Name of the stream
    */
   const startRecording = async (streamName: string): Promise<void> => {
+    console.log(`VideoStore.startRecording("${streamName}")`)
+    console.log(`  activeStreams keys before:`, Object.keys(activeStreams.value))
+
+    // Set recording state immediately to prevent race conditions
+    recordingStates.value[streamName] = true
+    console.log(`  Set recordingStates["${streamName}"] = true`)
+
     eventTracker.capture('Video recording start', { streamName: streamName })
-    if (activeStreams.value[streamName] === undefined) activateStream(streamName)
+    if (activeStreams.value[streamName] === undefined) {
+      console.log(`  Stream "${streamName}" not found, activating...`)
+      activateStream(streamName)
+    }
 
     if (namesAvailableStreams.value.isEmpty()) {
+      recordingStates.value[streamName] = false
       showDialog({ message: 'No streams available.', variant: 'error' })
       return
     }
 
     if (activeStreams.value[streamName]!.mediaStream === undefined) {
+      recordingStates.value[streamName] = false
       showDialog({ message: 'Media stream not defined.', variant: 'error' })
       return
     }
     if (!activeStreams.value[streamName]!.mediaStream!.active) {
+      recordingStates.value[streamName] = false
       showDialog({ message: 'Media stream not yet active. Wait a second and try again.', variant: 'error' })
       return
     }
@@ -407,6 +450,38 @@ export const useVideoStore = defineStore('video', () => {
     const fileName = `${missionStore.missionName || 'Cockpit'} (${timeRecordingStartString}) #${recordingHash}`
     activeStreams.value[streamName]!.mediaRecorder = new MediaRecorder(streamData.mediaStream!)
 
+    // Start recording immediately to ensure MediaRecorder state is correct for UI checks
+    activeStreams.value[streamName]!.mediaRecorder!.start(1000)
+
+    console.log(`  MediaRecorder started for "${streamName}"`)
+    console.log(`  activeStreams keys after:`, Object.keys(activeStreams.value))
+    console.log(`  MediaRecorder state: ${activeStreams.value[streamName]!.mediaRecorder!.state}`)
+
+    // Initialize live processor if enabled and on Electron
+    let liveProcessor: LiveVideoProcessor | undefined
+    if (enableLiveProcessing.value && window.electronAPI) {
+      try {
+        const outputPath = await window.electronAPI.getDefaultOutputFolder()
+        if (outputPath) {
+          const liveOutputPath = `${outputPath}/${fileName}.webm`
+          liveProcessor = createLiveVideoProcessor(
+            recordingHash,
+            liveOutputPath,
+            (progress, message) => {
+              console.log(`Live processing ${recordingHash}: ${progress}% - ${message}`)
+              // Could emit progress events here for UI updates
+            }
+          )
+          await liveProcessor.startProcessing()
+          liveProcessors.value[recordingHash] = liveProcessor
+          console.log(`Live processing started for ${recordingHash}`)
+        }
+      } catch (error) {
+        console.warn('Failed to start live processing:', error)
+        // Continue with normal recording even if live processing fails
+      }
+    }
+
     const videoTrack = streamData.mediaStream!.getVideoTracks()[0]
     const vWidth = videoTrack.getSettings().width || 1920
     const vHeight = videoTrack.getSettings().height || 1080
@@ -422,8 +497,6 @@ export const useVideoStore = defineStore('video', () => {
       vHeight,
     }
     unprocessedVideos.value = { ...unprocessedVideos.value, ...{ [recordingHash]: videoInfo } }
-
-    activeStreams.value[streamName]!.mediaRecorder!.start(1000)
 
     let losingChunksWarningIssued = false
     const unsavedChunkAlerts: { [key in string]: ReturnType<typeof setTimeout> } = {}
@@ -487,6 +560,16 @@ export const useVideoStore = defineStore('video', () => {
       try {
         await tempVideoStorage.setItem(chunkName, e.data)
         sequentialLostChunks = 0
+
+        // Send chunk to live processor if active
+        const processor = liveProcessors.value[recordingHash]
+        if (processor && e.data.size > 0) {
+          try {
+            await processor.addChunk(e.data, chunksCount)
+          } catch (error) {
+            console.warn(`Failed to add chunk ${chunksCount} to live processor:`, error)
+          }
+        }
       } catch {
         sequentialLostChunks++
         totalLostChunks++
@@ -511,7 +594,46 @@ export const useVideoStore = defineStore('video', () => {
       info.dateFinish = new Date()
       unprocessedVideos.value = { ...unprocessedVideos.value, ...{ [recordingHash]: info } }
 
-      if (autoProcessVideos.value) {
+      // Finalize live processing if active
+      const processor = liveProcessors.value[recordingHash]
+      if (processor) {
+        try {
+          await processor.stopProcessing()
+          delete liveProcessors.value[recordingHash]
+
+          openSnackbar({
+            message: 'Live video processing completed! Video ready for use.',
+            duration: 3000,
+            variant: 'success',
+            closeButton: false,
+          })
+
+          // For live processing, we skip the traditional processing since video is already done
+          // But we still clean up the temp chunks
+          await cleanupProcessedData(recordingHash)
+
+        } catch (error) {
+          console.error('Failed to finalize live processing:', error)
+          delete liveProcessors.value[recordingHash]
+
+          // Fall back to normal processing if live processing failed
+          if (autoProcessVideos.value) {
+            try {
+              await processVideoChunksAndTelemetry([recordingHash])
+              openSnackbar({
+                message: 'Video processing completed (fallback mode).',
+                duration: 2000,
+                variant: 'success',
+                closeButton: false,
+              })
+            } catch (fallbackError) {
+              console.error('Failed to process video in fallback mode:', fallbackError)
+              alertStore.pushAlert(new Alert(AlertLevel.Error, `Failed to process video for stream ${streamName}.`))
+            }
+          }
+        }
+      } else if (autoProcessVideos.value) {
+        // Normal processing when live processing is disabled
         try {
           await processVideoChunksAndTelemetry([recordingHash])
           openSnackbar({
@@ -527,6 +649,10 @@ export const useVideoStore = defineStore('video', () => {
       }
 
       activeStreams.value[streamName]!.mediaRecorder = undefined
+
+      // Clear recording state when MediaRecorder stops
+      recordingStates.value[streamName] = false
+      console.log(`  Cleared recordingStates["${streamName}"] on MediaRecorder stop`)
     }
 
     alertStore.pushAlert(new Alert(AlertLevel.Success, `Started recording stream ${streamName}.`))
@@ -1123,6 +1249,7 @@ export const useVideoStore = defineStore('video', () => {
 
   return {
     autoProcessVideos,
+    enableLiveProcessing,
     availableIceIps,
     allowedIceIps,
     enableAutoIceIpFetch,
