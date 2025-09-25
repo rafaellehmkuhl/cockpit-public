@@ -274,6 +274,10 @@ declare global {
        */
       openVideoFolder: () => void
       /**
+       * Open temporary chunks folder
+       */
+      openTempChunksFolder: () => void
+      /**
        * Capture the workspace area of the application
        */
       captureWorkspace(rect?: Electron.Rectangle): Promise<Uint8Array>
@@ -349,6 +353,62 @@ declare global {
          */
         processArch: string
       }>
+      /**
+       * Open path in system file manager
+       */
+      openPath: (path: string) => Promise<void>
+      /**
+       * Get the default video output folder path
+       */
+      getDefaultOutputFolder: () => Promise<string | null>
+      /**
+       * Create temporary directory for live video processing
+       */
+      createTempDirectory: (prefix: string) => Promise<string>
+      /**
+       * Write blob to file for live processing
+       */
+      writeBlobToFile: (blob: Blob, filePath: string) => Promise<void>
+      /**
+       * Start live video concatenation process
+       */
+      startLiveVideoConcat: (
+        firstChunkPath: string,
+        outputPath: string
+      ) => Promise<{
+        /**
+         * The ID of the process
+         */
+        id: string
+      }>
+      /**
+       * Append chunk to live concatenation
+       */
+      appendChunkToLiveConcat: (processId: string, chunkPath: string) => Promise<void>
+      /**
+       * Finalize live video concatenation
+       */
+      finalizeLiveVideoConcat: (processId: string) => Promise<void>
+      /**
+       * Kill live video concatenation process
+       */
+      killLiveVideoConcat: (processId: string) => Promise<void>
+      /**
+       * Remove temporary directory
+       */
+      removeTempDirectory: (dirPath: string) => Promise<void>
+      /**
+       * Process ZIP file with video chunks
+       */
+      processZipFile: (zipFilePath: string, tempDir: string) => Promise<string>
+      /**
+       * On ZIP processing progress listener
+       */
+      onZipProcessingProgress: (callback: (progress: number, message: string) => void) => void
+      /**
+       * Off ZIP processing progress listener
+       */
+      offZipProcessingProgress: () => void
     }
   }
 }

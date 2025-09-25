@@ -1,11 +1,10 @@
-import { useDebounceFn, useStorage, useThrottleFn, useTimestamp } from '@vueuse/core'
+import { useThrottleFn } from '@vueuse/core'
 import { BlobReader, BlobWriter, ZipWriter } from '@zip.js/zip.js'
 import { differenceInSeconds, format } from 'date-fns'
 import { saveAs } from 'file-saver'
 import { defineStore } from 'pinia'
 import { v4 as uuid } from 'uuid'
 import { computed, ref, watch } from 'vue'
-import fixWebmDuration from 'webm-duration-fix'
 import adapter from 'webrtc-adapter'
 
 import { useInteractionDialog } from '@/composables/interactionDialog'
@@ -15,8 +14,9 @@ import { WebRTCManager } from '@/composables/webRTC'
 import { getIpsInformationFromVehicle } from '@/libs/blueos'
 import eventTracker from '@/libs/external-telemetry/event-tracking'
 import { availableCockpitActions, registerActionCallback } from '@/libs/joystick/protocols/cockpit-actions'
-import { CockpitStandardLog, datalogger } from '@/libs/sensors-logging'
-import { isEqual, sleep } from '@/libs/utils'
+import { LiveVideoProcessor } from '@/libs/live-video-processor'
+import { datalogger } from '@/libs/sensors-logging'
+import { isElectron, isEqual, sleep } from '@/libs/utils'
 import { tempVideoStorage, videoStorage } from '@/libs/videoStorage'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 import { useMissionStore } from '@/stores/mission'
@@ -26,9 +26,7 @@ import {
   type DownloadProgressCallback,
   type FileDescriptor,
   type StreamData,
-  type UnprocessedVideoInfo,
   type VideoProcessingDetails,
-  getBlobExtensionContainer,
   VideoExtensionContainer,
   VideoStreamCorrespondency,
 } from '@/types/video'
@@ -54,11 +52,32 @@ export const useVideoStore = defineStore('video', () => {
   const activeStreams = ref<{ [key in string]: StreamData | undefined }>({})
   const mainWebRTCManager = new WebRTCManager(webRTCSignallingURI, rtcConfiguration)
   const availableIceIps = ref<string[]>([])
-  const unprocessedVideos = useStorage<{ [key in string]: UnprocessedVideoInfo }>('cockpit-unprocessed-video-info', {})
-  const timeNow = useTimestamp({ interval: 500 })
-  const autoProcessVideos = useBlueOsStorage('cockpit-auto-process-videos', true)
+  const enableLiveProcessing = useBlueOsStorage('cockpit-enable-live-processing', true)
+  const saveBackupRawChunks = useBlueOsStorage('cockpit-save-backup-raw-chunks', true)
   const lastRenamedStreamName = ref('')
   const isRecordingAllStreams = ref(false)
+  const liveProcessors = ref<{ [key: string]: LiveVideoProcessor }>({})
+  const recordingStates = ref<{ [key: string]: boolean }>({})
+  const telemetryMetadata = ref<{
+    [key: string]: {
+      /**
+       * The base filename for the video
+       */
+      fileName: string
+      /**
+       * When the recording started
+       */
+      dateStart: Date
+      /**
+       * Video width
+       */
+      vWidth: number
+      /**
+       * Video height
+       */
+      vHeight: number
+    }
+  }>({})
 
   const namesAvailableStreams = computed(() => mainWebRTCManager.availableStreams.value.map((stream) => stream.name))
 
@@ -208,12 +227,22 @@ export const useVideoStore = defineStore('video', () => {
    * @returns {boolean}
    */
   const isRecording = (streamName: string): boolean => {
-    if (activeStreams.value[streamName] === undefined) activateStream(streamName)
+    // First check our reliable recording state
+    if (recordingStates.value[streamName]) {
+      return true
+    }
 
-    return (
-      activeStreams.value[streamName]!.mediaRecorder !== undefined &&
-      activeStreams.value[streamName]!.mediaRecorder!.state === 'recording'
-    )
+    if (activeStreams.value[streamName] === undefined) {
+      console.warn(`Stream "${streamName}" not found, activating...`)
+      activateStream(streamName)
+    }
+
+    const streamData = activeStreams.value[streamName]
+    const hasMediaRecorder = streamData?.mediaRecorder !== undefined
+    const recorderState = streamData?.mediaRecorder?.state
+    const isCurrentlyRecording = hasMediaRecorder && recorderState === 'recording'
+
+    return isCurrentlyRecording
   }
 
   /**
@@ -221,6 +250,9 @@ export const useVideoStore = defineStore('video', () => {
    * @param {string} streamName - Name of the stream
    */
   const stopRecording = (streamName: string): void => {
+    // Clear recording state immediately
+    recordingStates.value[streamName] = false
+
     if (activeStreams.value[streamName] === undefined) activateStream(streamName)
 
     const timeRecordingStart = activeStreams.value[streamName]?.timeRecordingStart
@@ -246,125 +278,31 @@ export const useVideoStore = defineStore('video', () => {
   }
 
   /**
-   * Extracts a thumbnail from the first frame of a video.
-   * @param {Blob} firstChunkBlob
-   * @returns {Promise<string>} A promise that resolves with the base64-encoded image data of the thumbnail.
+   * Get recording metadata from localStorage (web version only)
+   * @param {string} hash - Recording hash
+   * @returns {object|null} Recording metadata or null if not found
    */
-  const extractThumbnailFromVideo = async (firstChunkBlob: Blob): Promise<Blob> => {
-    return new Promise<Blob>((resolve, reject) => {
-      const videoObjectUrl = URL.createObjectURL(firstChunkBlob)
-      const video = document.createElement('video')
+  const getRecordingMetadata = (
+    hash: string
+  ): {
+    /**
+     * When the recording started
+     */
+    epoch_start: number
+    /**
+     * When the recording finished
+     */
+    epoch_end: number | null
+  } | null => {
+    if (isElectron()) return null
 
-      let seekResolve: (() => void) | null = null
-      video.addEventListener('seeked', function () {
-        if (seekResolve) seekResolve()
-      })
-
-      video.addEventListener('error', () => {
-        URL.revokeObjectURL(videoObjectUrl)
-        reject('Error loading video')
-      })
-
-      video.src = videoObjectUrl
-
-      video.addEventListener('loadedmetadata', () => {
-        const canvas = document.createElement('canvas')
-        const context = canvas.getContext('2d')
-        if (!context) {
-          URL.revokeObjectURL(videoObjectUrl)
-          reject('2D context not available.')
-          return
-        }
-
-        const [width, height] = [660, 370]
-        canvas.width = width
-        canvas.height = height
-
-        video.currentTime = 0
-        seekResolve = () => {
-          context.drawImage(video, 0, 0, width, height)
-          const blobCallback = (blob: Blob | null): void => {
-            if (!blob) {
-              reject('Failed to create blob')
-              return
-            }
-            resolve(blob)
-            URL.revokeObjectURL(videoObjectUrl)
-          }
-          canvas.toBlob(blobCallback, 'image/jpeg', 0.6)
-        }
-      })
-    })
-  }
-
-  /**
-   * Generates a fake placeholder thumbnail for videos.
-   * @param {Date} dateStart - The date the video started recording
-   * @returns {Promise<Blob>} A promise that resolves with a placeholder thumbnail blob.
-   */
-  const generatePlaceholderThumbnail = async (dateStart: Date): Promise<Blob> => {
-    return new Promise<Blob>((resolve, reject) => {
-      const canvas = document.createElement('canvas')
-      const context = canvas.getContext('2d')
-      if (!context) {
-        reject('2D context not available.')
-        return
-      }
-
-      const [width, height] = [660, 370]
-      canvas.width = width
-      canvas.height = height
-
-      // Create gradient background
-      const gradient = context.createLinearGradient(0, 0, width, height)
-      gradient.addColorStop(0, '#4fa483') // Cockpit green
-      gradient.addColorStop(1, '#77bda2') // Cockpit green slightly lighter
-      context.fillStyle = gradient
-      context.fillRect(0, 0, width, height)
-
-      // Add video icon
-      context.fillStyle = '#ffffff'
-      context.font = 'bold 128px Arial'
-      context.textAlign = 'center'
-      context.fillText('▶', width / 2, height / 2 + 10)
-
-      // Add file name
-      context.fillStyle = '#e5e7eb' // Gray-200
-      context.font = '48px Arial'
-      context.textAlign = 'center'
-
-      // Truncate filename if too long
-      // @ts-ignore: replaceAll is available in any modern browser
-      const parsedFilename = dateStart.toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-      const maxLength = 50
-      const displayName =
-        parsedFilename.length > maxLength ? parsedFilename.substring(0, maxLength) + '...' : parsedFilename
-      context.fillText(displayName, width / 2, height / 2 + 120)
-
-      // Add "Video Thumbnail" text
-      context.fillStyle = '#9ca3af' // Gray-400
-      context.font = '14px Arial'
-
-      // Add border
-      context.strokeStyle = '#374151' // Gray-700
-      context.lineWidth = 2
-      context.strokeRect(1, 1, width - 2, height - 2)
-
-      const blobCallback = (blob: Blob | null): void => {
-        if (!blob) {
-          reject('Failed to create placeholder thumbnail blob')
-          return
-        }
-        resolve(blob)
-      }
-      canvas.toBlob(blobCallback, 'image/jpeg', 0.8)
-    })
+    try {
+      const recordingMetadata = JSON.parse(localStorage.getItem('cockpit-video-recording-metadata') || '{}')
+      return recordingMetadata[hash] || null
+    } catch (error) {
+      console.warn(`Failed to get recording metadata for hash ${hash}:`, error)
+      return null
+    }
   }
 
   /**
@@ -372,19 +310,28 @@ export const useVideoStore = defineStore('video', () => {
    * @param {string} streamName - Name of the stream
    */
   const startRecording = async (streamName: string): Promise<void> => {
+    // Set recording state immediately to prevent race conditions
+    recordingStates.value[streamName] = true
+
     eventTracker.capture('Video recording start', { streamName: streamName })
-    if (activeStreams.value[streamName] === undefined) activateStream(streamName)
+    if (activeStreams.value[streamName] === undefined) {
+      console.warn(`Stream "${streamName}" not found, activating...`)
+      activateStream(streamName)
+    }
 
     if (namesAvailableStreams.value.isEmpty()) {
+      recordingStates.value[streamName] = false
       showDialog({ message: 'No streams available.', variant: 'error' })
       return
     }
 
     if (activeStreams.value[streamName]!.mediaStream === undefined) {
+      recordingStates.value[streamName] = false
       showDialog({ message: 'Media stream not defined.', variant: 'error' })
       return
     }
     if (!activeStreams.value[streamName]!.mediaStream!.active) {
+      recordingStates.value[streamName] = false
       showDialog({ message: 'Media stream not yet active. Wait a second and try again.', variant: 'error' })
       return
     }
@@ -392,7 +339,8 @@ export const useVideoStore = defineStore('video', () => {
     datalogger.startLogging(streamName)
     await sleep(100)
 
-    activeStreams.value[streamName]!.timeRecordingStart = new Date()
+    const recordingStartTime = new Date()
+    activeStreams.value[streamName]!.timeRecordingStart = recordingStartTime
     const streamData = activeStreams.value[streamName] as StreamData
 
     let recordingHash = ''
@@ -403,27 +351,58 @@ export const useVideoStore = defineStore('video', () => {
       refreshHash = namesCurrentChunksOnDB.some((chunkName) => chunkName.includes(recordingHash))
     }
 
+    // Store recording metadata in localStorage for web version
+    if (!isElectron()) {
+      const recordingMetadata = JSON.parse(localStorage.getItem('cockpit-video-recording-metadata') || '{}')
+      recordingMetadata[recordingHash] = {
+        epoch_start: recordingStartTime.getTime(),
+        epoch_end: null, // Will be set when recording stops
+      }
+      localStorage.setItem('cockpit-video-recording-metadata', JSON.stringify(recordingMetadata))
+      console.log(`Stored recording metadata for hash ${recordingHash}:`, recordingMetadata[recordingHash])
+    }
+
     const timeRecordingStartString = format(streamData.timeRecordingStart!, 'LLL dd, yyyy - HH꞉mm꞉ss O')
     const fileName = `${missionStore.missionName || 'Cockpit'} (${timeRecordingStartString}) #${recordingHash}`
     activeStreams.value[streamName]!.mediaRecorder = new MediaRecorder(streamData.mediaStream!)
 
-    const videoTrack = streamData.mediaStream!.getVideoTracks()[0]
-    const vWidth = videoTrack.getSettings().width || 1920
-    const vHeight = videoTrack.getSettings().height || 1080
-
-    // Register the video as unprocessed so we can recover latter if needed
-    const videoInfo: UnprocessedVideoInfo = {
-      dateStart: streamData.timeRecordingStart!,
-      dateLastRecordingUpdate: streamData.timeRecordingStart!,
-      dateFinish: undefined,
-      dateLastProcessingUpdate: undefined,
-      fileName,
-      vWidth,
-      vHeight,
-    }
-    unprocessedVideos.value = { ...unprocessedVideos.value, ...{ [recordingHash]: videoInfo } }
-
+    // Start recording immediately to ensure MediaRecorder state is correct for UI checks
     activeStreams.value[streamName]!.mediaRecorder!.start(1000)
+
+    // Initialize live processor if enabled and on Electron
+    let liveProcessor: LiveVideoProcessor | undefined
+    if (enableLiveProcessing.value && window.electronAPI) {
+      try {
+        const outputPath = await window.electronAPI.getDefaultOutputFolder()
+        if (outputPath) {
+          // Start with .webm for binary concatenation, will be converted to .mp4 during finalization
+          const liveOutputPath = `${outputPath}/${fileName}.webm`
+          liveProcessor = new LiveVideoProcessor(recordingHash, liveOutputPath)
+          await liveProcessor.startProcessing()
+          liveProcessors.value[recordingHash] = liveProcessor
+
+          // Store telemetry metadata for later generation
+          const videoTrack = streamData.mediaStream!.getVideoTracks()[0]
+          const vWidth = videoTrack.getSettings().width || 1920
+          const vHeight = videoTrack.getSettings().height || 1080
+          telemetryMetadata.value[recordingHash] = {
+            fileName,
+            dateStart: recordingStartTime,
+            vWidth,
+            vHeight,
+          }
+
+          console.log(`Live processing started for ${recordingHash}`)
+        }
+      } catch (error) {
+        console.warn('Failed to start live processing:', error)
+        // Continue with normal recording even if live processing fails
+      }
+    } else if (!window.electronAPI) {
+      console.log(
+        `Browser environment detected - video processing disabled. Raw chunks will be saved for manual processing.`
+      )
+    }
 
     let losingChunksWarningIssued = false
     const unsavedChunkAlerts: { [key in string]: ReturnType<typeof setTimeout> } = {}
@@ -438,22 +417,15 @@ export const useVideoStore = defineStore('video', () => {
 
       console.error(chunkLossWarningMsg)
 
-      openSnackbar({
-        message: 'Oops, looks like a video chunk could not be saved. Retrying...',
-        duration: 2000,
-        variant: 'info',
-        closeButton: false,
-      })
+      const msg = 'Oops, looks like a video chunk could not be saved. Retrying...'
+      openSnackbar({ message: msg, duration: 2000, variant: 'info', closeButton: false })
 
       sequentialLostChunks++
       totalLostChunks++
 
       // Check for 5 or more sequential lost chunks
       if (sequentialLostChunks >= 5 && losingChunksWarningIssued === false) {
-        showDialog({
-          message: sequentialChunksLossMessage,
-          variant: 'error',
-        })
+        showDialog({ message: sequentialChunksLossMessage, variant: 'error' })
         sequentialLostChunks = 0
         losingChunksWarningIssued = true
       }
@@ -461,10 +433,7 @@ export const useVideoStore = defineStore('video', () => {
       // Check if more than 5% of total video chunks are lost
       const lostChunkPercentage = (totalLostChunks / totalChunks) * 100
       if (totalChunks > 10 && lostChunkPercentage > 5 && losingChunksWarningIssued === false) {
-        showDialog({
-          message: fivePercentChunksLossMessage,
-          variant: 'error',
-        })
+        showDialog({ message: fivePercentChunksLossMessage, variant: 'error' })
         losingChunksWarningIssued = true
       }
     }
@@ -486,7 +455,18 @@ export const useVideoStore = defineStore('video', () => {
 
       try {
         await tempVideoStorage.setItem(chunkName, e.data)
+
         sequentialLostChunks = 0
+
+        // Send chunk to live processor if active
+        const processor = liveProcessors.value[recordingHash]
+        if (processor && e.data.size > 0) {
+          try {
+            await processor.addChunk(e.data, chunksCount)
+          } catch (error) {
+            console.warn(`Failed to add chunk ${chunksCount} to live processor:`, error)
+          }
+        }
       } catch {
         sequentialLostChunks++
         totalLostChunks++
@@ -495,38 +475,78 @@ export const useVideoStore = defineStore('video', () => {
         return
       }
 
-      const updatedInfo = unprocessedVideos.value[recordingHash]
-      updatedInfo.dateLastRecordingUpdate = new Date()
-      unprocessedVideos.value = { ...unprocessedVideos.value, ...{ [recordingHash]: updatedInfo } }
-
       // If the chunk was saved, remove it from the unsaved list
       clearTimeout(unsavedChunkAlerts[chunkName])
       delete unsavedChunkAlerts[chunkName]
     }
 
     activeStreams.value[streamName]!.mediaRecorder!.onstop = async () => {
-      const info = unprocessedVideos.value[recordingHash]
-
-      // Register that the recording finished and it's ready to be processed
-      info.dateFinish = new Date()
-      unprocessedVideos.value = { ...unprocessedVideos.value, ...{ [recordingHash]: info } }
-
-      if (autoProcessVideos.value) {
-        try {
-          await processVideoChunksAndTelemetry([recordingHash])
-          openSnackbar({
-            message: 'Video processing completed.',
-            duration: 2000,
-            variant: 'success',
-            closeButton: false,
-          })
-        } catch (error) {
-          console.error('Failed to process video:', error)
-          alertStore.pushAlert(new Alert(AlertLevel.Error, `Failed to process video for stream ${streamName}.`))
+      // Update recording metadata with end time (web version only)
+      if (!isElectron()) {
+        const recordingMetadata = JSON.parse(localStorage.getItem('cockpit-video-recording-metadata') || '{}')
+        if (recordingMetadata[recordingHash]) {
+          recordingMetadata[recordingHash].epoch_end = new Date().getTime()
+          localStorage.setItem('cockpit-video-recording-metadata', JSON.stringify(recordingMetadata))
+          console.log(`Updated recording metadata for hash ${recordingHash}:`, recordingMetadata[recordingHash])
         }
       }
 
+      // Finalize live processing if active (Electron only)
+      const processor = liveProcessors.value[recordingHash]
+      if (processor) {
+        try {
+          await processor.stopProcessing()
+          delete liveProcessors.value[recordingHash]
+
+          // Generate telemetry overlay after video processing is complete
+          const metadata = telemetryMetadata.value[recordingHash]
+          if (metadata) {
+            try {
+              const dateFinish = new Date()
+              await generateTelemetryOverlay(
+                recordingHash,
+                metadata.fileName,
+                metadata.dateStart,
+                dateFinish,
+                metadata.vWidth,
+                metadata.vHeight
+              )
+              delete telemetryMetadata.value[recordingHash]
+            } catch (telemetryError) {
+              console.warn('Failed to generate telemetry overlay:', telemetryError)
+            }
+          }
+
+          const msg = 'Live video processing completed! Video and telemetry ready for use.'
+          openSnackbar({ message: msg, duration: 3000, variant: 'success', closeButton: false })
+
+          // For live processing, we skip the traditional processing since video is already done
+          // Conditionally keep or clean up temp chunks based on user setting
+          if (saveBackupRawChunks.value) {
+            console.log(`Live processing completed. Temp chunks preserved as backup for hash: ${recordingHash}`)
+          } else {
+            console.log(`Live processing completed. Cleaning up temp chunks for hash: ${recordingHash}`)
+            await cleanupProcessedData(recordingHash)
+          }
+        } catch (error) {
+          console.error('Failed to finalize live processing:', error)
+          delete liveProcessors.value[recordingHash]
+          delete telemetryMetadata.value[recordingHash]
+
+          // For now, we don't fall back to traditional processing
+          // Live processing is the only method available
+          console.warn('Live processing failed, no fallback processing available')
+        }
+      } else if (!window.electronAPI) {
+        // Browser environment - show message about raw chunks
+        const msg = `Recording completed for stream '${streamName}'! Raw video chunks saved. Check the Temporary tab to download them.`
+        openSnackbar({ message: msg, duration: 5000, variant: 'info', closeButton: true })
+      }
+
       activeStreams.value[streamName]!.mediaRecorder = undefined
+
+      // Clear recording state when MediaRecorder stops
+      recordingStates.value[streamName] = false
     }
 
     alertStore.pushAlert(new Alert(AlertLevel.Success, `Started recording stream ${streamName}.`))
@@ -547,7 +567,6 @@ export const useVideoStore = defineStore('video', () => {
       for (const key of keysToRemove) {
         await tempVideoStorage.removeItem(key)
       }
-      delete unprocessedVideos.value[hash]
     }
   }
 
@@ -638,19 +657,9 @@ export const useVideoStore = defineStore('video', () => {
     return file ? (file as Blob).size : undefined
   }
 
-  const updateLastProcessingUpdate = (recordingHash: string): void => {
-    const info = unprocessedVideos.value[recordingHash]
-    info.dateLastProcessingUpdate = new Date()
-    unprocessedVideos.value = { ...unprocessedVideos.value, ...{ [recordingHash]: info } }
-  }
-
   // Progress tracking for video processing
   const videoProcessingDetails = ref<VideoProcessingDetails>({})
   const totalFilesToProcess = ref(0)
-
-  const updateFileProgress = (filename: string, progress: number, message: string): void => {
-    videoProcessingDetails.value[filename] = { filename, progress, message }
-  }
 
   const currentFileProgress = computed(() => {
     return Object.values(videoProcessingDetails.value).map((detail) => ({
@@ -666,201 +675,52 @@ export const useVideoStore = defineStore('video', () => {
     return (totalProgress / (totalFilesToProcess.value * 100)) * 100
   })
 
-  const debouncedUpdateFileProgress = useDebounceFn((filename: string, progress: number, message: string) => {
-    updateFileProgress(filename, progress, message)
-  }, 100)
-
-  const processVideoChunksAndTelemetry = async (hashes: string[]): Promise<void> => {
-    totalFilesToProcess.value = hashes.length
-    videoProcessingDetails.value = {}
-
-    const tasks = hashes.map(async (hash) => {
-      const info = unprocessedVideos.value[hash]
-      if (!info) return
-
-      /* eslint-disable jsdoc/require-jsdoc  */
-      const chunks: { blob: Blob; name: string }[] = []
-      if (info.dateFinish === undefined) {
-        info.dateFinish = info.dateLastRecordingUpdate
-      }
-      debouncedUpdateFileProgress(info.fileName, 1, 'Processing video.')
-
-      const dateStart = new Date(info.dateStart!)
-      const dateFinish = new Date(info.dateFinish!)
-
-      debouncedUpdateFileProgress(info.fileName, 30, 'Grouping video chunks.')
-      const keys = await tempVideoStorage.keys()
-      const filteredKeys = keys.filter((key) => key.includes(hash) && key !== videoThumbnailFilename(hash))
-      for (const key of filteredKeys) {
-        const blob = await tempVideoStorage.getItem(key)
-        if (blob && blob.size > 0) {
-          chunks.push({ blob, name: key })
-        }
-      }
-
-      // As we advance through the processing, we update the last processing update date, so consumers know this is ongoing
-      updateLastProcessingUpdate(hash)
-
-      if (chunks.length === 0) {
-        throw new Error(`No video chunks found for video ${hash}.`)
-      }
-
-      debouncedUpdateFileProgress(info.fileName, 30, 'Sorting video chunks.')
-      // Make sure the chunks are sorted in the order they were created, not the order they are stored
-      chunks.sort((a, b) => {
-        const splitA = a.name.split('_')
-        const splitB = b.name.split('_')
-        return Number(splitA[splitA.length - 1]) - Number(splitB[splitB.length - 1])
-      })
-
-      updateLastProcessingUpdate(hash)
-
-      const chunkBlobs = chunks.map((chunk) => chunk.blob)
-      const extensionContainer = getBlobExtensionContainer(chunkBlobs[0])
-      debouncedUpdateFileProgress(info.fileName, 50, 'Processing video chunks.')
-
-      const mergedBlob = new Blob([...chunkBlobs])
-
-      let durFixedBlob: Blob | undefined = undefined
-      try {
-        durFixedBlob = await fixWebmDuration(mergedBlob)
-      } catch {
-        const errorMsg = 'Failed to fix video duration. The processed video may present issues or be unplayable.'
-        showDialog({ title: 'Video Processing Issue', message: errorMsg, variant: 'error' })
-      }
-
-      updateLastProcessingUpdate(hash)
-
-      debouncedUpdateFileProgress(info.fileName, 75, `Saving video file.`)
-      const finalFileName = `${info.fileName}.${extensionContainer || 'webm'}`
-      await videoStorage.setItem(finalFileName, durFixedBlob ?? mergedBlob)
-
-      // Save thumbnail in the storage
-      // Try to extract the thumbnail from the first 10 chunks, if it fails, generate a placeholder
-      let thumbnail: Blob | undefined = undefined
-      for (let i = 0; i < chunkBlobs.length; i++) {
-        if (i > 10) {
-          console.warn('Reached maximum thumbnail extraction attempts.')
-          break
-        }
-        try {
-          thumbnail = await extractThumbnailFromVideo(chunkBlobs[i])
-        } catch (error) {
-          console.warn(`Failed to extract thumbnail from chunk ${i}. Error: ${error}`)
-        }
-      }
-      if (!thumbnail) {
-        console.warn('Failed to extract thumbnail from video. Generating placeholder thumbnail.')
-        thumbnail = await generatePlaceholderThumbnail(dateStart)
-      }
-      await videoStorage.setItem(videoThumbnailFilename(finalFileName), thumbnail)
-
-      updateLastProcessingUpdate(hash)
-
-      debouncedUpdateFileProgress(info.fileName, 80, `Generating telemetry file.`)
-      let telemetryLog: CockpitStandardLog | undefined = undefined
-      try {
-        telemetryLog = await datalogger.generateLog(dateStart, dateFinish)
-      } catch (error) {
-        openSnackbar({ message: `Failed to generate telemetry file. ${error}`, variant: 'error', duration: 5000 })
-      }
-
-      if (telemetryLog !== undefined) {
-        debouncedUpdateFileProgress(info.fileName, 95, `Converting telemetry file.`)
-        const assLog = datalogger.toAssOverlay(telemetryLog, info.vWidth!, info.vHeight!, dateStart.getTime())
-        const logBlob = new Blob([assLog], { type: 'text/plain' })
-        videoStorage.setItem(`${info.fileName}.ass`, logBlob)
-      }
-
-      updateLastProcessingUpdate(hash)
-
-      debouncedUpdateFileProgress(info.fileName, 100, 'Processing completed')
-      updateFileProgress(info.fileName, 100, 'Processing completed')
-      await cleanupProcessedData(hash)
-    })
-    await Promise.all(tasks)
-  }
-
-  // Remove temp chunks and video metadata from the database
+  // Remove temp chunks from the database
   const cleanupProcessedData = async (recordingHash: string): Promise<void> => {
     const keys = await tempVideoStorage.keys()
     const filteredKeys = keys.filter((key) => key.includes(recordingHash) && key.includes('_'))
     for (const key of filteredKeys) {
       await tempVideoStorage.removeItem(key)
     }
-    delete unprocessedVideos.value[recordingHash]
   }
 
-  const keysAllUnprocessedVideos = computed(() => Object.keys(unprocessedVideos.value))
+  /**
+   * Generate .ass telemetry overlay file for a video recording
+   * @param {string} recordingHash - The hash of the recording
+   * @param {string} fileName - The base filename for the video
+   * @param {Date} dateStart - When the recording started
+   * @param {Date} dateFinish - When the recording finished
+   * @param {number} vWidth - Video width
+   * @param {number} vHeight - Video height
+   */
+  const generateTelemetryOverlay = async (
+    recordingHash: string,
+    fileName: string,
+    dateStart: Date,
+    dateFinish: Date,
+    vWidth: number,
+    vHeight: number
+  ): Promise<void> => {
+    try {
+      console.log(`Generating telemetry overlay for ${fileName}`)
 
-  const keysFailedUnprocessedVideos = computed(() => {
-    const dateNow = new Date(timeNow.value)
+      // Generate telemetry log
+      const telemetryLog = await datalogger.generateLog(dateStart, dateFinish)
 
-    return keysAllUnprocessedVideos.value.filter((recordingHash) => {
-      const info = unprocessedVideos.value[recordingHash]
+      if (telemetryLog !== undefined) {
+        // Convert to ASS overlay format
+        const assLog = datalogger.toAssOverlay(telemetryLog, vWidth, vHeight, dateStart.getTime())
+        const logBlob = new Blob([assLog], { type: 'text/plain' })
 
-      const secondsSinceLastRecordingUpdate = differenceInSeconds(dateNow, new Date(info.dateLastRecordingUpdate!))
-      const recording = info.dateFinish === undefined && secondsSinceLastRecordingUpdate < 10
+        // Save the .ass file
+        await videoStorage.setItem(`${fileName}.ass`, logBlob)
 
-      const dateLastProcessingUpdate = new Date(info.dateLastProcessingUpdate ?? 0)
-      const secondsSinceLastProcessingUpdate = differenceInSeconds(dateNow, dateLastProcessingUpdate)
-      const processing = info.dateFinish !== undefined && secondsSinceLastProcessingUpdate < 10
-
-      return !recording && !processing
-    })
-  })
-
-  const areThereVideosProcessing = computed(() => {
-    const dateNow = new Date(timeNow.value)
-
-    return keysAllUnprocessedVideos.value.some((recordingHash) => {
-      const info = unprocessedVideos.value[recordingHash]
-      const dateLastProcessingUpdate = new Date(info.dateLastProcessingUpdate ?? 0)
-      const secondsSinceLastProcessingUpdate = differenceInSeconds(dateNow, dateLastProcessingUpdate)
-      return info.dateFinish !== undefined && secondsSinceLastProcessingUpdate < 10
-    })
-  })
-
-  // Process videos that were being recorded when the app was closed
-  const processAllUnprocessedVideos = async (): Promise<void> => {
-    if (keysFailedUnprocessedVideos.value.isEmpty()) return
-    console.log(`Processing unprocessed videos: ${keysFailedUnprocessedVideos.value.join(', ')}`)
-
-    const chunks = await tempVideoStorage.keys()
-    if (chunks.length === 0) {
-      discardUnprocessedVideos()
-      throw new Error('No video recording data found. Discarding leftover info.')
-    }
-
-    const processingErrors: string[] = []
-    for (const recordingHash of keysFailedUnprocessedVideos.value) {
-      const info = unprocessedVideos.value[recordingHash]
-      console.log(`Processing unprocessed video: ${info.fileName}`)
-      try {
-        await processVideoChunksAndTelemetry([recordingHash])
-      } catch (error) {
-        processingErrors.push(`Could not process video ${recordingHash}. ${error} Discarding leftover info.`)
+        const msg = `Telemetry overlay generated: ${fileName}.ass`
+        openSnackbar({ message: msg, duration: 3000, variant: 'success', closeButton: false })
       }
-      delete unprocessedVideos.value[recordingHash]
-    }
-
-    if (processingErrors.isEmpty()) return
-    throw new Error(processingErrors.join('\n'))
-  }
-
-  // Discard all data related to videos that were not processed
-  const discardUnprocessedVideos = async (includeNotFailed = false): Promise<void> => {
-    console.log('Discarding unprocessed videos.')
-
-    const keysUnprocessedVideos = includeNotFailed ? keysAllUnprocessedVideos.value : keysFailedUnprocessedVideos.value
-    const currentChunks = await tempVideoStorage.keys()
-    const chunksUnprocessedVideos = currentChunks.filter((chunkName) => {
-      return keysUnprocessedVideos.some((key) => chunkName.includes(key))
-    })
-
-    unprocessedVideos.value = {}
-    for (const chunk of chunksUnprocessedVideos) {
-      tempVideoStorage.removeItem(chunk)
+    } catch (error) {
+      const msg = `Failed to generate telemetry file: ${error}`
+      openSnackbar({ message: msg, duration: 5000, variant: 'error', closeButton: true })
     }
   }
 
@@ -1122,7 +982,8 @@ export const useVideoStore = defineStore('video', () => {
   )
 
   return {
-    autoProcessVideos,
+    enableLiveProcessing,
+    saveBackupRawChunks,
     availableIceIps,
     allowedIceIps,
     enableAutoIceIpFetch,
@@ -1140,11 +1001,6 @@ export const useVideoStore = defineStore('video', () => {
     discardUnprocessedFilesFromVideoDB,
     downloadFilesFromVideoDB,
     clearTemporaryVideoDB,
-    keysAllUnprocessedVideos,
-    keysFailedUnprocessedVideos,
-    areThereVideosProcessing,
-    processAllUnprocessedVideos,
-    discardUnprocessedVideos,
     temporaryVideoDBSize,
     videoStorageFileSize,
     getMediaStream,
@@ -1152,14 +1008,14 @@ export const useVideoStore = defineStore('video', () => {
     isRecording,
     stopRecording,
     startRecording,
-    unprocessedVideos,
     downloadTempVideo,
     currentFileProgress,
     overallProgress,
-    processVideoChunksAndTelemetry,
     isVideoFilename,
     getVideoThumbnail,
     videoThumbnailFilename,
+    getRecordingMetadata,
+    generateTelemetryOverlay,
     activeStreams,
     renameStreamInternalNameById,
     lastRenamedStreamName,

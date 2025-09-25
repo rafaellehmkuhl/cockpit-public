@@ -1,4 +1,4 @@
-import { ipcMain, shell } from 'electron'
+import { dialog, ipcMain, shell } from 'electron'
 import { app } from 'electron'
 import * as fs from 'fs/promises'
 import { dirname, join } from 'path'
@@ -12,20 +12,31 @@ export const filesystemStorage = {
     const buffer = Buffer.from(value)
     const filePath = join(cockpitFolderPath, ...(subFolders ?? []), key)
     await fs.mkdir(dirname(filePath), { recursive: true })
-    await fs.writeFile(filePath, buffer)
+    await fs.writeFile(filePath, buffer as any)
   },
   async getItem(key: string, subFolders?: string[]): Promise<ArrayBuffer | null> {
     const filePath = join(cockpitFolderPath, ...(subFolders ?? []), key)
     try {
-      return await fs.readFile(filePath)
-    } catch (error) {
+      const buffer = await fs.readFile(filePath)
+      return new Uint8Array(buffer).buffer
+    } catch (error: any) {
       if (error.code === 'ENOENT') return null
       throw error
     }
   },
   async removeItem(key: string, subFolders?: string[]): Promise<void> {
     const filePath = join(cockpitFolderPath, ...(subFolders ?? []), key)
-    await fs.unlink(filePath)
+    try {
+      await fs.unlink(filePath)
+    } catch (error: any) {
+      if (error.code === 'ENOENT') {
+        // File doesn't exist, which is fine - just ignore it
+        console.debug(`File ${key} not found, skipping deletion`)
+        return
+      }
+      // Re-throw other errors (permission issues, etc.)
+      throw error
+    }
   },
   async clear(subFolders?: string[]): Promise<void> {
     const dirPath = join(cockpitFolderPath, ...(subFolders ?? []))
@@ -35,7 +46,7 @@ export const filesystemStorage = {
     const dirPath = join(cockpitFolderPath, ...(subFolders ?? []))
     try {
       return await fs.readdir(dirPath)
-    } catch (error) {
+    } catch (error: any) {
       if (error.code === 'ENOENT') return []
       throw error
     }
@@ -66,5 +77,80 @@ export const setupFilesystemStorage = (): void => {
     const videoFolderPath = join(cockpitFolderPath, 'videos')
     await fs.mkdir(videoFolderPath, { recursive: true })
     await shell.openPath(videoFolderPath)
+  })
+  ipcMain.handle('open-temp-video-chunks-folder', async () => {
+    const tempChunksFolderPath = join(cockpitFolderPath, 'videos', 'temporary-video-chunks')
+    await fs.mkdir(tempChunksFolderPath, { recursive: true })
+    await shell.openPath(tempChunksFolderPath)
+  })
+  ipcMain.handle('open-path', async (_, path: string) => {
+    try {
+      await shell.openPath(path)
+    } catch (error: any) {
+      console.error('Error opening path:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('get-default-output-folder', async () => {
+    try {
+      // Get user's home directory and construct the default output path
+      const homeDir = app.getPath('home')
+      const defaultOutputPath = join(homeDir, 'Cockpit', 'videos')
+
+      console.log('Checking default output path:', defaultOutputPath)
+
+      // Ensure the directory exists (create if it doesn't)
+      try {
+        await fs.mkdir(defaultOutputPath, { recursive: true })
+        console.log('Default output folder ready:', defaultOutputPath)
+        return defaultOutputPath
+      } catch (error: any) {
+        console.error('Failed to create default output folder:', error)
+        return null
+      }
+    } catch (error: any) {
+      console.error('Error getting default output folder:', error)
+      return null
+    }
+  })
+
+  ipcMain.handle('get-file-stats', async (_, path: string) => {
+    try {
+      const stats = await fs.stat(path)
+      return {
+        exists: true,
+        size: stats.size,
+        mtime: stats.mtime,
+        isDirectory: stats.isDirectory(),
+        isFile: stats.isFile(),
+      }
+    } catch (error: any) {
+      if (error.code === 'ENOENT') {
+        return { exists: false }
+      }
+      console.error('Error getting file stats:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('get-chunk-file-stats', async (_, key: string, subFolders?: string[]) => {
+    try {
+      const filePath = join(cockpitFolderPath, ...(subFolders ?? []), key)
+      const stats = await fs.stat(filePath)
+      return {
+        exists: true,
+        size: stats.size,
+        mtime: stats.mtime,
+        isDirectory: stats.isDirectory(),
+        isFile: stats.isFile(),
+      }
+    } catch (error: any) {
+      if (error.code === 'ENOENT') {
+        return { exists: false }
+      }
+      console.error('Error getting chunk file stats:', error)
+      throw error
+    }
   })
 }

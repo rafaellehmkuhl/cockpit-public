@@ -1,13 +1,13 @@
 <template>
   <v-dialog v-model="isVisible" class="dialog">
-    <div class="dialog-frame" :style="dialogStyle">
+    <div class="flex">
       <div class="video-modal" :style="interfaceStore.globalGlassMenuStyles">
         <div class="modal-content">
           <!-- Left Vertical Menu -->
           <div class="flex flex-col justify-between h-full px-5 py-3 align-center">
-            <div class="flex flex-col justify-between pt-2 align-center gap-y-8">
+            <div class="flex flex-col justify-between pt-2 align-center gap-y-6">
               <button
-                v-for="button in menuButtons"
+                v-for="button in menuButtons.filter((btn: any) => btn.show !== false)"
                 :key="button.name"
                 :disabled="button.disabled"
                 class="flex flex-col justify-center align-center"
@@ -17,60 +17,25 @@
                   {{ button.tooltip }}
                 </v-tooltip>
                 <div
-                  class="mb-1 text-2xl rounded-full"
+                  class="mb-1 text-xl rounded-full"
                   :class="[
                     button.disabled ? 'frosted-button-disabled' : 'frosted-button',
-                    currentTab === button.name.toLowerCase() ? 'w-[58px] h-[58px]' : 'w-[40px] h-[40px]',
+                    currentTab === button.name.toLowerCase() ? 'w-[48px] h-[48px]' : 'w-[36px] h-[36px]',
                   ]"
                 >
                   <v-icon
-                    :size="currentTab === button.name.toLowerCase() ? 40 : 24"
+                    :size="currentTab === button.name.toLowerCase() ? 32 : 20"
                     :class="{ 'ml-1': button.name.toLowerCase() === 'videos' }"
                   >
                     {{ button.icon }}
                   </v-icon>
                 </div>
-                <div class="text-sm" :class="{ 'text-white/30': !button.disabled }">
+                <div class="text-xs" :class="{ 'text-white/30': !button.disabled }">
                   {{ button.name }}
                 </div>
               </button>
             </div>
             <div>
-              <div class="flex flex-col justify-center py-2 mb-[10px] align-center">
-                <button
-                  class="frosted-button text-[#ffffffaa] flex flex-col justify-center align-center w-[28px] h-[28px] rounded-full mb-[4px]"
-                  @click="showHelpTooltip = !showHelpTooltip"
-                >
-                  <v-icon class="text-[24px]">mdi-help-circle-outline</v-icon>
-                  <v-tooltip
-                    v-model="showHelpTooltip"
-                    :open-on-hover="false"
-                    activator="parent"
-                    location="top"
-                    arrow
-                    content-class="border-[#ffffff55] border-2"
-                    @click:outside="showHelpTooltip = false"
-                  >
-                    <div class="flex flex-col p-2 gap-y-2">
-                      <div>
-                        <strong>Computer:</strong> Command+click, Ctrl+click or Long click to select multiple videos.
-                      </div>
-
-                      <div><strong>Mobile:</strong> Long press to select multiple videos.</div>
-                      <div class="flex flex-row mt-4 gap-x-10">
-                        <div class="ml-[-8px]">
-                          <v-icon size="10" class="text-green-500 ml-2 mb-[2px] mr-1">mdi-circle</v-icon> Processed
-                          video
-                        </div>
-                        <div>
-                          <v-icon size="10" class="text-red-500 mb-[2px] mr-1">mdi-circle</v-icon> Unprocessed video
-                        </div>
-                      </div>
-                    </div>
-                  </v-tooltip>
-                </button>
-              </div>
-              <v-divider class="opacity-[0.1] ml-[-5px] w-[120%]"></v-divider>
               <button class="flex flex-col justify-center py-2 mt-4 align-center" @click="closeModal">
                 <div
                   class="frosted-button flex flex-col justify-center align-center w-[28px] h-[28px] rounded-full mb-1"
@@ -116,16 +81,6 @@
                     </div>
                     <div reactive class="download-button" @click="downloadPictures(picture.filename)">
                       <v-icon size="16" class="text-white"> mdi-download </v-icon>
-                    </div>
-                    <div
-                      v-if="isMultipleSelectionMode"
-                      class="checkmark-button"
-                      :class="selectedPicSet.has(picture.filename) ? 'bg-green' : 'bg-white'"
-                      @click.stop="togglePictureIntoSelectionArray(picture.filename)"
-                    >
-                      <v-icon size="15" class="text-white">
-                        {{ selectedPicSet.has(picture.filename) ? 'mdi-check-circle-outline' : 'mdi-radiobox-blank' }}
-                      </v-icon>
                     </div>
                   </div>
                   <div class="flex justify-center mt-1 text-xs text-white/80 truncate">
@@ -188,360 +143,560 @@
             </div>
           </template>
           <template v-if="currentTab === 'videos'">
-            <!-- Available Videos -->
-            <div
-              v-if="availableVideos.length > 0"
-              class="flex flex-col justify-between align-center pt-8 px-2 w-[300px] h-[480px]"
-            >
-              <div class="flex flex-col w-full h-full px-4 overflow-auto align-center">
-                <div v-for="video in availableVideos" :key="video.fileName" class="mb-4 video-container">
-                  <div class="relative video-wrapper">
-                    <div
-                      :id="`video-library-thumbnail-${video.fileName}`"
-                      class="border-4 border-white rounded-md cursor-pointer border-opacity-[0.1] hover:border-opacity-[0.4] transition duration-75 hover:ease-in aspect-video"
-                      :class="
-                        selectedVideos.find((v) => v.fileName === video.fileName)
-                          ? ['border-opacity-[0.4]', 'w-[220px]']
-                          : ['border-opacity-[0.1]', 'w-[190px]']
-                      "
-                    >
-                      <img
-                        v-if="video.isProcessed && videoThumbnailURLs[video.fileName]"
-                        :src="videoThumbnailURLs[video.fileName]"
-                      />
-                      <img
-                        v-else-if="!video.isProcessed && videoThumbnailURLs[video.hash]"
-                        :src="videoThumbnailURLs[video.hash]"
-                      />
-                      <div v-else class="w-full h-full flex justify-center items-center bg-black">
-                        <v-icon size="60" class="text-white/30">mdi-video</v-icon>
-                      </div>
-                    </div>
-                    <div
-                      v-if="selectedVideos.find((v) => v.fileName === video.fileName) && !isMultipleSelectionMode"
-                      class="play-button"
-                      @click="video.isProcessed ? playVideo() : processSingleVideo()"
-                    >
-                      <v-icon size="40" class="text-white">
-                        {{ video.isProcessed ? 'mdi-play-circle-outline' : 'mdi-progress-alert' }}
-                      </v-icon>
-                    </div>
-                    <div
-                      v-if="isMultipleSelectionMode"
-                      class="checkmark-button"
-                      :class="selectedVideos.find((v) => v.fileName === video.fileName) ? 'bg-green' : 'bg-white'"
-                      @click.stop="toggleVideoIntoSelectionArray(video)"
-                    >
-                      <v-icon size="15" class="text-white">
-                        {{
-                          selectedVideos.find((v) => v.fileName === video.fileName)
-                            ? 'mdi-check-circle-outline'
-                            : 'mdi-radiobox-blank'
-                        }}
-                      </v-icon>
-                    </div>
-                  </div>
-                  <div class="flex flex-row justify-center w-full ml-1 overflow-hidden text-xs">
-                    <v-tooltip open-delay="500" activator="parent" location="top">{{
-                      video.isProcessed ? 'Processed video' : 'Unprocessed video'
-                    }}</v-tooltip>
-                    {{ parseDateFromTitle(video.fileName) ?? 'Cockpit video' }}
-                    <v-icon
-                      size="10"
-                      class="ml-1 mt-[3px]"
-                      :class="video.isProcessed ? 'text-green-500' : 'text-red-500'"
-                    >
-                      mdi-circle
-                    </v-icon>
-                  </div>
-                </div>
-              </div>
-              <div
-                v-if="availableVideos.length > 1"
-                class="flex flex-row align-center h-[45px] w-full mb-[-15px]"
-                :class="
-                  availableVideos.filter((video) => !video.isProcessed).length > 0 ? 'justify-between' : 'justify-start'
-                "
-              >
-                <div>
-                  <v-btn variant="text" size="small" class="mt-[5px]" @click="toggleSelectionMode">
-                    <v-tooltip open-delay="500" activator="parent" location="bottom">
-                      Select {{ isMultipleSelectionMode ? 'single' : 'multiple' }} files
-                    </v-tooltip>
-                    {{ isMultipleSelectionMode ? 'Single' : 'Multi' }}
-                  </v-btn>
-                </div>
-                <div>
-                  <v-btn
-                    variant="text"
-                    size="small"
-                    class="mt-[5px]"
-                    @click="selectedVideos.length === availableVideos.length ? deselectAllVideos() : selectAllVideos()"
+            <!-- Videos Tab with Sub-tabs -->
+            <div class="flex flex-col h-full w-full">
+              <!-- Sub-tabs Navigation -->
+              <div class="px-4 pt-4 pb-2">
+                <v-tabs v-model="currentVideoSubTab" color="white" fixed-tabs class="video-sub-tabs">
+                  <v-tab
+                    v-for="tab in videoSubTabs"
+                    :key="tab.name"
+                    :value="tab.name"
+                    :disabled="tab.disabled"
+                    class="text-white"
                   >
-                    <v-tooltip open-delay="500" activator="parent" location="bottom">
-                      Select {{ selectedVideos.length === availableVideos.length ? 'none' : 'all files' }}
+                    <v-tooltip v-if="tab.tooltip" open-delay="600" activator="parent" location="top">
+                      {{ tab.tooltip }}
                     </v-tooltip>
-                    {{ selectedVideos.length === availableVideos.length ? 'None' : 'All' }}
-                  </v-btn>
-                </div>
-                <div>
-                  <v-btn
-                    v-if="availableVideos.filter((video) => !video.isProcessed).length > 0"
-                    variant="text"
-                    size="small"
-                    class="mt-[5px]"
-                    @click="
-                      selectedVideos.every((el) => !el.isProcessed)
-                        ? selectProcessedVideos()
-                        : selectUnprocessedVideos()
-                    "
-                  >
-                    <v-tooltip open-delay="500" activator="parent" location="bottom">
-                      {{
-                        selectedVideos.every((el) => !el.isProcessed)
-                          ? 'Select all processed videos'
-                          : 'Select all unprocessed videos'
-                      }}
-                    </v-tooltip>
-                    {{ selectedVideos.every((el) => !el.isProcessed) ? 'Select Process.' : 'select Unproc.' }}
-                  </v-btn>
-                </div>
+                    <v-icon class="mr-2" size="18">{{ tab.icon }}</v-icon>
+                    {{ tab.label }}
+                  </v-tab>
+                </v-tabs>
               </div>
-            </div>
 
-            <v-divider vertical class="h-[92%] mt-4 opacity-[0.1]"></v-divider>
-            <!-- Video Player -->
-            <div v-if="availableVideos.length > 0" class="flex flex-col justify-between mt-5 align-center w-[720px]">
-              <div>
-                <div v-if="loadingVideoBlob" class="text-center w-full aspect-video flex justify-center items-center">
-                  Loading video...
-                </div>
-                <video
-                  v-show="
-                    !isMultipleSelectionMode &&
-                    selectedVideos.length === 1 &&
-                    !loadingData &&
-                    !loadingVideoBlob &&
-                    !videoLoadError &&
-                    selectedVideos[0].isProcessed &&
-                    !isElectron()
-                  "
-                  id="video-player"
-                  ref="videoPlayerRef"
-                  width="660px"
-                  :controls="selectedVideos[0].isProcessed ? true : false"
-                  :preload="selectedVideos[0].isProcessed ? 'auto' : 'none'"
-                  class="border-[14px] border-white border-opacity-10 rounded-lg min-h-[382px] aspect-video"
-                ></video>
-                <div
-                  v-if="isElectron() && selectedVideos[0].isProcessed && !isMultipleSelectionMode"
-                  class="w-[660px] rounded-lg aspect-video flex flex-col justify-center items-center gap-y-4 text-center bg-black p-8"
-                >
-                  <v-icon size="60" class="text-white/30">mdi-video-off</v-icon>
-                  <p>
-                    Video replay has been disabled in the Cockpit application, to prevent a memory usage issue that
-                    could lead to loss of control of the vehicle.
-                  </p>
-                  <p>
-                    While we work on an update to fix the problem, you can still play videos by clicking the folder icon
-                    (in the bottom right corner) to open Cockpit's video folder in your device's file system.
-                  </p>
-                </div>
-                <div
-                  v-if="
-                    !isMultipleSelectionMode &&
-                    selectedVideos.length === 1 &&
-                    !loadingData &&
-                    !loadingVideoBlob &&
-                    ((selectedVideos[0].isProcessed && videoLoadError) ||
-                      (!selectedVideos[0].isProcessed && !videoLoadError))
-                  "
-                  class="w-[660px] border-[14px] border-white border-opacity-10 rounded-lg min-h-[382px] aspect-video flex justify-center items-center bg-black"
-                >
-                  <div v-if="videoLoadError && selectedVideos[0].isProcessed" class="text-white/70 text-center">
-                    <v-icon size="60" class="text-white/30 mb-4">mdi-video</v-icon>
-                    <p>This video was processed but cannot be played here.</p>
-                    <p>This usually happens with videos of higher resolutions, like 4K.</p>
-                    <p>Try downloading it and playing it in your computer.</p>
-                  </div>
-                  <v-btn
-                    v-if="!videoLoadError && !selectedVideos[0].isProcessed"
-                    :variant="showOnScreenProgress ? 'text' : 'outlined'"
-                    color="white"
-                    size="large"
-                    :disabled="showOnScreenProgress"
-                    class="process-button"
-                    @click="processSingleVideo"
-                  >
-                    {{ showOnScreenProgress ? 'Processing...' : 'Process video' }}
-                  </v-btn>
-                </div>
-                <div class="processing-bar">
-                  <v-progress-linear
-                    v-if="showOnScreenProgress && !showProgressInteractionDialog"
-                    :model-value="errorProcessingVideos ? 100 : overallProcessingProgress"
-                    :color="errorProcessingVideos ? 'red' : 'green'"
-                    height="8"
-                    striped
-                  />
-                  <div class="w-0">
-                    <button
-                      v-if="
-                        !loadingData && selectedVideos.length === 1 && showOnScreenProgress && errorProcessingVideos
-                      "
-                      class="bg-red text-[#ffffffaa] flex flex-col justify-center align-center w-[20px] h-[20px] rounded-full mt-[40px] ml-[-25px]"
-                      @click="showErrorTooltip = !showErrorTooltip"
-                    >
-                      <v-icon class="text-[18px]">mdi-alert-circle-outline</v-icon>
-                      <v-tooltip
-                        v-model="showErrorTooltip"
-                        :open-on-hover="false"
-                        activator="parent"
-                        location="bottom"
-                        arrow
-                        content-class="border-[#ffffff55] border-2"
-                        @click:outside="showErrorTooltip = false"
-                      >
-                        <div class="flex flex-col p-2 gap-y-2">
-                          <div>{{ snackbarMessage }}</div>
+              <!-- Sub-tab Content -->
+              <div class="flex-1 overflow-hidden">
+                <!-- Final Videos Tab (Electron only) -->
+                <template v-if="currentVideoSubTab === 'processed'">
+                  <div class="flex flex-col h-full">
+                    <div class="mx-5 pt-4">
+                      <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-medium">Processed Videos</h3>
+                        <div class="flex items-center gap-4">
+                          <span class="text-sm text-white/70">Final videos with telemetry overlay</span>
                         </div>
-                      </v-tooltip>
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <!-- Selected Videos Card Grid (Only on multiple files selected) -->
-              <div
-                v-if="availableVideos.length > 0 && selectedVideos.length >= 1 && isMultipleSelectionMode"
-                class="flex flex-col justify-start w-full p-2 pt-3"
-              >
-                <div class="card-grid">
-                  <v-card v-for="selectedFile in selectedVideos" :key="selectedFile.fileName" class="video-card">
-                    <div>
-                      <v-card-text>
-                        <div class="text-sm">{{ parseDateFromTitle(selectedFile.fileName) }}</div>
-                      </v-card-text>
-                      <div class="video-card-dot">
-                        <v-icon size="10" :class="selectedFile.isProcessed ? 'text-green-500' : 'text-red-500'">
-                          mdi-circle
-                        </v-icon>
                       </div>
                     </div>
-                  </v-card>
-                </div>
-                <v-divider class="mb-[-10px] opacity-[0.1] mx-3"></v-divider>
-              </div>
-              <!-- Video Action Buttons -->
-              <div
-                v-if="availableVideos.length > 0"
-                class="flex flex-row justify-between w-full h-full px-8 overflow-hidden align-center"
-              >
-                <div class="flex flex-row justify-between pl-2 align-center gap-x-6">
-                  <div class="flex flex-row cursor-default text-md">
-                    {{
-                      isMultipleSelectionMode
-                        ? `Files selected: ${selectedVideos.length}`
-                        : parseMissionAndDateFromTitle(selectedVideos[0]?.fileName)
-                    }}
-                  </div>
-                  <div
-                    v-if="isMultipleSelectionMode"
-                    class="flex flex-row w-[320px] justify-center gap-x-4 align-center ml-1"
-                  >
-                    <div
-                      v-if="selectedVideos.every((video) => !video.isProcessed)"
-                      class="text-sm text-white border-2 rounded-md mt-[3px] border-[#ffffff44] bg-[#fafafa33] ml-4 px-1"
-                    >
-                      <button @click="showProcessVideosWarningDialog">Process selected videos</button>
-                    </div>
-                  </div>
-                </div>
-                <div class="flex flex-row mt-2">
-                  <button
-                    v-for="button in fileActionButtons.filter((b) => b.show)"
-                    :key="button.name"
-                    class="flex flex-col justify-center ml-6 align-center"
-                    :disabled="button.disabled"
-                    @click="!button.confirmAction && button.action()"
-                  >
-                    <div
-                      :class="[
-                        button.disabled ? 'frosted-button-disabled' : 'frosted-button',
-                        !button.confirmAction && 'p-2',
-                      ]"
-                      class="flex flex-col justify-center mb-1 rounded-full frosted-button align-center button"
-                    >
-                      <v-tooltip v-if="button.tooltip" open-delay="500" activator="parent" location="bottom">
-                        {{ button.tooltip }}
-                      </v-tooltip>
-                      <v-menu
-                        v-if="button.confirmAction"
-                        location="left center"
-                        opacity="0"
-                        transition="slide-x-reverse-transition"
-                        :disabled="button.disabled"
-                      >
-                        <template #activator="{ props: buttonProps, isActive }">
-                          <div class="flex items-center justify-center w-full h-full" v-bind="buttonProps">
-                            <v-icon
-                              :size="button.size"
-                              :class="{
-                                'rotate-[-45deg]': isActive,
-                                'outline outline-6 outline-[#ffffff55]': isActive,
-                              }"
-                              class="rounded-full border-[transparent]"
-                              :style="{ borderWidth: `${button.size - 4}px` }"
-                            >
-                              {{ isActive ? 'mdi-arrow-up' : button.icon }}
-                            </v-icon>
+
+                    <!-- Scrollable Videos List -->
+                    <div v-if="availableVideos.length > 0" class="flex-1 overflow-y-auto px-4 py-2">
+                      <div class="space-y-3">
+                        <div
+                          v-for="video in availableVideos"
+                          :id="`video-library-thumbnail-${video.fileName}`"
+                          :key="video.fileName"
+                          class="flex items-center p-4 rounded-lg transition-colors cursor-pointer"
+                          :class="getVideoCardClasses(video)"
+                        >
+                          <!-- Thumbnail -->
+                          <div class="w-24 h-16 rounded-md overflow-hidden bg-black flex-shrink-0">
+                            <img
+                              v-if="videoThumbnailURLs[video.fileName]"
+                              :src="videoThumbnailURLs[video.fileName] || undefined"
+                              class="w-full h-full object-cover"
+                            />
+                            <div v-else class="w-full h-full flex justify-center items-center">
+                              <v-icon size="32" class="text-white/30">mdi-video</v-icon>
+                            </div>
                           </div>
-                        </template>
-                        <v-list class="bg-transparent" elevation="0">
-                          <v-list-item>
-                            <template #append>
-                              <div class="mb-10 slide-right-to-left">
-                                <v-btn
-                                  fab
-                                  small
-                                  width="28"
-                                  height="28"
-                                  color="red"
-                                  icon="mdi-close"
-                                  class="text-sm outline outline-3 outline-[#ffffff44] hover:outline-[#ffffff77]"
-                                  ><v-tooltip open-delay="600" activator="parent" location="bottom"> Cancel </v-tooltip
-                                  ><v-icon>mdi-close</v-icon></v-btn
-                                >
-                                <v-btn
-                                  fab
-                                  small
-                                  width="28"
-                                  height="28"
-                                  color="green"
-                                  icon="mdi-check"
-                                  class="ml-4 text-sm outline outline-3 outline-[#ffffff44] hover:outline-[#ffffff77]"
-                                  :loading="deleteButtonLoading"
-                                  @click="button.action()"
-                                  ><v-tooltip open-delay="600" activator="parent" location="bottom"> Confirm </v-tooltip
-                                  ><v-icon>mdi-check</v-icon></v-btn
-                                >
+
+                          <!-- Video Info -->
+                          <div class="flex-1 ml-4">
+                            <div class="font-medium text-white">
+                              {{ parseDateFromTitle(video.fileName) || 'Cockpit video' }}
+                            </div>
+                            <div class="text-sm text-white/70 mt-1">
+                              {{ video.fileName }}
+                            </div>
+                            <div class="flex items-center mt-1">
+                              <v-icon size="10" :class="video.isProcessed ? 'text-green-500' : 'text-red-500'"
+                                >mdi-circle</v-icon
+                              >
+                              <span class="text-xs text-white/60 ml-1">
+                                {{ video.isProcessed ? 'Processed' : 'Needs processing' }}
+                              </span>
+                              <!-- WebM indicator -->
+                              <div
+                                v-if="video.fileName.endsWith('.webm')"
+                                class="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full"
+                              >
+                                WebM
                               </div>
-                            </template>
-                          </v-list-item>
-                        </v-list>
-                      </v-menu>
-                      <div v-else>
-                        <v-icon :size="button.size">{{ button.icon }}</v-icon>
+                            </div>
+                          </div>
+
+                          <!-- Action Buttons -->
+                          <div class="flex items-center gap-2 ml-4">
+                            <v-btn
+                              icon
+                              variant="outlined"
+                              size="small"
+                              :disabled="showOnScreenProgress || isPreparingDownload"
+                              @click.stop="handleDeleteVideos([video])"
+                            >
+                              <v-tooltip open-delay="500" activator="parent" location="bottom">
+                                Delete video
+                              </v-tooltip>
+                              <v-icon>mdi-delete</v-icon>
+                            </v-btn>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </button>
-                </div>
+
+                    <!-- Fixed Bottom Controls -->
+                    <div
+                      v-if="availableVideos.length > 0"
+                      class="flex justify-between items-center px-4 py-3 border-t border-white/10"
+                    >
+                      <div class="flex items-center gap-2">
+                        <v-btn variant="text" size="small" @click="toggleSelectionMode">
+                          <v-tooltip open-delay="500" activator="parent" location="bottom">
+                            Select {{ isMultipleSelectionMode ? 'single' : 'multiple' }} files
+                          </v-tooltip>
+                          {{ isMultipleSelectionMode ? 'Single' : 'Multi' }}
+                        </v-btn>
+                        <v-btn
+                          variant="text"
+                          size="small"
+                          @click="
+                            selectedVideos.length === availableVideos.length ? deselectAllVideos() : selectAllVideos()
+                          "
+                        >
+                          <v-tooltip open-delay="500" activator="parent" location="bottom">
+                            Select {{ selectedVideos.length === availableVideos.length ? 'none' : 'all files' }}
+                          </v-tooltip>
+                          {{ selectedVideos.length === availableVideos.length ? 'None' : 'All' }}
+                        </v-btn>
+                      </div>
+
+                      <!-- Action Buttons -->
+                      <div class="flex items-center gap-2">
+                        <!-- Selection Count Text -->
+                        <span v-if="selectedVideos.length > 1" class="text-sm text-white/70">
+                          {{ selectedVideos.length }} videos selected
+                        </span>
+
+                        <!-- Delete Selected Button (only visible when multiple videos selected) -->
+                        <v-btn
+                          v-if="selectedVideos.length > 1"
+                          icon
+                          variant="outlined"
+                          size="small"
+                          :disabled="showOnScreenProgress || isPreparingDownload"
+                          @click="handleDeleteVideos(selectedVideos)"
+                        >
+                          <v-tooltip open-delay="500" activator="parent" location="bottom">
+                            Delete {{ selectedVideos.length }} selected videos
+                          </v-tooltip>
+                          <v-icon>mdi-delete</v-icon>
+                        </v-btn>
+
+                        <!-- Open Folder Button (always visible) -->
+                        <v-btn icon variant="outlined" size="small" @click="openVideoFolder">
+                          <v-tooltip open-delay="500" activator="parent" location="bottom">
+                            Open videos folder
+                          </v-tooltip>
+                          <v-icon>mdi-folder-open-outline</v-icon>
+                        </v-btn>
+                      </div>
+                    </div>
+
+                    <!-- No Videos Message with Open Folder Button -->
+                    <div v-else class="flex flex-col h-full">
+                      <!-- Empty State Message -->
+                      <div class="flex justify-center items-center flex-1 text-xl text-center">
+                        {{ loadingData ? 'Loading' : 'No videos on storage' }}
+                      </div>
+
+                      <!-- Fixed Bottom Controls (always visible) -->
+                      <div class="flex justify-end items-center px-4 py-3 border-t border-white/10">
+                        <v-btn icon variant="outlined" size="small" @click="openVideoFolder">
+                          <v-tooltip open-delay="500" activator="parent" location="bottom">
+                            Open videos folder
+                          </v-tooltip>
+                          <v-icon>mdi-folder-outline</v-icon>
+                        </v-btn>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+
+                <!-- Temporary Tab -->
+                <template v-if="currentVideoSubTab === 'temporary'">
+                  <div v-if="!isElectron()" class="flex flex-col h-full">
+                    <!-- Fixed Header with Expandable Instructions -->
+                    <div class="px-4 pt-6 pb-3">
+                      <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-medium">Raw Video Chunks</h3>
+                        <div
+                          class="flex items-center gap-2 cursor-pointer"
+                          @click="isInstructionsExpanded = !isInstructionsExpanded"
+                        >
+                          <span class="text-sm text-white/70">Browser Version Instructions</span>
+                          <v-icon
+                            class="text-white/70 transition-transform duration-200"
+                            :class="{ 'rotate-180': isInstructionsExpanded }"
+                            size="20"
+                          >
+                            mdi-chevron-down
+                          </v-icon>
+                        </div>
+                      </div>
+
+                      <!-- Expandable Instructions Content -->
+                      <v-expand-transition>
+                        <div
+                          v-show="isInstructionsExpanded"
+                          class="mb-4 p-4 border border-white/20 rounded-lg bg-white/5"
+                        >
+                          <div class="flex items-start gap-3">
+                            <v-icon class="text-white/70 mt-1">mdi-information</v-icon>
+                            <div class="text-white/80 text-sm space-y-1">
+                              <p>
+                                These are raw video chunks that need to be processed. The processing can be done
+                                exclusively in the standalone version of Cockpit. The browser version can only record
+                                the video chunks.
+                              </p>
+                              <div>
+                                <p class="font-medium mb-2">To process your videos:</p>
+                                <ol class="space-y-0">
+                                  <li class="flex items-start gap-2">
+                                    <span class="text-white font-bold">1.</span>
+                                    <span>Download your video chunks using the download buttons</span>
+                                  </li>
+                                  <li class="flex items-start gap-2">
+                                    <span class="text-white font-bold">2.</span>
+                                    <span>Open the standalone version of Cockpit (desktop app)</span>
+                                  </li>
+                                  <li class="flex items-start gap-2">
+                                    <span class="text-white font-bold">3.</span>
+                                    <span>Go to the "Processing" tab in the video library</span>
+                                  </li>
+                                  <li class="flex items-start gap-2">
+                                    <span class="text-white font-bold">4.</span>
+                                    <span>Select and process your downloaded ZIP files</span>
+                                  </li>
+                                  <li class="flex items-start gap-2">
+                                    <span class="text-white font-bold">5.</span>
+                                    <span>Once sure the video is processed, delete the raw video chunks from here</span>
+                                  </li>
+                                </ol>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </v-expand-transition>
+                    </div>
+
+                    <!-- Scrollable Content -->
+                    <div v-if="chunkGroups.length > 0" class="flex-1 overflow-y-auto px-4">
+                      <div
+                        v-for="group in chunkGroups"
+                        :key="group.hash"
+                        class="mb-2 px-4 py-2 border border-white/20 rounded-lg bg-white/5"
+                      >
+                        <div class="flex justify-between items-start mb-2">
+                          <div class="flex-1">
+                            <div class="font-medium text-white">{{ group.fileName || group.hash }}</div>
+                            <div class="text-sm text-white/70 mt-1">
+                              {{ formatDate(group.firstChunkDate) }}
+                            </div>
+                            <div class="text-sm text-white/50 mt-1">
+                              {{ group.chunkCount }} chunks • ~{{ group.estimatedDuration }}s duration •
+                              {{ formatFileSize(group.totalSize) }}
+                            </div>
+                          </div>
+                          <div class="flex gap-2 mt-5">
+                            <v-btn
+                              icon
+                              variant="outlined"
+                              size="small"
+                              :disabled="isProcessingChunks"
+                              @click="downloadChunkGroup(group)"
+                            >
+                              <v-tooltip open-delay="500" activator="parent" location="bottom">
+                                Download chunk group
+                              </v-tooltip>
+                              <v-icon>mdi-download</v-icon>
+                            </v-btn>
+                            <v-btn
+                              icon
+                              variant="outlined"
+                              size="small"
+                              :disabled="isProcessingChunks"
+                              @click="deleteChunkGroup(group)"
+                            >
+                              <v-tooltip open-delay="500" activator="parent" location="bottom">
+                                Delete chunk group
+                              </v-tooltip>
+                              <v-icon>mdi-delete</v-icon>
+                            </v-btn>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div v-else class="flex flex-col justify-center items-center flex-1 text-center px-4">
+                      <div class="max-w-md mx-auto">
+                        <v-icon size="60" class="text-white/30 mb-4">mdi-folder-multiple-outline</v-icon>
+                        <h4 class="text-lg font-medium text-white mb-2">No Video Chunks Found</h4>
+                        <p class="text-white/70 text-sm">
+                          {{
+                            loadingData
+                              ? 'Loading...'
+                              : 'Start recording videos to create chunks that can be downloaded.'
+                          }}
+                        </p>
+                      </div>
+                    </div>
+
+                    <!-- Fixed Bottom Controls (always visible) -->
+                    <div class="flex justify-end items-center gap-4 px-4 py-3 border-t border-white/10">
+                      <span class="text-sm text-white/70">Total: {{ formatFileSize(totalChunkSize) }}</span>
+                      <v-btn
+                        icon
+                        variant="outlined"
+                        size="small"
+                        :disabled="isProcessingChunks"
+                        @click="deleteAllChunks"
+                      >
+                        <v-tooltip open-delay="500" activator="parent" location="bottom">
+                          Delete all temporary chunks
+                        </v-tooltip>
+                        <v-icon>mdi-delete</v-icon>
+                      </v-btn>
+                    </div>
+                  </div>
+
+                  <!-- Electron Version -->
+                  <div v-else class="flex flex-col h-full">
+                    <div v-if="chunkGroups.length > 0" class="flex flex-col h-full">
+                      <!-- Fixed Header -->
+                      <div class="mx-5 pt-4">
+                        <div class="flex justify-between items-center mb-4">
+                          <h3 class="text-lg font-medium">Raw Video Chunks</h3>
+                          <div class="flex items-center gap-4">
+                            <span class="text-sm text-white/70">Backup raw data</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Scrollable Content -->
+                      <div class="flex-1 overflow-y-auto px-4">
+                        <div
+                          v-for="group in chunkGroups"
+                          :key="group.hash"
+                          class="mb-2 px-4 pt-3 pb-1 border border-white/20 rounded-lg bg-white/5"
+                        >
+                          <div class="flex justify-between items-start mb-2">
+                            <div class="flex-1">
+                              <div class="font-medium text-white">{{ group.fileName || group.hash }}</div>
+                              <div class="text-sm text-white/70 mt-1">
+                                {{ formatDate(group.firstChunkDate) }}
+                              </div>
+                              <div class="text-sm text-white/50 mt-1">
+                                {{ group.chunkCount }} chunks • ~{{ group.estimatedDuration }}s duration •
+                                {{ formatFileSize(group.totalSize) }}
+                              </div>
+                            </div>
+                            <div class="flex gap-2 mt-4">
+                              <v-btn
+                                icon
+                                variant="outlined"
+                                size="small"
+                                :disabled="isProcessingChunks"
+                                @click="deleteChunkGroup(group)"
+                              >
+                                <v-tooltip open-delay="500" activator="parent" location="bottom">
+                                  Delete chunk group
+                                </v-tooltip>
+                                <v-icon>mdi-delete</v-icon>
+                              </v-btn>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Fixed Bottom Controls -->
+                      <div class="flex justify-end items-center gap-4 px-4 py-3 border-t border-white/10">
+                        <span class="text-sm text-white/70">Total: {{ formatFileSize(totalChunkSize) }}</span>
+                        <v-btn
+                          icon
+                          variant="outlined"
+                          size="small"
+                          :disabled="isProcessingChunks"
+                          @click="deleteAllChunks"
+                        >
+                          <v-tooltip open-delay="500" activator="parent" location="bottom">
+                            Delete all temporary chunks
+                          </v-tooltip>
+                          <v-icon>mdi-delete</v-icon>
+                        </v-btn>
+                        <v-btn icon variant="outlined" size="small" @click="openTempChunksFolder">
+                          <v-tooltip open-delay="500" activator="parent" location="bottom">
+                            Open raw chunks folder
+                          </v-tooltip>
+                          <v-icon>mdi-folder-open-outline</v-icon>
+                        </v-btn>
+                      </div>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div v-else class="flex flex-col h-full">
+                      <!-- Empty State Message -->
+                      <div class="flex justify-center items-center flex-1 text-xl text-center">
+                        {{ loadingData ? 'Loading' : 'No temporary chunks found' }}
+                      </div>
+
+                      <!-- Fixed Bottom Controls (always visible) -->
+                      <div class="flex justify-end items-center px-4 py-3 border-t border-white/10">
+                        <v-btn icon variant="outlined" size="small" @click="openTempChunksFolder">
+                          <v-tooltip open-delay="500" activator="parent" location="bottom">
+                            Open temporary chunks folder
+                          </v-tooltip>
+                          <v-icon>mdi-folder-open-outline</v-icon>
+                        </v-btn>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+
+                <!-- Processing Tab (Electron only) -->
+                <template v-if="currentVideoSubTab === 'processing'">
+                  <div class="flex flex-col h-full">
+                    <!-- Processing Container (Top) -->
+                    <div class="flex-1 overflow-y-auto px-4 py-6">
+                      <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-medium">Process ZIP Files</h3>
+                        <div class="flex items-center gap-4">
+                          <span class="text-sm text-white/70">Process raw chunks from Cockpit Lite (web version)</span>
+                        </div>
+                      </div>
+
+                      <!-- Processing Status -->
+                      <div v-if="isProcessingZip" class="bg-blue-900/30 border border-blue-500/30 rounded-lg p-4 mb-4">
+                        <div class="flex items-center gap-3 mb-3">
+                          <v-progress-circular indeterminate color="blue" size="24" width="2" />
+                          <span class="text-blue-200 font-medium">Processing ZIP file...</span>
+                        </div>
+                        <div class="text-blue-100 text-sm">
+                          {{ zipProcessingMessage }}
+                        </div>
+                        <v-progress-linear
+                          :model-value="zipProcessingProgress"
+                          color="blue"
+                          height="8"
+                          rounded
+                          class="mt-3"
+                        />
+                        <div class="text-blue-200 text-xs mt-2">{{ zipProcessingProgress }}%</div>
+                      </div>
+
+                      <!-- Processing Complete Status -->
+                      <div
+                        v-if="zipProcessingComplete"
+                        class="bg-green-900/30 border border-green-500/30 rounded-lg p-4 mb-4"
+                      >
+                        <div class="flex items-center gap-3 mb-3">
+                          <v-icon color="green" size="24">mdi-check-circle</v-icon>
+                          <span class="text-green-200 font-medium">Processing Complete!</span>
+                        </div>
+                        <div class="text-green-100 text-sm">
+                          The ZIP file has been successfully processed. The video is now available in the Videos tab.
+                        </div>
+                        <div class="mt-4 flex gap-2">
+                          <v-btn variant="outlined" size="small" @click="processAnotherZip">
+                            <v-icon class="mr-2">mdi-plus</v-icon>
+                            Process Another ZIP File
+                          </v-btn>
+                          <v-btn variant="outlined" size="small" @click="goToVideosTab">
+                            <v-icon class="mr-2">mdi-video</v-icon>
+                            View Videos
+                          </v-btn>
+                        </div>
+                      </div>
+
+                      <!-- ZIP File Selection -->
+                      <div
+                        v-if="!isProcessingZip && !selectedZipFile && !zipProcessingComplete"
+                        class="bg-slate-800/50 border border-slate-600/30 rounded-lg p-4 mb-4"
+                      >
+                        <div class="text-center">
+                          <v-icon size="48" class="text-slate-400 mb-3">mdi-zip-box</v-icon>
+                          <h4 class="text-lg font-medium text-white mb-2">Select ZIP File to Process</h4>
+                          <p class="text-white/70 text-sm mb-4">
+                            Choose a ZIP file containing raw video chunks downloaded from the browser version.
+                          </p>
+                          <v-btn variant="outlined" @click="selectZipFile">
+                            <v-icon class="mr-2">mdi-folder-open</v-icon>
+                            Select ZIP File
+                          </v-btn>
+                        </div>
+                      </div>
+
+                      <!-- Selected ZIP File Info -->
+                      <div
+                        v-if="selectedZipFile && !zipProcessingComplete"
+                        class="bg-slate-700/50 border border-slate-500/30 rounded-lg p-4 mb-4"
+                      >
+                        <div class="flex justify-between items-center">
+                          <div>
+                            <h5 class="text-white font-medium">{{ selectedZipFile.name }}</h5>
+                            <p class="text-white/70 text-sm">{{ formatFileSize(selectedZipFile.size) }}</p>
+                          </div>
+                          <v-btn variant="outlined" size="small" @click="clearSelectedZip">
+                            <v-icon size="16" class="mr-1">mdi-close</v-icon>
+                            Clear
+                          </v-btn>
+                        </div>
+                      </div>
+
+                      <!-- Process Button -->
+                      <div v-if="!zipProcessingComplete" class="mt-4 text-center">
+                        <v-btn
+                          v-if="selectedZipFile && !isProcessingZip"
+                          variant="outlined"
+                          size="large"
+                          @click="processZipFile"
+                        >
+                          <v-icon class="mr-2">mdi-play-circle</v-icon>
+                          Process ZIP
+                        </v-btn>
+                      </div>
+                    </div>
+
+                    <!-- Processing Instructions (Bottom) -->
+                    <div class="px-4 py-3 border-t mb-4 border-white/10">
+                      <div class="flex items-start gap-3">
+                        <v-icon class="mt-1 text-white/70">mdi-information</v-icon>
+                        <div class="flex flex-col w-full">
+                          <h4 class="text-white font-medium mb-3">Processing Instructions</h4>
+                          <ol class="text-white/80 text-sm space-y-2">
+                            <li class="flex items-start gap-2">
+                              <span class="text-white font-bold">1.</span>
+                              <span>Download raw video chunks from the browser version's "Temporary" tab</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                              <span class="text-white font-bold">2.</span>
+                              <span>Select the ZIP file containing the chunks</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                              <span class="text-white font-bold">3.</span>
+                              <span>Click "Process ZIP" to convert chunks to MP4 video</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                              <span class="text-white font-bold">4.</span>
+                              <span>The processed video will appear in the "Videos" tab</span>
+                            </li>
+                          </ol>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </template>
               </div>
-            </div>
-            <div
-              v-if="availableVideos.length === 0"
-              class="flex flex-row justify-center w-full h-full text-xl text-center align-center"
-            >
-              {{ loadingData ? 'Loading' : 'No videos on storage' }}
             </div>
           </template>
         </div>
@@ -677,10 +832,9 @@
 </template>
 
 <script setup lang="ts">
-import { useWindowSize } from '@vueuse/core'
+import { format } from 'date-fns'
 import * as Hammer from 'hammerjs'
-import { computed, markRaw, nextTick, onBeforeUnmount, onMounted, shallowRef } from 'vue'
-import { reactive, ref, watch } from 'vue'
+import { computed, markRaw, nextTick, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue'
 
 import { useInteractionDialog } from '@/composables/interactionDialog'
 import { useSnackbar } from '@/composables/snackbar'
@@ -700,7 +854,6 @@ const snapshotStore = useSnapshotStore()
 const { openSnackbar } = useSnackbar()
 
 const { showDialog, closeDialog } = useInteractionDialog()
-const { width: windowWidth } = useWindowSize()
 
 /* eslint-disable jsdoc/require-jsdoc  */
 interface CustomHammerInstance {
@@ -711,20 +864,36 @@ interface HammerInstances {
   [key: string]: CustomHammerInstance
 }
 
+interface ChunkGroup {
+  hash: string
+  fileName?: string
+  chunkCount: number
+  totalSize: number
+  estimatedDuration: number
+  firstChunkDate: Date
+  chunks: Array<{ key: string; size: number; timestamp: Date }>
+}
+
 /* eslint-enable jsdoc/require-jsdoc  */
 const availableVideos = ref<VideoLibraryFile[]>([])
 const availableLogFiles = ref<VideoLibraryLogFile[]>([])
 const isVisible = ref(true)
 const selectedVideos = ref<VideoLibraryFile[]>([])
-const videoPlayerRef = ref<HTMLVideoElement | null>(null)
 const currentTab = ref(interfaceStore.videoLibraryMode || 'videos')
+const currentVideoSubTab = ref(isElectron() ? 'processed' : 'temporary')
+
+// ZIP Processing variables
+const selectedZipFile = ref<File | null>(null)
+const isProcessingZip = ref(false)
+const zipProcessingComplete = ref(false)
+const zipProcessingProgress = ref(0)
+const zipProcessingMessage = ref('')
+
 const snackbarMessage = ref('')
 const isMultipleSelectionMode = ref(false)
 const longPressSelected = ref(false)
 const recentlyLongPressed = ref(false)
 const hammerInstances = ref<HammerInstances>({})
-const showHelpTooltip = ref(false)
-const showErrorTooltip = ref(false)
 const loadingData = ref(true)
 const showProcessingInteractionDialog = ref(false)
 const interactionDialogTitle = ref('')
@@ -751,6 +920,12 @@ const showFullScreenPictureModal = ref(false)
 const fullScreenPicture = ref<SnapshotLibraryFile | null>(null)
 const selectedPicSet = shallowRef<Set<string>>(new Set())
 
+// Temporary chunks management
+const chunkGroups = ref<ChunkGroup[]>([])
+const totalChunkSize = ref(0)
+const isProcessingChunks = ref(false)
+const isInstructionsExpanded = ref(false)
+
 const selectedPictures = computed({
   get: () => [...selectedPicSet.value],
   set: (arr: string[]) => {
@@ -765,51 +940,44 @@ const setSelectedPics = (files: string[]): void => {
 
 const createObjectURL = (blob: Blob): string => URL.createObjectURL(blob)
 
-const dialogStyle = computed(() => {
-  const scale = interfaceStore.isOnSmallScreen ? windowWidth.value / 1100 : 1
-  return {
-    transform: `scale(${scale * 0.98}) translate(0, 0)`,
-    transformOrigin: 'center',
+const getVideoCardClasses = (video: VideoLibraryFile): string => {
+  const isSelected = selectedVideos.value.find((v) => v.fileName === video.fileName)
+
+  if (isSelected) {
+    return 'border border-white/40 bg-white/15 hover:bg-white/20'
+  } else {
+    return 'border border-white/20 bg-white/5 hover:bg-white/10'
   }
-})
+}
 
 const menuButtons = [
   { name: 'Videos', icon: 'mdi-video-outline', selected: true, disabled: false, tooltip: '' },
   { name: 'Snapshots', icon: 'mdi-image-outline', selected: false, disabled: false, tooltip: '' },
 ]
 
-const fileActionButtons = computed(() => [
+const videoSubTabs = [
   {
-    name: 'Delete',
-    icon: 'mdi-delete-outline',
-    size: 22,
-    tooltip: '',
-    confirmAction: true,
-    show: true,
-    disabled: showOnScreenProgress.value === true || isPreparingDownload.value === true,
-    action: () => discardVideosAndUpdateDB(),
+    name: 'processed',
+    label: 'Processed',
+    icon: 'mdi-video',
+    disabled: !isElectron(),
+    tooltip: isElectron() ? '' : 'Only available in standalone version',
   },
   {
-    name: 'Download',
-    icon: 'mdi-tray-arrow-down',
-    size: 28,
-    tooltip: 'Download selected videos with logs',
-    confirmAction: false,
-    show: !isElectron(),
-    disabled: showOnScreenProgress.value === true || isPreparingDownload.value === true,
-    action: () => downloadVideoAndTelemetryFiles(),
-  },
-  {
-    name: 'Open Folder',
-    icon: 'mdi-folder-outline',
-    size: 28,
-    tooltip: 'Open videos folder',
-    confirmAction: false,
-    show: isElectron(),
+    name: 'temporary',
+    label: 'Temporary',
+    icon: 'mdi-folder-multiple-outline',
     disabled: false,
-    action: () => openVideoFolder(),
+    tooltip: 'Manage raw video chunks',
   },
-])
+  {
+    name: 'processing',
+    label: 'Processing',
+    icon: 'mdi-cog-outline',
+    disabled: !isElectron(),
+    tooltip: isElectron() ? 'Process ZIP files with raw video chunks' : 'Only available in standalone version',
+  },
+]
 
 const openVideoFolder = (): void => {
   if (isElectron() && window.electronAPI) {
@@ -878,6 +1046,32 @@ const handleDeletePictures = (picture?: SnapshotLibraryFile): void => {
   })
 }
 
+const handleDeleteVideos = (videos: VideoLibraryFile[]): void => {
+  const videoCount = videos.length
+  const videoText = videoCount === 1 ? 'video' : 'videos'
+
+  showDialog({
+    variant: 'warning',
+    title: `Delete ${videoCount} ${videoText}?`,
+    message: 'Are you sure you want to delete the selected videos?',
+    actions: [
+      {
+        text: 'Cancel',
+        size: 'small',
+        action: closeDialog,
+      },
+      {
+        text: 'Delete',
+        size: 'small',
+        action: () => {
+          deleteVideosAndUpdateDB(videos)
+          closeDialog()
+        },
+      },
+    ],
+  })
+}
+
 const downloadPictures = async (pictureFileName?: string): Promise<void> => {
   try {
     await snapshotStore.downloadFilesFromSnapshotDB(pictureFileName ? [pictureFileName] : selectedPictures.value)
@@ -913,21 +1107,6 @@ const parseDateFromTitle = (title: string): string => {
   const dateRegex = /\(([^)]+)\)/
   const dateMatch = title.match(dateRegex)
   return dateMatch ? dateMatch[1] : ''
-}
-
-// Extracts a date or any string enclosed within parentheses from a given title string
-const parseMissionAndDateFromTitle = (title: string): string => {
-  const titleAndDateRegex = /.*\(([^)]+)\)/
-  const titleAndDateMatch = title.match(titleAndDateRegex)
-  return titleAndDateMatch ? titleAndDateMatch[0] : ''
-}
-
-const playVideo = (): void => {
-  if (selectedVideos.value.length === 1 && !isMultipleSelectionMode.value) {
-    const videoPlayer = document.getElementById(`video-player`) as HTMLVideoElement
-    if (!videoPlayer) return
-    videoPlayer.play().catch((e: Error) => console.error('Error auto-playing video:', e))
-  }
 }
 
 // Switches between single and multiple file selection modes
@@ -975,83 +1154,6 @@ const resetProgressBars = (): void => {
   showOnScreenProgress.value = false
 }
 
-const processVideos = async (): Promise<void> => {
-  try {
-    await videoStore.processVideoChunksAndTelemetry(selectedVideos.value.map((video) => video.hash!))
-    isMultipleSelectionMode.value = false
-    await fetchVideosAndLogData()
-  } catch (error) {
-    const errorMsg = `Video processing failed: ${(error as Error).message ?? error!.toString()}`
-    console.error(errorMsg)
-    snackbarMessage.value = errorMsg
-    openSnackbar({
-      message: errorMsg,
-      duration: 3000,
-      variant: 'error',
-      closeButton: true,
-    })
-    errorProcessingVideos.value = true
-  }
-}
-
-const closeProcessingDialog = (): void => {
-  if (errorProcessingVideos.value) {
-    fetchVideosAndLogData()
-  }
-  showProgressInteractionDialog.value = false
-  resetProgressBars()
-}
-
-const processSingleVideo = async (): Promise<void> => {
-  if (selectedVideos.value.length === 1 && !selectedVideos.value[0].isProcessed) {
-    showOnScreenProgress.value = true
-  }
-  await processVideos()
-  await loadVideoBlobIntoPlayer(selectedVideos.value[0].fileName)
-}
-
-// Process multiple videos with progress bars dialog
-const processMultipleVideosDialog = async (): Promise<void> => {
-  numberOfFilesToProcess.value = selectedVideos.value.length
-  progressInteractionDialogTitle.value = 'Processing Videos'
-  progressInteractionDialogActions.value = [
-    {
-      text: overallProcessingProgress.value === 100 ? 'Close' : 'Hide',
-      size: 'small',
-      class: 'font-light',
-      action: closeProcessingDialog,
-    },
-  ]
-  showProcessingInteractionDialog.value = false
-  showProgressInteractionDialog.value = true
-  await processVideos()
-  await loadVideoBlobIntoPlayer(selectedVideos.value[0].fileName)
-}
-
-const showProcessVideosWarningDialog = (): void => {
-  interactionDialogTitle.value = 'Process Multiple Videos'
-  interactionDialogActions.value = [
-    {
-      text: 'Cancel',
-      size: 'small',
-      class: 'font-light',
-      action: () => {
-        showProcessingInteractionDialog.value = false
-      },
-    },
-    {
-      text: 'Process videos',
-      size: 'small',
-      class: 'font-bold',
-      action: async () => {
-        showProcessingInteractionDialog.value = false
-        await processMultipleVideosDialog()
-      },
-    },
-  ]
-  showProcessingInteractionDialog.value = true
-}
-
 const selectAllVideos = (): void => {
   selectedVideos.value = [...availableVideos.value]
   isMultipleSelectionMode.value = true
@@ -1067,143 +1169,31 @@ const deselectAllVideos = (): void => {
   }
 }
 
-const selectUnprocessedVideos = (): void => {
-  if (availableVideos.value.some((video) => !video.isProcessed)) {
-    selectedVideos.value = availableVideos.value.filter((video) => !video.isProcessed)
-    isMultipleSelectionMode.value = true
-  } else {
-    snackbarMessage.value = 'No unprocessed videos found'
-    openSnackbar({
-      message: snackbarMessage.value,
-      duration: 3000,
-      variant: 'info',
-      closeButton: true,
-    })
-  }
-}
-
-const selectProcessedVideos = (): void => {
-  if (availableVideos.value.some((video) => video.isProcessed)) {
-    selectedVideos.value = availableVideos.value.filter((video) => video.isProcessed)
-    isMultipleSelectionMode.value = true
-  } else {
-    snackbarMessage.value = 'No processed videos found'
-    openSnackbar({
-      message: snackbarMessage.value,
-      duration: 3000,
-      variant: 'info',
-      closeButton: true,
-    })
-  }
-}
-
 // Add the log files to the list of files to be downloaded/discarded
 const addLogDataToFileList = (fileNames: string[]): string[] => {
   const filesWithLogData = fileNames.flatMap((fileName) => {
     const filenameWithoutExtension = fileName.split('.').slice(0, -1).join('.')
     const subtitlefileName = `${filenameWithoutExtension}.ass`
     const subtitleExists = availableLogFiles.value.some((video) => video.fileName === subtitlefileName)
+
     return subtitleExists ? [fileName, subtitlefileName] : [fileName]
   })
+
   return filesWithLogData
 }
 
-const downloadVideoAndTelemetryFiles = async (): Promise<void> => {
-  let initialMessageShown = false
-
-  const fillProgressData = async (progress: number, total: number): Promise<void> => {
-    const progressPercentage = ((100 * progress) / total).toFixed(1)
-    if (!initialMessageShown) return
-    snackbarMessage.value = `Preparing download: ${progressPercentage}%.`
-    openSnackbar({
-      message: snackbarMessage.value,
-      duration: 15000,
-      variant: 'info',
-      closeButton: true,
-    })
-  }
-
-  snackbarMessage.value = 'Getting your download ready...'
-  setTimeout(() => (initialMessageShown = true), 1500)
-
-  let tempProcessedVideos: string[] = []
-  let tempUnprocessedVideos: string[] = []
-
-  selectedVideos.value.forEach((video) => {
-    if (video.isProcessed) tempProcessedVideos.push(video.fileName)
-    if (!video.isProcessed && video.hash) tempUnprocessedVideos.push(video.hash)
-  })
-  openSnackbar({
-    message: snackbarMessage.value,
-    duration: 3000,
-    variant: 'info',
-    closeButton: true,
-  })
-
-  if (tempUnprocessedVideos.length > 0) {
-    const confirm = await confirmDownloadOfUnprocessedVideos()
-    if (!confirm) return
-  }
-
-  isPreparingDownload.value = true
-  if (tempProcessedVideos.length > 0) {
-    const dataLogFilesAdded = addLogDataToFileList(tempProcessedVideos)
-
-    await videoStore.downloadFilesFromVideoDB(dataLogFilesAdded, fillProgressData)
-  }
-  if (tempUnprocessedVideos.length > 0) {
-    await videoStore.downloadTempVideo(tempUnprocessedVideos, fillProgressData)
-  }
-  isPreparingDownload.value = false
-}
-
-const confirmDownloadOfUnprocessedVideos = async (): Promise<boolean> => {
-  let confirmDownload = false
-  const goBack = (): void => {
-    confirmDownload = false
-  }
-  const downloadAnyway = (): void => {
-    confirmDownload = true
-  }
-  await showDialog({
-    maxWidth: 600,
-    title: 'You are downloading unprocessed videos',
-    message: `One or more videos that you are downloading contains unprocessed chunks, which are not playable. To be
-      able to play the downloaded videos, you need to go back and process those videos first.`,
-    variant: 'info',
-    actions: [
-      { text: 'Go back', action: goBack },
-      { text: 'Download anyway', action: downloadAnyway },
-    ],
-  })
-
-  closeDialog()
-  return confirmDownload
-}
-
-const discardVideosAndUpdateDB = async (): Promise<void> => {
+const deleteVideosAndUpdateDB = async (videos: VideoLibraryFile[]): Promise<void> => {
   deleteButtonLoading.value = true
-  let selectedVideoArraySize = selectedVideos.value.length
+  let selectedVideoArraySize = videos.length
   let processedVideosToDiscard: string[] = []
-  let unprocessedVideosToDiscard: string[] = []
 
-  await selectedVideos.value.forEach((video: VideoLibraryFile) => {
-    if (video.isProcessed) {
-      processedVideosToDiscard.push(video.fileName)
-      processedVideosToDiscard.push(videoStore.videoThumbnailFilename(video.fileName))
-    }
-    if (!video.isProcessed && video.hash) unprocessedVideosToDiscard.push(video.hash)
+  videos.forEach((video: VideoLibraryFile) => {
+    processedVideosToDiscard.push(video.fileName)
+    processedVideosToDiscard.push(videoStore.videoThumbnailFilename(video.fileName))
   })
 
-  if (processedVideosToDiscard.length > 0) {
-    const dataLogFilesAdded = addLogDataToFileList(processedVideosToDiscard)
-
-    await videoStore.discardProcessedFilesFromVideoDB(dataLogFilesAdded)
-  }
-
-  if (unprocessedVideosToDiscard.length > 0) {
-    await videoStore.discardUnprocessedFilesFromVideoDB(unprocessedVideosToDiscard)
-  }
+  const dataLogFilesAdded = addLogDataToFileList(processedVideosToDiscard)
+  await videoStore.discardProcessedFilesFromVideoDB(dataLogFilesAdded)
 
   snackbarMessage.value = `${selectedVideoArraySize} video(s) discarded.`
   openSnackbar({
@@ -1224,7 +1214,7 @@ const fetchVideosAndLogData = async (): Promise<void> => {
   const videoFilesOperations: Promise<VideoLibraryFile>[] = []
   const logFileOperations: Promise<VideoLibraryLogFile>[] = []
 
-  // Fetch processed videos and logs
+  // Fetch processed videos and logs only
   const keys = await videoStore.videoStorage.keys()
   for (const key of keys) {
     if (videoStore.isVideoFilename(key)) {
@@ -1234,33 +1224,31 @@ const fetchVideosAndLogData = async (): Promise<void> => {
       } else {
         thumb = new Blob([])
       }
-      videoFilesOperations.push({ fileName: key, isProcessed: true, thumbnail: thumb })
+
+      // In Electron, mark WebM files as unprocessed so they get special handling
+      const isProcessed = !isElectron() || !key.endsWith('.webm')
+
+      videoFilesOperations.push(
+        Promise.resolve({
+          fileName: key,
+          isProcessed: isProcessed,
+          thumbnail: thumb,
+        })
+      )
       const thumbnail = await videoStore.getVideoThumbnail(key, true)
       videoThumbnailURLs[key] = thumbnail ? createObjectURL(thumbnail) : null
     }
     if (key.endsWith('.ass')) {
-      logFileOperations.push({ fileName: key })
+      logFileOperations.push(Promise.resolve({ fileName: key }))
     }
   }
 
-  // Fetch unprocessed videos
-  const unprocessedVideos = await videoStore.unprocessedVideos
-  const unprocessedVideoOperations = Object.entries(unprocessedVideos).map(async ([hash, videoInfo]) => {
-    const thumbnail = await videoStore.getVideoThumbnail(hash, false)
-    videoThumbnailURLs[hash] = thumbnail ? createObjectURL(thumbnail) : null
-    return { ...videoInfo, ...{ hash: hash, isProcessed: false } }
-  })
-
   const videos = await Promise.all(videoFilesOperations)
   const logFiles = await Promise.all(logFileOperations)
-  const unprocessedVideosData = await Promise.all(unprocessedVideoOperations)
 
-  // Filter out videos that are currently being recorded
-  const validUnprocessedVideos = unprocessedVideosData.filter((video) => {
-    return video.dateFinish || videoStore.keysFailedUnprocessedVideos.includes(video.hash)
-  })
-
-  availableVideos.value = [...videos, ...validUnprocessedVideos]
+  // Sort videos by filename in descending order (most recent first)
+  // Video filenames typically contain timestamps, so sorting by filename will give chronological order
+  availableVideos.value = videos.sort((a, b) => b.fileName.localeCompare(a.fileName))
   availableLogFiles.value = logFiles
 
   loadingData.value = false
@@ -1348,6 +1336,602 @@ const deselectAllPictures = (): void => {
   isMultipleSelectionMode.value = false
 }
 
+// Chunk management functions
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+const formatDate = (date: Date): string => {
+  // Check if this is our special "unknown" timestamp (Unix epoch = 0)
+  if (date.getTime() === 0) {
+    return 'Unknown creation datetime'
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).format(date)
+}
+
+const fetchChunkGroups = async (): Promise<void> => {
+  try {
+    loadingData.value = true
+    const allKeys = await videoStore.tempVideoStorage.keys()
+
+    // Group chunks by hash
+    const groups: { [hash: string]: ChunkGroup } = {}
+    let totalSize = 0
+
+    for (const key of allKeys) {
+      // Skip thumbnail files
+      if (key.includes('thumbnail_')) continue
+
+      // Extract hash from key (format: hash_chunkNumber)
+      const parts = key.split('_')
+      if (parts.length < 2) continue
+
+      const hash = parts[0]
+      const chunkNumberStr = parts[parts.length - 1]
+      const chunkNumber = parseInt(chunkNumberStr, 10)
+
+      if (isNaN(chunkNumber)) continue
+
+      try {
+        const blob = (await videoStore.tempVideoStorage.getItem(key)) as Blob
+        if (!blob || blob.size === 0) continue
+
+        const chunkSize = blob.size
+        totalSize += chunkSize
+
+        if (!groups[hash]) {
+          groups[hash] = {
+            hash,
+            chunkCount: 0,
+            totalSize: 0,
+            estimatedDuration: 0,
+            firstChunkDate: new Date(0), // Unix epoch = 0 for unknown dates
+            chunks: [],
+          }
+        }
+
+        // Get recording metadata for proper timestamp
+        let chunkTimestamp: Date
+
+        if (isElectron()) {
+          // For Electron: Try to get file modification time from file system
+          try {
+            if ((window.electronAPI as any)?.getChunkFileStats) {
+              // Get file stats using the proper subfolder structure
+              const subFolders = ['videos', 'temporary-video-chunks']
+              const fileStats = await (window.electronAPI as any).getChunkFileStats(key, subFolders)
+
+              if (fileStats?.exists && fileStats.mtime) {
+                chunkTimestamp = new Date(fileStats.mtime)
+              } else {
+                chunkTimestamp = new Date(0) // Unix epoch = 0 for unknown dates
+                console.warn(`[ChunkTimestamp] File stats not available for ${key}, using unknown timestamp`)
+              }
+            } else {
+              chunkTimestamp = new Date(0) // Unix epoch = 0 for unknown dates
+              console.warn(`[ChunkTimestamp] getChunkFileStats API not available, using unknown timestamp`)
+            }
+          } catch (error) {
+            console.warn(`[ChunkTimestamp] Error getting file stats for ${key}:`, error)
+            chunkTimestamp = new Date(0) // Unix epoch = 0 for unknown dates
+          }
+        } else {
+          // For web: Use recording metadata from localStorage
+          const recordingMetadata = videoStore.getRecordingMetadata(hash)
+          if (recordingMetadata) {
+            // Use recording start time + chunk offset for accurate timestamp
+            const chunkOffset = chunkNumber * 1000 // 1 second per chunk in milliseconds
+            chunkTimestamp = new Date(recordingMetadata.epoch_start + chunkOffset)
+          } else {
+            // Use special "unknown" timestamp instead of current time
+            chunkTimestamp = new Date(0) // Unix epoch = 0 for unknown dates
+          }
+        }
+
+        groups[hash].chunks.push({
+          key,
+          size: chunkSize,
+          timestamp: chunkTimestamp,
+        })
+
+        groups[hash].chunkCount++
+        groups[hash].totalSize += chunkSize
+        groups[hash].estimatedDuration = groups[hash].chunkCount // 1 second per chunk
+
+        // Set first chunk date (earliest chunk number or first valid timestamp)
+        if (chunkNumber === 0) {
+          groups[hash].firstChunkDate = chunkTimestamp
+        } else if (groups[hash].chunks.length === 1) {
+          // If this is the first chunk we've seen, use its timestamp
+          groups[hash].firstChunkDate = chunkTimestamp
+        } else if (chunkTimestamp.getTime() !== 0 && groups[hash].firstChunkDate.getTime() === 0) {
+          // If we have a valid timestamp and current is unknown, use the valid one
+          groups[hash].firstChunkDate = chunkTimestamp
+        } else if (chunkTimestamp.getTime() !== 0 && chunkTimestamp.getTime() < groups[hash].firstChunkDate.getTime()) {
+          // If we have a valid timestamp that's earlier than current, use it
+          groups[hash].firstChunkDate = chunkTimestamp
+        }
+      } catch (error) {
+        console.warn(`Failed to load chunk ${key}:`, error)
+      }
+    }
+
+    // Sort chunks within each group by chunk number
+    Object.values(groups).forEach((group) => {
+      group.chunks.sort((a, b) => {
+        const aNum = parseInt(a.key.split('_').pop() || '0', 10)
+        const bNum = parseInt(b.key.split('_').pop() || '0', 10)
+        return aNum - bNum
+      })
+    })
+
+    chunkGroups.value = Object.values(groups).sort((a, b) => b.firstChunkDate.getTime() - a.firstChunkDate.getTime())
+    totalChunkSize.value = totalSize
+  } catch (error) {
+    console.error('Failed to fetch chunk groups:', error)
+    openSnackbar({
+      message: 'Failed to load temporary chunks',
+      duration: 3000,
+      variant: 'error',
+      closeButton: true,
+    })
+  } finally {
+    loadingData.value = false
+  }
+}
+
+const deleteChunkGroup = async (group: ChunkGroup): Promise<void> => {
+  showDialog({
+    title: 'Delete Chunk Group',
+    message: `Delete ${group.chunkCount} chunks for ${group.hash}? This will free up ${formatFileSize(
+      group.totalSize
+    )} of storage space.`,
+    variant: 'warning',
+    actions: [
+      { text: 'Cancel', action: () => closeDialog() },
+      {
+        text: 'Delete',
+        action: async () => {
+          closeDialog()
+          try {
+            isProcessingChunks.value = true
+
+            for (const chunk of group.chunks) {
+              await videoStore.tempVideoStorage.removeItem(chunk.key)
+            }
+
+            openSnackbar({
+              message: `Deleted ${group.chunkCount} chunks for ${group.hash}`,
+              duration: 3000,
+              variant: 'success',
+              closeButton: true,
+            })
+
+            await fetchChunkGroups()
+          } catch (error) {
+            console.error('Failed to delete chunk group:', error)
+            openSnackbar({
+              message: 'Failed to delete chunks',
+              duration: 3000,
+              variant: 'error',
+              closeButton: true,
+            })
+          } finally {
+            isProcessingChunks.value = false
+          }
+        },
+      },
+    ],
+  })
+}
+
+const deleteAllChunks = async (): Promise<void> => {
+  if (chunkGroups.value.length === 0) return
+
+  showDialog({
+    title: 'Delete All Temporary Chunks',
+    message: `Are you sure you want to delete all ${
+      chunkGroups.value.length
+    } chunk groups? This will free up ${formatFileSize(totalChunkSize.value)} of storage space.`,
+    variant: 'warning',
+    actions: [
+      { text: 'Cancel', action: () => closeDialog() },
+      {
+        text: 'Delete All',
+        action: async () => {
+          closeDialog()
+          try {
+            isProcessingChunks.value = true
+
+            for (const group of chunkGroups.value) {
+              for (const chunk of group.chunks) {
+                await videoStore.tempVideoStorage.removeItem(chunk.key)
+              }
+            }
+
+            openSnackbar({
+              message: `Deleted all temporary chunks (${formatFileSize(totalChunkSize.value)} freed)`,
+              duration: 3000,
+              variant: 'success',
+              closeButton: true,
+            })
+
+            await fetchChunkGroups()
+          } catch (error) {
+            console.error('Failed to delete all chunks:', error)
+            openSnackbar({
+              message: 'Failed to delete all chunks',
+              duration: 3000,
+              variant: 'error',
+              closeButton: true,
+            })
+          } finally {
+            isProcessingChunks.value = false
+          }
+        },
+      },
+    ],
+  })
+}
+
+/**
+ * Opens the temporary chunks folder in the file manager
+ */
+const openTempChunksFolder = async (): Promise<void> => {
+  try {
+    if (window.electronAPI?.openTempChunksFolder) {
+      await window.electronAPI.openTempChunksFolder()
+    } else {
+      console.warn('openTempChunksFolder is not available')
+    }
+  } catch (error) {
+    console.error('Error opening temporary chunks folder:', error)
+    openSnackbar({
+      message: 'Failed to open temporary chunks folder',
+      duration: 3000,
+      variant: 'error',
+      closeButton: true,
+    })
+  }
+}
+
+/**
+ * Select a ZIP file for processing
+ */
+const selectZipFile = (): void => {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = '.zip'
+  input.onchange = (event) => {
+    const file = (event.target as HTMLInputElement).files?.[0]
+    if (file) {
+      selectedZipFile.value = file
+    }
+  }
+  input.click()
+}
+
+/**
+ * Clear the selected ZIP file
+ */
+const clearSelectedZip = (): void => {
+  selectedZipFile.value = null
+}
+
+/**
+ * Process another ZIP file - reset the UI to initial state
+ */
+const processAnotherZip = (): void => {
+  selectedZipFile.value = null
+  zipProcessingComplete.value = false
+  zipProcessingProgress.value = 0
+  zipProcessingMessage.value = ''
+}
+
+/**
+ * Go to Videos tab to view the processed video
+ */
+const goToVideosTab = async (): Promise<void> => {
+  // Switch to videos tab and final sub-tab
+  currentTab.value = 'videos'
+  currentVideoSubTab.value = 'processed'
+
+  // Refresh video data to show the newly processed video
+  await fetchVideosAndLogData()
+}
+
+/**
+ * Process the selected ZIP file
+ */
+const processZipFile = async (): Promise<void> => {
+  if (!selectedZipFile.value || isProcessingZip.value || !isElectron()) return
+
+  try {
+    isProcessingZip.value = true
+    zipProcessingComplete.value = false
+    zipProcessingProgress.value = 0
+    zipProcessingMessage.value = 'Starting ZIP processing...'
+
+    // Create a temporary directory for extraction
+    const tempDir = await window.electronAPI?.createTempDirectory('zip-processing')
+    if (!tempDir) {
+      throw new Error('Failed to create temporary directory')
+    }
+
+    // Save the ZIP file to the temporary directory first
+    const zipFilePath = `${tempDir}/${selectedZipFile.value.name}`
+
+    // Use the Electron API to write the file
+    if (window.electronAPI?.writeBlobToFile) {
+      await window.electronAPI.writeBlobToFile(selectedZipFile.value, zipFilePath)
+    } else {
+      throw new Error('File writing not available')
+    }
+
+    // Set up progress listener
+    if (window.electronAPI?.onZipProcessingProgress) {
+      window.electronAPI.onZipProcessingProgress((progress: number, message: string) => {
+        zipProcessingProgress.value = progress
+        zipProcessingMessage.value = message
+      })
+    }
+
+    // Process the ZIP file
+    await window.electronAPI?.processZipFile(zipFilePath, tempDir)
+
+    // Clean up progress listener
+    if (window.electronAPI?.offZipProcessingProgress) {
+      window.electronAPI.offZipProcessingProgress()
+    }
+
+    const msg = 'ZIP file processed successfully! Video is now available in the Videos tab.'
+    openSnackbar({ message: msg, duration: 5000, variant: 'success', closeButton: true })
+
+    // Clean up
+    await window.electronAPI?.removeTempDirectory?.(tempDir)
+
+    // Refresh video list
+    await fetchVideosAndLogData()
+
+    // Mark processing as complete
+    zipProcessingComplete.value = true
+  } catch (error) {
+    // Clean up progress listener on error
+    if (window.electronAPI?.offZipProcessingProgress) {
+      window.electronAPI.offZipProcessingProgress()
+    }
+
+    const msg = `Failed to process ZIP file: ${error instanceof Error ? error.message : 'Unknown error'}`
+    openSnackbar({ message: msg, duration: 5000, variant: 'error', closeButton: true })
+  } finally {
+    isProcessingZip.value = false
+    zipProcessingProgress.value = 0
+    zipProcessingMessage.value = ''
+  }
+}
+
+const downloadChunkGroup = async (group: ChunkGroup): Promise<void> => {
+  if (isElectron()) return // Not available in electron
+
+  try {
+    isProcessingChunks.value = true
+
+    // Calculate batch sizes (1GB each)
+    const MAX_BATCH_SIZE = 1024 * 1024 * 1024 // 1GB
+    const batches: Array<{
+      /**
+       * The chunks in the batch
+       */
+      chunks: typeof group.chunks
+      /**
+       * The size of the batch
+       */
+      size: number
+    }> = []
+    let currentBatch: typeof group.chunks = []
+    let currentBatchSize = 0
+
+    for (const chunk of group.chunks) {
+      if (currentBatchSize + chunk.size > MAX_BATCH_SIZE && currentBatch.length > 0) {
+        batches.push({ chunks: [...currentBatch], size: currentBatchSize })
+        currentBatch = []
+        currentBatchSize = 0
+      }
+      currentBatch.push(chunk)
+      currentBatchSize += chunk.size
+    }
+
+    if (currentBatch.length > 0) {
+      batches.push({ chunks: currentBatch, size: currentBatchSize })
+    }
+
+    // Download each batch
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i]
+      const zipFilename = batches.length === 1 ? `chunks_${group.hash}.zip` : `chunks_${group.hash}_part${i + 1}.zip`
+
+      const { BlobWriter, ZipWriter, BlobReader } = await import('@zip.js/zip.js')
+      const zipWriter = new ZipWriter(new BlobWriter())
+
+      for (const chunk of batch.chunks) {
+        try {
+          const blob = (await videoStore.tempVideoStorage.getItem(chunk.key)) as Blob
+          if (blob) {
+            // Get recording metadata to set proper timestamp
+            const recordingMetadata = videoStore.getRecordingMetadata(group.hash)
+            let chunkDate: Date
+
+            if (recordingMetadata) {
+              // Calculate timestamp: recording start + chunk offset
+              const chunkNumber = parseInt(chunk.key.split('_')[1], 10)
+              const chunkOffset = chunkNumber * 1000 // 1 second per chunk in milliseconds
+              chunkDate = new Date(recordingMetadata.epoch_start + chunkOffset)
+            } else {
+              // Fallback to current time
+              chunkDate = new Date()
+            }
+
+            // Add chunk to ZIP with proper timestamp
+            await zipWriter.add(chunk.key, new BlobReader(blob), {
+              lastModDate: chunkDate,
+            })
+          }
+        } catch (error) {
+          console.warn(`Failed to add chunk ${chunk.key} to zip:`, error)
+        }
+      }
+
+      // Add .ass telemetry file if it exists (only for the first batch to avoid duplicates)
+      if (i === 0) {
+        try {
+          // Check all keys in videoStorage to see what .ass files exist
+          const allKeys = await videoStore.videoStorage.keys()
+
+          const assFiles = allKeys.filter((key) => key.endsWith('.ass'))
+
+          // Try different possible .ass file names
+          const possibleAssNames = [`${group.hash}.ass`, `recording_${group.hash}.ass`, `video_${group.hash}.ass`]
+
+          let assBlob: Blob | null = null
+          let foundAssFileName = ''
+
+          for (const assFileName of possibleAssNames) {
+            assBlob = (await videoStore.videoStorage.getItem(assFileName)) as Blob
+            if (assBlob) {
+              foundAssFileName = assFileName
+              break
+            }
+          }
+
+          // If no .ass file exists, try to find and rename existing one or generate new one
+          if (!assBlob) {
+            console.log(`[DEBUG] No .ass file found with proper name, checking for existing .ass file...`)
+            const recordingMetadata = videoStore.getRecordingMetadata(group.hash)
+
+            if (recordingMetadata) {
+              console.log(`[DEBUG] Found recording metadata, checking for existing .ass file...`)
+              try {
+                // Generate proper video filename using the same pattern as video store
+                const dateStart = new Date(recordingMetadata.epoch_start)
+                const timeRecordingStartString = format(dateStart, 'LLL dd, yyyy - HH꞉mm꞉ss O')
+
+                const videoFileName = `Cockpit (${timeRecordingStartString}) #${group.hash}`
+                const properAssFileName = `${videoFileName}.ass`
+                const hashAssFileName = `${group.hash}.ass`
+
+                console.log(`[DEBUG] Generated video filename: ${videoFileName}`)
+                console.log(`[DEBUG] Proper .ass filename: ${properAssFileName}`)
+                console.log(`[DEBUG] Hash .ass filename: ${hashAssFileName}`)
+
+                // First, check if there's an existing .ass file with the hash name
+                let existingAssBlob = (await videoStore.videoStorage.getItem(hashAssFileName)) as Blob
+
+                if (existingAssBlob) {
+                  console.log(`[DEBUG] Found existing .ass file with hash name, renaming it...`)
+
+                  // Copy the existing .ass file with the proper name
+                  await videoStore.videoStorage.setItem(properAssFileName, existingAssBlob)
+
+                  // Remove the old hash-named file
+                  await videoStore.videoStorage.removeItem(hashAssFileName)
+
+                  console.log(`[DEBUG] Successfully renamed ${hashAssFileName} to ${properAssFileName}`)
+
+                  // Use the renamed file
+                  assBlob = existingAssBlob
+                  foundAssFileName = properAssFileName
+                } else {
+                  console.log(`[DEBUG] No existing .ass file found, generating new one...`)
+
+                  const dateFinish = recordingMetadata.epoch_end ? new Date(recordingMetadata.epoch_end) : new Date() // Use current time if no end time
+
+                  await videoStore.generateTelemetryOverlay(
+                    group.hash,
+                    videoFileName, // Use proper video filename
+                    dateStart,
+                    dateFinish,
+                    1920, // Default width
+                    1080 // Default height
+                  )
+
+                  // Try to get the generated .ass file
+                  assBlob = (await videoStore.videoStorage.getItem(properAssFileName)) as Blob
+                  if (assBlob) {
+                    foundAssFileName = properAssFileName
+                    console.log(`[DEBUG] Successfully generated and found .ass file: ${properAssFileName}`)
+                  } else {
+                    console.log(`[DEBUG] Generated .ass file but couldn't retrieve it`)
+                  }
+                }
+              } catch (error) {
+                console.error(`[DEBUG] Failed to handle .ass file:`, error)
+              }
+            } else {
+              console.log(`[DEBUG] No recording metadata found for ${group.hash}`)
+            }
+          }
+
+          if (assBlob) {
+            console.log(`[DEBUG] Adding .ass file to ZIP: ${foundAssFileName}`)
+            await zipWriter.add(foundAssFileName, new BlobReader(assBlob))
+            console.log(`[DEBUG] Successfully added .ass file to ZIP`)
+          } else {
+            console.log(`[DEBUG] No .ass file available for ${group.hash}`)
+          }
+        } catch (error) {
+          console.error(`[DEBUG] Failed to add .ass file to zip:`, error)
+        }
+      }
+
+      const zipBlob = await zipWriter.close()
+
+      // Download the zip
+      const url = URL.createObjectURL(zipBlob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = zipFilename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+
+      if (batches.length > 1) {
+        // Small delay between batches to prevent memory issues
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+      }
+    }
+
+    openSnackbar({
+      message: `Downloaded ${group.chunkCount} chunks in ${batches.length} archive(s)`,
+      duration: 3000,
+      variant: 'success',
+      closeButton: true,
+    })
+  } catch (error) {
+    console.error('Failed to download chunk group:', error)
+    openSnackbar({
+      message: 'Failed to download chunks',
+      duration: 3000,
+      variant: 'error',
+      closeButton: true,
+    })
+  } finally {
+    isProcessingChunks.value = false
+  }
+}
+
 watch(
   () => videoStore.currentFileProgress,
   (newCurrentProgress) => {
@@ -1399,7 +1983,7 @@ const loadVideoBlobIntoPlayer = async (videoFileName: string): Promise<void> => 
       videoPlayer.src = videoBlobURL.value
 
       // Set up load error detection
-      let loadTimeout: number
+      let loadTimeout: ReturnType<typeof setTimeout>
       let hasLoaded = false
 
       const onCanPlay = (): void => {
@@ -1487,65 +2071,79 @@ watch(isVisible, () => {
   lastSelectedVideo.value = null
 })
 
-// Gestures library (hammer.js) for video selection
-watch(
-  availableVideos,
-  async () => {
-    await nextTick()
-    availableVideos.value.forEach((video) => {
-      const videoThumbnailElement = document.getElementById(`video-library-thumbnail-${video.fileName}`)
-      if (videoThumbnailElement) {
-        hammerInstances.value[video.fileName]?.destroy()
+watch(currentTab, async (newTab) => {
+  if (newTab === 'temporary') {
+    await fetchChunkGroups()
+  }
+})
 
-        const hammerManager = new Hammer.Manager(videoThumbnailElement)
-        hammerManager.add(new Hammer.Tap())
-        hammerManager.add(new Hammer.Press({ time: 500 }))
+// Function to set up Hammer.js event listeners for video selection
+const setupVideoHammerListeners = async (): Promise<void> => {
+  await nextTick()
+  availableVideos.value.forEach((video) => {
+    const videoThumbnailElement = document.getElementById(`video-library-thumbnail-${video.fileName}`)
+    if (videoThumbnailElement) {
+      hammerInstances.value[video.fileName]?.destroy()
 
-        hammerManager.on('tap', (ev) => {
-          const isAlreadySelected = selectedVideos.value.some((v) => v.fileName === video.fileName)
-          const shouldToggleSelection = isMultipleSelectionMode.value || ev.srcEvent.ctrlKey || ev.srcEvent.metaKey
+      const hammerManager = new Hammer.Manager(videoThumbnailElement)
+      hammerManager.add(new Hammer.Tap())
+      hammerManager.add(new Hammer.Press({ time: 500 }))
 
-          if (shouldToggleSelection) {
-            isMultipleSelectionMode.value = true
+      hammerManager.on('tap', async (ev) => {
+        const isAlreadySelected = selectedVideos.value.some((v) => v.fileName === video.fileName)
+        const shouldToggleSelection = isMultipleSelectionMode.value || ev.srcEvent.ctrlKey || ev.srcEvent.metaKey
 
-            const index = selectedVideos.value.findIndex((v) => v.fileName === video.fileName)
-            if (index > -1) {
-              if (selectedVideos.value.length > 1) {
-                selectedVideos.value.splice(index, 1)
-              }
-            } else {
-              selectedVideos.value.push(video)
-            }
-          } else if (!isAlreadySelected) {
-            selectedVideos.value = [video]
-          }
-
-          if (selectedVideos.value.length === 1 && isAlreadySelected) {
-            const videoPlayer = document.getElementById(`video-player`) as HTMLVideoElement
-            if (videoPlayer) {
-              videoPlayer.load()
-              videoPlayer.play().catch((e: Error) => console.error('Error auto-playing video:', e))
-            }
-          }
-        })
-
-        hammerManager.on('press', () => {
+        if (shouldToggleSelection) {
           isMultipleSelectionMode.value = true
-          if (!selectedVideos.value.some((v) => v.fileName === video.fileName)) {
+
+          const index = selectedVideos.value.findIndex((v) => v.fileName === video.fileName)
+          if (index > -1) {
+            if (selectedVideos.value.length > 1) {
+              selectedVideos.value.splice(index, 1)
+            }
+          } else {
             selectedVideos.value.push(video)
           }
-        })
+        } else {
+          // Always update selection for single selection mode to ensure visual feedback
+          selectedVideos.value = [video]
+        }
 
-        hammerInstances.value[video.fileName] = hammerManager
-      }
-    })
-  },
-  { immediate: true, deep: true }
-)
+        if (selectedVideos.value.length === 1 && isAlreadySelected) {
+          const videoPlayer = document.getElementById(`video-player`) as HTMLVideoElement
+          if (videoPlayer) {
+            videoPlayer.load()
+            videoPlayer.play().catch((e: Error) => console.error('Error auto-playing video:', e))
+          }
+        }
+      })
+
+      hammerManager.on('press', async () => {
+        isMultipleSelectionMode.value = true
+        if (!selectedVideos.value.some((v) => v.fileName === video.fileName)) {
+          selectedVideos.value.push(video)
+        }
+      })
+
+      hammerInstances.value[video.fileName] = hammerManager
+    }
+  })
+}
+
+// Gestures library (hammer.js) for video selection
+watch(availableVideos, setupVideoHammerListeners, { immediate: true, deep: true })
+
+// Re-setup Hammer.js listeners when switching to the final tab
+watch(currentVideoSubTab, async (newSubTab) => {
+  if (newSubTab === 'processed') {
+    await setupVideoHammerListeners()
+  }
+})
 
 onMounted(async () => {
   await fetchVideosAndLogData()
   await fetchPictures()
+  await fetchChunkGroups()
   if (availableVideos.value.length > 0) {
     await loadVideoBlobIntoPlayer(availableVideos.value[0].fileName)
   }
@@ -1580,17 +2178,15 @@ onBeforeUnmount(() => {
   z-index: 100;
 }
 
-.dialog-frame {
-  display: flex;
-}
-
 .video-modal {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 1100px;
-  height: 500px;
+  width: 860px;
+  height: 650px;
+  min-width: 600px;
+  max-width: 90%;
   border: 1px solid #cbcbcb33;
   border-radius: 12px;
   box-shadow: 0px 4px 4px 0px #0000004c, 0px 8px 12px 6px #00000026;
@@ -1604,37 +2200,6 @@ onBeforeUnmount(() => {
   height: 100%;
   color: #ffffff;
   z-index: 200;
-}
-
-.card-grid {
-  width: 100%;
-  height: 372px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  display: grid;
-  justify-content: center;
-  align-content: start;
-  grid-template-columns: repeat(3, 200px);
-  row-gap: 15px;
-  column-gap: 10px;
-  padding: 5px;
-}
-
-.video-card {
-  border: 1px solid #cbcbcb44;
-  color: white;
-  background-color: #80808085;
-  width: 190px;
-  height: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.video-card-dot {
-  position: absolute;
-  bottom: 0;
-  right: 5px;
 }
 
 .frosted-button {
@@ -1662,28 +2227,6 @@ onBeforeUnmount(() => {
 
 .frosted-button-disabled:hover {
   background: rgba(203, 203, 203, 0.1);
-}
-
-.play-button {
-  position: absolute;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  height: 100%;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: none;
-  border: none;
-  cursor: pointer;
-  opacity: 0.1;
-}
-
-.play-button:hover {
-  opacity: 0.8;
-  transition: all;
-  transition-duration: 0.4s;
 }
 
 .fullscreen-button {
@@ -1748,118 +2291,5 @@ onBeforeUnmount(() => {
   opacity: 1;
   transition: all;
   transition-duration: 0.4s;
-}
-
-.process-button {
-  position: absolute;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: #4f4f4fee;
-  top: 40%;
-  left: 60%;
-  cursor: pointer;
-  opacity: 0.9;
-}
-
-.processing-bar {
-  position: relative;
-  height: 0px;
-  width: 632px;
-  display: flex;
-  flex-direction: row;
-  justify-content: center;
-  align-items: center;
-  bottom: 365px;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  opacity: 0.9;
-}
-
-.checkmark-button {
-  position: absolute;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-radius: 10px;
-  width: 15px;
-  height: 15px;
-  top: 15px;
-  left: 15px;
-  transform: translate(-50%, -50%);
-  border: 1px solid black;
-  cursor: pointer;
-  opacity: 1;
-}
-
-@keyframes flash {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-@keyframes wobble {
-  0% {
-    transform: scale(0);
-  }
-  10% {
-    transform: scale(0.4);
-  }
-  20% {
-    transform: scale(0.8);
-  }
-  30% {
-    transform: scale(1.2);
-  }
-  40% {
-    transform: scale(0.95);
-  }
-  50% {
-    transform: scale(1.2);
-  }
-  60% {
-    transform: scale(0.98);
-  }
-  70% {
-    transform: scale(1.1);
-  }
-  80% {
-    transform: scale(0.99);
-  }
-  90% {
-    transform: scale(1.1);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-.wobble-effect {
-  animation: wobble 1s 1;
-}
-
-@media (max-width: 640px) {
-  .modal {
-    width: 90%;
-    height: 500px;
-  }
-}
-
-@media (min-width: 768px) {
-  .modal {
-    width: 95%;
-    height: 500px;
-  }
-}
-
-@media (min-width: 1024px) {
-  .modal {
-    width: 1200px;
-    height: 500px;
-  }
 }
 </style>
