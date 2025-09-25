@@ -65,41 +65,69 @@ export interface CommonVideoInfo {
   vHeight?: number
 }
 
-/* eslint-disable jsdoc/require-jsdoc  */
-export interface UnprocessedVideoInfo extends CommonVideoInfo {
-  dateFinish: Date | undefined
-  /**
-   * The last date in which the processing was updated.
-   * This is updated as the processing goes on. If there's no update for a long time and the processing didn't finish, it's an indication that the processing failed.
-   * This is undefined when the processing didn't start yet.
-   */
-  dateLastProcessingUpdate: Date | undefined
-}
-
+/**
+ *
+ */
 export interface VideoLibraryFile extends CommonVideoInfo {
+  /**
+   *
+   */
   hash?: string
+  /**
+   *
+   */
   isProcessed: boolean
 }
 
+/**
+ *
+ */
 export interface VideoLibraryLogFile extends CommonVideoInfo {}
 
+/**
+ *
+ */
 export interface VideoProgress {
+  /**
+   *
+   */
   filename: string
+  /**
+   *
+   */
   progress: number
+  /**
+   *
+   */
   message: string
 }
 
+/**
+ *
+ */
 export interface VideoProcessingDetails {
   [fileName: string]: VideoProgress
 }
 
+/**
+ *
+ */
 export interface FileDescriptor {
+  /**
+   *
+   */
   blob: Blob
+  /**
+   *
+   */
   filename: string
 }
 
 export type DownloadProgressCallback = (progress: number, total: number) => Promise<void>
 
+/**
+ *
+ */
 export enum VideoExtensionContainer {
   MKV = 'mkv',
   MP4 = 'mp4',
@@ -118,59 +146,209 @@ export const getBlobExtensionContainer = (blob: Blob): VideoExtensionContainer |
 }
 
 export type WebRTCVideoStats = {
+  /**
+   *
+   */
   id: string
+  /**
+   *
+   */
   timestamp: number
+  /**
+   *
+   */
   type: string
+  /**
+   *
+   */
   codecId: string
+  /**
+   *
+   */
   kind: string
+  /**
+   *
+   */
   mediaType: string
+  /**
+   *
+   */
   ssrc: number
+  /**
+   *
+   */
   transportId: string
+  /**
+   *
+   */
   jitter: number
+  /**
+   *
+   */
   packetsLost: number
+  /**
+   *
+   */
   packetsReceived: number
+  /**
+   *
+   */
   bytesReceived: number
+  /**
+   *
+   */
   firCount: number
+  /**
+   *
+   */
   frameHeight: number
+  /**
+   *
+   */
   frameWidth: number
+  /**
+   *
+   */
   framesAssembledFromMultiplePackets: number
+  /**
+   *
+   */
   framesDecoded: number
+  /**
+   *
+   */
   framesDropped: number
+  /**
+   *
+   */
   framesPerSecond: number
+  /**
+   *
+   */
   framesReceived: number
+  /**
+   *
+   */
   freezeCount: number
+  /**
+   *
+   */
   headerBytesReceived: number
+  /**
+   *
+   */
   jitterBufferDelay: number
+  /**
+   *
+   */
   jitterBufferEmittedCount: number
+  /**
+   *
+   */
   jitterBufferMinimumDelay: number
+  /**
+   *
+   */
   jitterBufferTargetDelay: number
+  /**
+   *
+   */
   keyFramesDecoded: number
+  /**
+   *
+   */
   lastPacketReceivedTimestamp: number
+  /**
+   *
+   */
   mid: string
+  /**
+   *
+   */
   nackCount: number
+  /**
+   *
+   */
   pauseCount: number
+  /**
+   *
+   */
   pliCount: number
+  /**
+   *
+   */
   remoteId: string
+  /**
+   *
+   */
   totalAssemblyTime: number
+  /**
+   *
+   */
   totalDecodeTime: number
+  /**
+   *
+   */
   totalFreezesDuration: number
+  /**
+   *
+   */
   totalInterFrameDelay: number
+  /**
+   *
+   */
   totalPausesDuration: number
+  /**
+   *
+   */
   totalProcessingDelay: number
+  /**
+   *
+   */
   totalSquaredInterFrameDelay: number
+  /**
+   *
+   */
   trackIdentifier: string
+  /**
+   *
+   */
   clockRate: number
+  /**
+   *
+   */
   mimeType: string
+  /**
+   *
+   */
   payloadType: number
+  /**
+   *
+   */
   bitrate: number
+  /**
+   *
+   */
   packetRate: number
 }
 export type WebRTCVideoStat = keyof WebRTCVideoStats
 
 export type WebRTCStatsEvent = {
+  /**
+   *
+   */
   peerId: string
+  /**
+   *
+   */
   data: {
+    /**
+     *
+     */
     video: {
+      /**
+       *
+       */
       inbound: {
         [index: number]: WebRTCVideoStats
       }
@@ -179,6 +357,12 @@ export type WebRTCStatsEvent = {
 }
 
 export type VideoStreamCorrespondency = {
+  /**
+   *
+   */
   name: string
+  /**
+   *
+   */
   externalId: string
 }

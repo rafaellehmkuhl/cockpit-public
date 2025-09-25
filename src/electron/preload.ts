@@ -39,6 +39,64 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   openCockpitFolder: () => ipcRenderer.invoke('open-cockpit-folder'),
   openVideoFolder: () => ipcRenderer.invoke('open-video-folder'),
+  openTempChunksFolder: () => ipcRenderer.invoke('open-temp-chunks-folder'),
+  selectFolder: () => ipcRenderer.invoke('select-folder'),
+  readDirectory: (path: string) => ipcRenderer.invoke('read-directory', path),
+  deleteFile: (path: string) => ipcRenderer.invoke('delete-file', path),
+  openPath: (path: string) => ipcRenderer.invoke('open-path', path),
+  getFileStats: (path: string) => ipcRenderer.invoke('get-file-stats', path),
+  getChunkFileStats: (key: string, subFolders?: string[]) => ipcRenderer.invoke('get-chunk-file-stats', key, subFolders),
+  getDefaultOutputFolder: () => ipcRenderer.invoke('get-default-output-folder'),
+  // FFmpeg native processing
+  // Live video processing
+  createTempDirectory: (prefix: string) => ipcRenderer.invoke('create-temp-directory', prefix),
+  writeBlobToFile: async (blob: Blob, filePath: string) => {
+    const arrayBuffer = await blob.arrayBuffer()
+    return ipcRenderer.invoke('write-blob-to-file', new Uint8Array(arrayBuffer), filePath)
+  },
+  startLiveVideoConcat: (firstChunkPath: string, outputPath: string) =>
+    ipcRenderer.invoke('start-live-video-concat', firstChunkPath, outputPath),
+  appendChunkToLiveConcat: (processId: string, chunkPath: string) =>
+    ipcRenderer.invoke('append-chunk-to-live-concat', processId, chunkPath),
+  finalizeLiveVideoConcat: (processId: string) => ipcRenderer.invoke('finalize-live-video-concat', processId),
+  killLiveVideoConcat: (processId: string) => ipcRenderer.invoke('kill-live-video-concat', processId),
+  removeTempDirectory: (dirPath: string) => ipcRenderer.invoke('remove-temp-directory', dirPath),
+  onLiveVideoProgress: (
+    callback: (data: {
+      /**
+       *
+       */
+      progress: number
+      /**
+       *
+       */
+      message: string
+    }) => void
+  ) => {
+    ipcRenderer.on('live-video-progress', (_event, data) => callback(data))
+  },
+  offLiveVideoProgress: () => {
+    ipcRenderer.removeAllListeners('live-video-progress')
+  },
+  convertWebmToMp4: (webmPath: string, mp4Path: string) => ipcRenderer.invoke('convert-webm-to-mp4', webmPath, mp4Path),
+  onWebmToMp4Progress: (callback: (progress: number, message: string) => void) => {
+    ipcRenderer.on('webm-to-mp4-progress', (_, progress: number, message: string) => {
+      callback(progress, message)
+    })
+  },
+  offWebmToMp4Progress: () => {
+    ipcRenderer.removeAllListeners('webm-to-mp4-progress')
+  },
+  // ZIP Processing
+  processZipFile: (zipFilePath: string, tempDir: string) => ipcRenderer.invoke('process-zip-file', zipFilePath, tempDir),
+  onZipProcessingProgress: (callback: (progress: number, message: string) => void) => {
+    ipcRenderer.on('zip-processing-progress', (_, progress: number, message: string) => {
+      callback(progress, message)
+    })
+  },
+  offZipProcessingProgress: () => {
+    ipcRenderer.removeAllListeners('zip-processing-progress')
+  },
   captureWorkspace: (rect?: Electron.Rectangle) => ipcRenderer.invoke('capture-workspace', rect),
   serialListPorts: () => ipcRenderer.invoke('serial-list-ports'),
   serialOpen: (path: string, baudRate?: number) => ipcRenderer.invoke('serial-open', { path, baudRate }),

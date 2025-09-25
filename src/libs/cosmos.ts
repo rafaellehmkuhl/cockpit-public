@@ -274,6 +274,10 @@ declare global {
        */
       openVideoFolder: () => void
       /**
+       * Open temporary chunks folder
+       */
+      openTempChunksFolder: () => void
+      /**
        * Capture the workspace area of the application
        */
       captureWorkspace(rect?: Electron.Rectangle): Promise<Uint8Array>
@@ -349,6 +353,162 @@ declare global {
          */
         processArch: string
       }>
+      /**
+       * Select a folder using dialog
+       */
+      selectFolder: () => Promise<{
+        /**
+         *
+         */
+        canceled: boolean
+        /**
+         *
+         */
+        filePaths?: string[]
+      }>
+      /**
+       * Read directory contents
+       */
+      readDirectory: (path: string) => Promise<
+        Array<{
+          /**
+           *
+           */
+          name: string
+          /**
+           *
+           */
+          path: string
+          /**
+           *
+           */
+          isDirectory: boolean
+          /**
+           *
+           */
+          size: number
+          /**
+           *
+           */
+          mtime: Date
+        }>
+      >
+      /**
+       * Delete a file
+       */
+      deleteFile: (path: string) => Promise<void>
+      /**
+       * Get file statistics (size, existence, etc.)
+       */
+      getFileStats: (path: string) => Promise<{
+        /**
+         *
+         */
+        exists: boolean
+        /**
+         *
+         */
+        size?: number
+        /**
+         *
+         */
+        mtime?: Date
+        /**
+         *
+         */
+        isDirectory?: boolean
+        /**
+         *
+         */
+        isFile?: boolean
+      }>
+      /**
+       * Open path in system file manager
+       */
+      openPath: (path: string) => Promise<void>
+      /**
+       * Get the default video output folder path
+       */
+      getDefaultOutputFolder: () => Promise<string | null>
+      /**
+       * Create temporary directory for live video processing
+       */
+      createTempDirectory: (prefix: string) => Promise<string>
+      /**
+       * Write blob to file for live processing
+       */
+      writeBlobToFile: (blob: Blob, filePath: string) => Promise<void>
+      /**
+       * Start live video concatenation process
+       */
+      startLiveVideoConcat: (
+        firstChunkPath: string,
+        outputPath: string
+      ) => Promise<{
+        /**
+         *
+         */
+        id: string
+      }>
+      /**
+       * Append chunk to live concatenation
+       */
+      appendChunkToLiveConcat: (processId: string, chunkPath: string) => Promise<void>
+      /**
+       * Finalize live video concatenation
+       */
+      finalizeLiveVideoConcat: (processId: string) => Promise<void>
+      /**
+       * Kill live video concatenation process
+       */
+      killLiveVideoConcat: (processId: string) => Promise<void>
+      /**
+       * Remove temporary directory
+       */
+      removeTempDirectory: (dirPath: string) => Promise<void>
+      /**
+       * Register callback for live video progress events
+       */
+      onLiveVideoProgress: (
+        callback: (data: {
+          /**
+           *
+           */
+          progress: number
+          /**
+           *
+           */
+          message: string
+        }) => void
+      ) => void
+      /**
+       * Remove all live video progress listeners
+       */
+      offLiveVideoProgress: () => void
+      /**
+       * Convert WebM file to MP4 format
+       */
+      convertWebmToMp4: (webmPath: string, mp4Path: string) => Promise<void>
+      /**
+       * On WebM to MP4 progress listener
+       */
+      onWebmToMp4Progress: (callback: (progress: number, message: string) => void) => void
+      /**
+       * Off WebM to MP4 progress listener
+       */
+      offWebmToMp4Progress: () => void
+      /**
+       * Process ZIP file with video chunks
+       */
+      processZipFile: (zipFilePath: string, tempDir: string) => Promise<string>
+      /**
+       * On ZIP processing progress listener
+       */
+      onZipProcessingProgress: (callback: (progress: number, message: string) => void) => void
+      /**
+       * Off ZIP processing progress listener
+       */
+      offZipProcessingProgress: () => void
     }
   }
 }
