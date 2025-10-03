@@ -274,6 +274,68 @@ declare global {
        */
       openVideoFolder: () => void
       /**
+       * Open temporary chunks folder
+       */
+      openVideoChunksFolder: () => void
+      /**
+       * Get file stats for a file
+       * @param pathOrKey - Either a full file path, or a key (filename) if subFolders is provided
+       * @param subFolders - Optional subfolders under cockpit folder (if provided, pathOrKey is treated as a key)
+       */
+      getFileStats: (
+        pathOrKey: string,
+        subFolders?: string[]
+      ) => Promise<{
+        /**
+         * The existence of the file
+         */
+        exists: boolean
+        /**
+         * The size of the file
+         */
+        size?: number
+        /**
+         * The last modified time of the file
+         */
+        mtime?: Date
+        /**
+         * If the file is a directory or not
+         */
+        isDirectory?: boolean
+        /**
+         * If the file is a file or not
+         */
+        isFile?: boolean
+      }>
+      /**
+       * Show file dialog to select a file
+       * @param options - Optional dialog configuration
+       * @returns The selected file path, or null if cancelled
+       */
+      getPathOfSelectedFile: (options?: {
+        /**
+         * The title of the dialog
+         */
+        title?: string
+        /**
+         * The filters of the dialog
+         */
+        filters?: {
+          /**
+           * The name of the filter
+           */
+          name: string
+          /**
+           * The extensions of the filter
+           */
+          extensions: string[]
+        }[]
+        /**
+         * The default path of the dialog
+         */
+        defaultPath?: string
+      }) => Promise<string | null>
+      /**
        * Capture the workspace area of the application
        */
       captureWorkspace(rect?: Electron.Rectangle): Promise<Uint8Array>
@@ -349,6 +411,51 @@ declare global {
          */
         processArch: string
       }>
+      /**
+       * Start live video concatenation process
+       * @param firstChunk - The first video chunk blob
+       * @param recordingHash - Unique identifier for this recording
+       */
+      startLiveVideoConcat: (
+        firstChunk: Blob,
+        recordingHash: string
+      ) => Promise<{
+        /**
+         * The ID of the process
+         */
+        id: string
+      }>
+      /**
+       * Append chunk to live concatenation
+       * @param processId - The ID of the live concatenation process
+       * @param chunk - The video chunk blob to append
+       * @param chunkNumber - Sequential number of this chunk
+       */
+      appendChunkToLiveVideoConcat: (processId: string, chunk: Blob, chunkNumber: number) => Promise<void>
+      /**
+       * Delete chunk
+       * @param hash - The hash of the video chunk to delete
+       * @param chunkNumber - The number of the video chunk to delete
+       */
+      deleteChunk: (hash: string, chunkNumber: number) => Promise<void>
+      /**
+       * Finalize live video concatenation
+       */
+      finalizeLiveVideoConcat: (processId: string) => Promise<void>
+      /**
+       * Process standalone WebM file by creating a concat process and finalizing it
+       * @param videoFileName - The name of the WebM file to process
+       */
+      processStandaloneWebm: (videoFileName: string) => Promise<string>
+      /**
+       * Process ZIP file with video chunks
+       * @param zipFilePath - Path to the ZIP file to process
+       * @param onProgress - Optional callback for progress updates
+       */
+      processVideoChunksZip: (
+        zipFilePath: string,
+        onProgress?: (progress: number, message: string) => void
+      ) => Promise<string>
     }
   }
 }

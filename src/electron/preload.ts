@@ -39,6 +39,59 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   openCockpitFolder: () => ipcRenderer.invoke('open-cockpit-folder'),
   openVideoFolder: () => ipcRenderer.invoke('open-video-folder'),
+  openVideoChunksFolder: () => ipcRenderer.invoke('open-temp-video-chunks-folder'),
+  getFileStats: (pathOrKey: string, subFolders?: string[]) =>
+    ipcRenderer.invoke('get-file-stats', pathOrKey, subFolders),
+  getPathOfSelectedFile: (options?: {
+    /**
+     * The title of the dialog
+     */
+    title?: string
+    /**
+     * The filters of the dialog
+     */
+    filters?: {
+      /**
+       * The name of the filter
+       */
+      name: string
+      /**
+       * The extensions of the filter
+       */
+      extensions: string[]
+    }[]
+    /**
+     * The default path of the dialog
+     */
+    defaultPath?: string
+  }) => ipcRenderer.invoke('get-path-of-selected-file', options),
+  startLiveVideoConcat: async (firstChunk: Blob, recordingHash: string) => {
+    const arrayBuffer = await firstChunk.arrayBuffer()
+    return ipcRenderer.invoke('start-live-video-concat', new Uint8Array(arrayBuffer), recordingHash)
+  },
+  appendChunkToLiveVideoConcat: async (processId: string, chunk: Blob, chunkNumber: number) => {
+    const arrayBuffer = await chunk.arrayBuffer()
+    return ipcRenderer.invoke('append-chunk-to-live-video-concat', processId, new Uint8Array(arrayBuffer), chunkNumber)
+  },
+  finalizeLiveVideoConcat: (processId: string) => ipcRenderer.invoke('finalize-live-video-concat', processId),
+  processStandaloneWebm: (videoFileName: string) => ipcRenderer.invoke('process-standalone-webm', videoFileName),
+  processVideoChunksZip: async (zipFilePath: string, onProgress?: (progress: number, message: string) => void) => {
+    // Set up progress listener if callback provided
+    if (onProgress) {
+      ipcRenderer.on('video-chunks-zip-processing-progress', (_: any, progress: number, message: string) => {
+        onProgress(progress, message)
+      })
+
+      try {
+        return await ipcRenderer.invoke('process-video-chunks-zip', zipFilePath)
+      } finally {
+        // Clean up listener when done
+        ipcRenderer.removeAllListeners('video-chunks-zip-processing-progress')
+      }
+    } else {
+      return ipcRenderer.invoke('process-video-chunks-zip', zipFilePath)
+    }
+  },
   captureWorkspace: (rect?: Electron.Rectangle) => ipcRenderer.invoke('capture-workspace', rect),
   serialListPorts: () => ipcRenderer.invoke('serial-list-ports'),
   serialOpen: (path: string, baudRate?: number) => ipcRenderer.invoke('serial-open', { path, baudRate }),

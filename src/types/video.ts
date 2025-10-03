@@ -1,3 +1,4 @@
+/* eslint-disable jsdoc/require-jsdoc  */
 import { WebRTCManager } from '@/composables/webRTC'
 import type { Stream } from '@/libs/webrtc/signalling_protocol'
 
@@ -33,7 +34,7 @@ export interface StreamData {
 }
 
 /**
- *
+ * Common video information including recording state and metadata
  */
 export interface CommonVideoInfo {
   /**
@@ -63,17 +64,6 @@ export interface CommonVideoInfo {
    *  The height of the video
    */
   vHeight?: number
-}
-
-/* eslint-disable jsdoc/require-jsdoc  */
-export interface UnprocessedVideoInfo extends CommonVideoInfo {
-  dateFinish: Date | undefined
-  /**
-   * The last date in which the processing was updated.
-   * This is updated as the processing goes on. If there's no update for a long time and the processing didn't finish, it's an indication that the processing failed.
-   * This is undefined when the processing didn't start yet.
-   */
-  dateLastProcessingUpdate: Date | undefined
 }
 
 export interface VideoLibraryFile extends CommonVideoInfo {
