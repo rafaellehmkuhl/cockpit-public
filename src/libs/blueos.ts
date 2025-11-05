@@ -15,11 +15,11 @@ interface ExtrasJson {
   /**
    *  The version of the cockpit API that the extra json is compatible with
    */
-  target_cockpit_api_version: string
+  targetCockpitApiVersion: string
   /**
    *  The target system that the extra json is compatible with, in our case, "cockpit"
    */
-  target_system: string
+  targetSystem: string
   /**
    *  A list of widgets that the extra json contains. src/types/widgets.ts
    */
@@ -31,7 +31,7 @@ interface ExtrasJson {
   /**
    * A list of joystick map suggestions offered by the extension.
    */
-  joystick_suggestions?: JoystickMapSuggestion[]
+  joystickSuggestions?: JoystickMapSuggestion[]
 }
 
 /**
@@ -54,11 +54,11 @@ interface Service {
     /**
      * Works in relative paths
      */
-    works_in_relative_paths?: boolean
+    worksInRelativePaths?: boolean
     /**
      * Sanitized name of the service
      */
-    sanitized_name?: string
+    sanitizedName?: string
   }
   /**
    * Port of the service
@@ -111,11 +111,9 @@ export const getKeyDataFromCockpitVehicleStorage = async (
 }
 
 const blueOsServiceUrl = (vehicleAddress: string, service: Service): string => {
-  const worksInRelativePaths = service.metadata?.works_in_relative_paths
-  const sanitizedName = service.metadata?.sanitized_name
   const port = service.port
-  return worksInRelativePaths
-    ? `${protocol}//${vehicleAddress}/extensionv2/${sanitizedName}`
+  return service.metadata?.worksInRelativePaths
+    ? `${protocol}//${vehicleAddress}/extensionv2/${service.metadata?.sanitizedName}`
     : `${protocol}//${vehicleAddress}:${port}`
 }
 
@@ -160,8 +158,8 @@ export const getWidgetsFromBlueOS = async (): Promise<ExternalWidgetSetupInfo[]>
           ...extraJson.widgets.map((widget) => {
             return {
               ...widget,
-              iframe_url: baseUrl + widget.iframe_url,
-              iframe_icon: baseUrl + widget.iframe_icon,
+              iframeUrl: baseUrl + widget.iframeUrl,
+              iframeIcon: baseUrl + widget.iframeIcon,
             }
           })
         )
@@ -198,12 +196,12 @@ export const getActionsFromBlueOS = async (): Promise<ActionsFromExtension[]> =>
       try {
         const extraJson = await getExtrasJsonFromBlueOsService(vehicleStore.globalAddress, service)
         if (extraJson !== null && extraJson.actions) {
-          const extensionName = service.metadata?.sanitized_name || 'Unknown Extension'
+          const extensionName = service.metadata?.sanitizedName || 'Unknown Extension'
 
           actionsFromExtensions.push({ extensionName, actionConfigs: extraJson.actions })
         }
       } catch (error) {
-        console.error(`Could not get actions from BlueOS service ${service.metadata?.sanitized_name}. ${error}`)
+        console.error(`Could not get actions from BlueOS service ${service.metadata?.sanitizedName}. ${error}`)
       }
     })
   )
@@ -226,10 +224,10 @@ export const getJoystickSuggestionsFromBlueOS = async (): Promise<JoystickMapSug
     services.map(async (service) => {
       try {
         const extraJson = await getExtrasJsonFromBlueOsService(vehicleStore.globalAddress, service)
-        if (extraJson !== null && extraJson.joystick_suggestions) {
-          const extensionName = service.metadata?.sanitized_name || 'Unknown Extension'
+        if (extraJson !== null && extraJson.joystickSuggestions) {
+          const extensionName = service.metadata?.sanitizedName || 'Unknown Extension'
 
-          const suggestions: JoystickMapSuggestion[] = extraJson.joystick_suggestions.map((suggestion, index) => ({
+          const suggestions: JoystickMapSuggestion[] = extraJson.joystickSuggestions.map((suggestion, index) => ({
             ...suggestion,
             id: `${extensionName}-${index}-${suggestion.actionProtocol}-${suggestion.actionId}`,
           }))
@@ -241,7 +239,7 @@ export const getJoystickSuggestionsFromBlueOS = async (): Promise<JoystickMapSug
         }
       } catch (error) {
         console.error(
-          `Could not get joystick suggestions from BlueOS service ${service.metadata?.sanitized_name}. ${error}`
+          `Could not get joystick suggestions from BlueOS service ${service.metadata?.sanitizedName}. ${error}`
         )
       }
     })
