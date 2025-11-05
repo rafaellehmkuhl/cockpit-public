@@ -842,7 +842,9 @@ const applyAllSuggestions = (): void => {
 
   // Apply each suggestion
   extensionGroup.suggestions.forEach((suggestion) => {
-    const matchingAction = availableActions.find((action) => action.id === suggestion.actionId)
+    const matchingAction = availableActions.find(
+      (action) => action.id === suggestion.actionId && action.protocol === suggestion.actionProtocol
+    )
     if (matchingAction) {
       // Apply to selected profiles
       selectedProfiles.value.forEach((profileHash) => {
@@ -893,7 +895,10 @@ const applyJoystickSuggestion = (): void => {
 
   // Find a matching action from available actions
   const availableActions = allAvailableButtons()
-  const matchingAction = availableActions.find((action) => action.id === selectedSuggestion.value!.actionId)
+  const matchingAction = availableActions.find(
+    (action) =>
+      action.id === selectedSuggestion.value!.actionId && action.protocol === selectedSuggestion.value!.actionProtocol
+  )
 
   if (!matchingAction) {
     openSnackbar({
