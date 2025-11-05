@@ -235,7 +235,7 @@ export const getJoystickSuggestionsFromBlueOS = async (): Promise<JoystickMapSug
 
           const suggestions: JoystickMapSuggestion[] = extraJson.joystick_suggestions.map((suggestion, index) => ({
             ...suggestion,
-            id: `${extensionName}-${index}-${suggestion.actionName.replace(/\s+/g, '-').toLowerCase()}`,
+            id: `${extensionName}-${index}-${suggestion.actionProtocol}-${suggestion.actionId}`,
           }))
 
           suggestionsMap.set(extensionName, {
