@@ -870,6 +870,9 @@ const allAvailableWidgets = computed(() => {
       isExternal: true,
       options: {
         source: widget.iframeUrl,
+        containerName: widget.collapsedContainerName,
+        startCollapsed: widget.startCollapsed,
+        useVehicleAddressAsBase: widget.useVehicleAddressAsBaseUrl,
       },
     })),
     ...availableInternalWidgets.value.map((widget) => ({
