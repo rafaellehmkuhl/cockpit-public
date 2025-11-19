@@ -386,9 +386,6 @@ watch([zoom, mapCenter], () => {
   if (widget.value.options.showCoordinateGrid && map.value) {
     createGridOverlayLocal()
   }
-  if (showButtons.value && map.value) {
-    createScaleControl()
-  }
 })
 
 // Grid overlay functions using centralized utilities
