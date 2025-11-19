@@ -342,9 +342,10 @@ export const getGridSpacingFromScale = (map: L.Map): number => {
  * Creates a coordinate grid overlay on the provided map
  * @param {L.Map} map - Leaflet map instance
  * @param {L.LayerGroup} gridLayer - Reference to store the grid layer
+ * @param {L.LatLngBounds} bounds - The bounds to create the grid for
  * @returns {L.LayerGroup} The created grid layer
  */
-export const createGridOverlay = (map: L.Map, gridLayer?: L.LayerGroup): L.LayerGroup => {
+export const createGridOverlay = (map: L.Map, gridLayer?: L.LayerGroup, bounds?: L.LatLngBounds): L.LayerGroup => {
   if (!map) throw new Error('Map instance is required')
 
   // Remove existing grid if provided
@@ -352,7 +353,7 @@ export const createGridOverlay = (map: L.Map, gridLayer?: L.LayerGroup): L.Layer
     map.removeLayer(gridLayer as L.Layer)
   }
 
-  const bounds = map.getBounds()
+  const useBounds = bounds || map.getBounds()
 
   // Get grid configuration based on Leaflet scale control
   const spacing = getGridSpacingFromScale(map)
@@ -362,10 +363,10 @@ export const createGridOverlay = (map: L.Map, gridLayer?: L.LayerGroup): L.Layer
   const newGridLayer = L.layerGroup()
 
   // Create grid lines
-  const south = Math.floor(bounds.getSouth() / spacing) * spacing
-  const north = Math.ceil(bounds.getNorth() / spacing) * spacing
-  const west = Math.floor(bounds.getWest() / spacing) * spacing
-  const east = Math.ceil(bounds.getEast() / spacing) * spacing
+  const south = Math.floor(useBounds.getSouth() / spacing) * spacing
+  const north = Math.ceil(useBounds.getNorth() / spacing) * spacing
+  const west = Math.floor(useBounds.getWest() / spacing) * spacing
+  const east = Math.ceil(useBounds.getEast() / spacing) * spacing
 
   // Horizontal lines (latitude)
   for (let lat = south; lat <= north; lat += spacing) {

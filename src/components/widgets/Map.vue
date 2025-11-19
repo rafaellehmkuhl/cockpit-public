@@ -350,6 +350,8 @@ const isMouseOver = useElementHover(mapBase)
 const zoomControl = L.control.zoom({ position: 'bottomright' })
 const layerControl = L.control.layers(baseMaps, overlays)
 const gridLayer = ref<L.LayerGroup | undefined>(undefined)
+const lastGridBounds = ref<L.LatLngBounds | undefined>(undefined)
+const lastGridZoom = ref<number | undefined>(undefined)
 
 watch(showButtons, () => {
   if (map.value === undefined) return
@@ -392,8 +394,27 @@ watch([zoom, mapCenter], () => {
 const createGridOverlayLocal = (): void => {
   if (!map.value) return
 
+  const currentZoom = map.value.getZoom()
+  const currentBounds = map.value.getBounds()
+
+  // Check if we can skip update (if current bounds are within generated bounds and zoom is same)
+  if (
+    gridLayer.value &&
+    lastGridBounds.value &&
+    lastGridZoom.value === currentZoom &&
+    lastGridBounds.value.contains(currentBounds)
+  ) {
+    return
+  }
+
   try {
-    gridLayer.value = createGridOverlay(map.value, gridLayer.value as L.LayerGroup)
+    // Generate grid with a buffer (e.g. 50% larger than current view)
+    // This allows panning without immediately needing to regenerate the grid
+    const paddedBounds = currentBounds.pad(0.5)
+
+    gridLayer.value = createGridOverlay(map.value, gridLayer.value as L.LayerGroup, paddedBounds)
+    lastGridBounds.value = paddedBounds
+    lastGridZoom.value = currentZoom
   } catch (error) {
     console.error('Failed to create grid overlay:', error)
   }
@@ -403,6 +424,8 @@ const removeGridOverlayLocal = (): void => {
   if (gridLayer.value && map.value) {
     map.value.removeLayer(gridLayer.value as L.LayerGroup)
     gridLayer.value = undefined
+    lastGridBounds.value = undefined
+    lastGridZoom.value = undefined
   }
 }
 

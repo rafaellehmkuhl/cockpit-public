@@ -730,6 +730,8 @@ const tilesTotal = ref(0)
 const savingLayerName = ref<string>('')
 const downloadMenuOpen = ref(false)
 const gridLayer = ref<L.LayerGroup | undefined>(undefined)
+const lastGridBounds = ref<L.LatLngBounds | undefined>(undefined)
+const lastGridZoom = ref<number | undefined>(undefined)
 let esriSaveBtn: HTMLAnchorElement | undefined
 let osmSaveBtn: HTMLAnchorElement | undefined
 const nearMissionPathTolerance = 16 // in pixels
@@ -877,8 +879,25 @@ const saveOSM = (): void => {
 const createGridOverlayLocal = (): void => {
   if (!planningMap.value) return
 
+  const currentZoom = planningMap.value.getZoom()
+  const currentBounds = planningMap.value.getBounds()
+
+  // Check if we can skip update
+  if (
+    gridLayer.value &&
+    lastGridBounds.value &&
+    lastGridZoom.value === currentZoom &&
+    lastGridBounds.value.contains(currentBounds)
+  ) {
+    return
+  }
+
   try {
-    gridLayer.value = createGridOverlay(planningMap.value, gridLayer.value as L.LayerGroup)
+    // Generate grid with a buffer
+    const paddedBounds = currentBounds.pad(0.5)
+    gridLayer.value = createGridOverlay(planningMap.value, gridLayer.value as L.LayerGroup, paddedBounds)
+    lastGridBounds.value = paddedBounds
+    lastGridZoom.value = currentZoom
   } catch (error) {
     console.error('Failed to create grid overlay:', error)
   }
@@ -888,6 +907,8 @@ const removeGridOverlayLocal = (): void => {
   if (gridLayer.value && planningMap.value) {
     planningMap.value.removeLayer(gridLayer.value as L.LayerGroup)
     gridLayer.value = undefined
+    lastGridBounds.value = undefined
+    lastGridZoom.value = undefined
   }
 }
 
@@ -3198,9 +3219,6 @@ watch(
 watch([zoom, mapCenter], () => {
   if (missionStore.showGridOnMissionPlanning && planningMap.value) {
     createGridOverlayLocal()
-  }
-  if (planningMap.value) {
-    createScaleControl()
   }
 })
 
