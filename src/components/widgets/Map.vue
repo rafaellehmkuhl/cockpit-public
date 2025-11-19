@@ -180,7 +180,6 @@ import { formatDistanceToNow } from 'date-fns'
 import L, { type LatLngTuple, LeafletMouseEvent, Map } from 'leaflet'
 import { SaveStatus, savetiles, tileLayerOffline } from 'leaflet.offline'
 import {
-  type Ref,
   computed,
   nextTick,
   onBeforeMount,
@@ -188,6 +187,7 @@ import {
   onMounted,
   reactive,
   ref,
+  shallowRef,
   toRefs,
   watch,
 } from 'vue'
@@ -227,7 +227,7 @@ const vehicleStore = useMainVehicleStore()
 const missionStore = useMissionStore()
 
 // Declare the general variables
-const map: Ref<Map | undefined> = ref()
+const map = shallowRef<Map | undefined>()
 const zoom = ref(missionStore.defaultMapZoom)
 const mapCenter = ref<WaypointCoordinates>(missionStore.defaultMapCenter)
 const home = ref()
@@ -278,7 +278,7 @@ const onTouchEnd = (e: TouchEvent): void => {
 }
 
 const poiManagerMapWidgetRef = ref<typeof PoiManager | null>(null)
-const mapWidgetPoiMarkers = ref<{ [id: string]: L.Marker }>({})
+const mapWidgetPoiMarkers = shallowRef<{ [id: string]: L.Marker }>({})
 
 // Register the usage of the coordinate variables for logging
 datalogger.registerUsage(DatalogVariable.latitude)
@@ -349,8 +349,8 @@ const isMouseOver = useElementHover(mapBase)
 
 const zoomControl = L.control.zoom({ position: 'bottomright' })
 const layerControl = L.control.layers(baseMaps, overlays)
-const gridLayer = ref<L.LayerGroup | undefined>(undefined)
-const lastGridBounds = ref<L.LatLngBounds | undefined>(undefined)
+const gridLayer = shallowRef<L.LayerGroup | undefined>(undefined)
+const lastGridBounds = shallowRef<L.LatLngBounds | undefined>(undefined)
 const lastGridZoom = ref<number | undefined>(undefined)
 
 watch(showButtons, () => {
@@ -799,7 +799,7 @@ watch([home, map], async () => {
 })
 
 // Create marker for the vehicle
-const vehicleMarker = ref<L.Marker>()
+const vehicleMarker = shallowRef<L.Marker>()
 watch(vehicleStore.coordinates, () => {
   if (!map.value || !vehiclePosition.value) return
 
@@ -868,7 +868,7 @@ watch([vehiclePosition, vehicleHeading, timeAgoSeenText, () => vehicleStore.isAr
 })
 
 // Create marker for the home position
-const homeMarker = ref<L.Marker>()
+const homeMarker = shallowRef<L.Marker>()
 watch(home, () => {
   if (map.value === undefined) return
 
@@ -900,7 +900,7 @@ watch(home, () => {
 })
 
 // Create polyline for the vehicle path
-const missionWaypointsPolyline = ref<L.Polyline>()
+const missionWaypointsPolyline = shallowRef<L.Polyline>()
 watch(
   mapWaypoints,
   (newWaypoints) => {
@@ -939,7 +939,7 @@ watch(
 )
 
 // Create polyline for the vehicle path
-const vehicleHistoryPolyline = ref<L.Polyline>()
+const vehicleHistoryPolyline = shallowRef<L.Polyline>()
 watch(vehiclePositionHistory, (newPoints) => {
   if (map.value === undefined || newPoints === undefined) return
 
@@ -954,13 +954,13 @@ watch(vehiclePositionHistory, (newPoints) => {
 // Handle context menu toggling and selection
 const contextMenuVisible = ref(false)
 const clickedLocation = ref<[number, number] | null>(null)
-const contextMenuMarker = ref<L.Marker>()
+const contextMenuMarker = shallowRef<L.Marker>()
 
 // Global origin dialog state
 const showGlobalOriginDialog = ref(false)
 const globalOriginLatitude = ref(0)
 const globalOriginLongitude = ref(0)
-const globalOriginMarker = ref<L.Marker>()
+const globalOriginMarker = shallowRef<L.Marker>()
 
 const menuItems = reactive([
   {
@@ -986,7 +986,7 @@ const menuItems = reactive([
   },
 ])
 
-const gotoMarker = ref<L.Marker>()
+const gotoMarker = shallowRef<L.Marker>()
 
 const setDefaultMapPosition = async (): Promise<void> => {
   if (!map.value || !clickedLocation.value) return
