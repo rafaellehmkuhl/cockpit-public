@@ -99,11 +99,13 @@ onMounted((): void => {
   position: static !important;
   margin-bottom: 10px;
   height: fit-content;
-  width: 80vw;
+  width: 100vh;
   display: inline-block;
+  pointer-events: none;
 }
 
 ::v-deep .v-snackbar__wrapper {
   max-width: 1200px !important;
+  pointer-events: auto;
 }
 </style>
