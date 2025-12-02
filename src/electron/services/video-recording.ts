@@ -1,4 +1,4 @@
-import { spawn } from 'child_process'
+import { spawn, ChildProcess } from 'child_process'
 import { ipcMain } from 'electron'
 import { promises as fs } from 'fs'
 import { createWriteStream } from 'fs'
@@ -53,6 +53,78 @@ const writeBlobToFile = async (blobData: Uint8Array, filePath: string): Promise<
 }
 
 /**
+ * Spawn an FFmpeg process for live video recording
+ * @param {string} processId - The ID of the process
+ * @param {string} outputPath - The output path for the video file
+ * @returns {ChildProcess} The spawned FFmpeg process
+ */
+const spawnFFmpegProcess = (processId: string, outputPath: string): ChildProcess => {
+  const ffmpegArgs = [
+    '-f',
+    'webm', // Input format is WebM
+    '-i',
+    'pipe:0', // Read from stdin
+    '-c:v',
+    'copy', // Copy video codec (no re-encoding)
+    '-c:a',
+    'copy', // Copy audio codec (no re-encoding)
+    '-movflags',
+    'frag_keyframe+empty_moov+default_base_moof', // Fragmented MP4 for crash-safety
+    '-fflags',
+    '+genpts', // Generate presentation timestamps
+    '-f',
+    'mp4', // Force MP4 output format
+    '-y', // Overwrite output file if exists
+    outputPath,
+  ]
+
+  const ffmpegPath = getFFmpegPath()
+  const ffmpegProcess = spawn(ffmpegPath, ffmpegArgs)
+
+  // Handle FFmpeg stderr output (for debugging)
+  ffmpegProcess.stderr?.on('data', (data) => {
+    const output = data.toString().trim()
+    // Check for specific error patterns that indicate recording failure
+    if (
+      output.includes('missing picture in access unit') ||
+      output.includes('non-existing PPS') ||
+      output.includes('non-existing SPS') ||
+      output.includes('decode_slice_header error') ||
+      output.includes('no frame!')
+    ) {
+      console.warn(`Detected critical FFmpeg error (${processId}): ${output}`)
+
+      // Check if we are within the retry window (e.g., 10 seconds)
+      const process = activeStreamProcesses.get(processId)
+      if (process && !process.isRetrying && Date.now() - process.creationTime < 10000) {
+        console.warn(`Attempting to retry recording for ${processId}...`)
+        process.isRetrying = true
+        // Kill the current process
+        process.ffmpegProcess.kill('SIGKILL')
+        // We don't delete the state yet, we wait for the next chunk to restart
+      }
+    }
+  })
+
+  // Handle FFmpeg process errors
+  ffmpegProcess.on('error', (error) => {
+    console.error(`FFmpeg process error (${processId}):`, error)
+    activeStreamProcesses.delete(processId)
+  })
+
+  // Handle FFmpeg process exit
+  ffmpegProcess.on('close', (code, signal) => {
+    console.log(`FFmpeg process ${processId} closed with code ${code}, signal ${signal}`)
+    // Only delete if not in retry mode, as retry mode expects to reuse the state
+    if (!activeStreamProcesses.get(processId)?.isRetrying) {
+      activeStreamProcesses.delete(processId)
+    }
+  })
+
+  return ffmpegProcess
+}
+
+/**
  * Start a live video streaming process with FFmpeg
  * @param {Uint8Array} firstChunkData - The first video chunk data
  * @param {string} recordingHash - Unique identifier for this recording
@@ -82,53 +154,7 @@ const startVideoRecording = async (
   console.log(`Output path: ${outputPath}`)
 
   // Spawn FFmpeg with stdin input and fragmented MP4 output
-  const ffmpegArgs = [
-    '-f',
-    'webm', // Input format is WebM
-    '-i',
-    'pipe:0', // Read from stdin
-    '-c:v',
-    'copy', // Copy video codec (no re-encoding)
-    '-c:a',
-    'copy', // Copy audio codec (no re-encoding)
-    '-movflags',
-    'frag_keyframe+empty_moov+default_base_moof', // Fragmented MP4 for crash-safety
-    '-fflags',
-    '+genpts', // Generate presentation timestamps
-    '-f',
-    'mp4', // Force MP4 output format
-    '-y', // Overwrite output file if exists
-    outputPath,
-  ]
-
-  const ffmpegPath = getFFmpegPath()
-  const ffmpegProcess = spawn(ffmpegPath, ffmpegArgs)
-
-  // Handle FFmpeg stderr output (for debugging)
-  ffmpegProcess.stderr?.on('data', (data) => {
-    const output = data.toString().trim()
-    // Filter out common/expected warnings to reduce log noise
-    if (
-      !output.includes('frame=') &&
-      !output.includes('size=') &&
-      !output.includes('time=') &&
-      !output.includes('bitrate=')
-    ) {
-      console.log(`FFmpeg (${processId}):`, output)
-    }
-  })
-
-  // Handle FFmpeg process errors
-  ffmpegProcess.on('error', (error) => {
-    console.error(`FFmpeg process error (${processId}):`, error)
-    activeStreamProcesses.delete(processId)
-  })
-
-  // Handle FFmpeg process exit
-  ffmpegProcess.on('close', (code, signal) => {
-    console.log(`FFmpeg process ${processId} closed with code ${code}, signal ${signal}`)
-    activeStreamProcesses.delete(processId)
-  })
+  const ffmpegProcess = spawnFFmpegProcess(processId, outputPath)
 
   // Save first chunk as backup if enabled
   if (keepChunkBackup) {
@@ -152,6 +178,10 @@ const startVideoRecording = async (
     id: processId,
     ffmpegProcess,
     outputPath,
+    creationTime: Date.now(),
+    isRetrying: false,
+    recordingHash,
+    fileName,
     tempDir,
     isFinalized: false,
     chunkBackupEnabled: keepChunkBackup,
@@ -178,6 +208,31 @@ const appendChunkToVideoRecording = async (
     throw new Error(`Live stream process ${processId} not found or already finalized`)
   }
 
+  // If we are in retry mode, we need to restart the process with this chunk as the first one
+  if (process.isRetrying) {
+    console.log(`Restarting recording for ${processId} with chunk ${chunkNumber} as new start.`)
+
+    const newProcess = spawnFFmpegProcess(processId, process.outputPath)
+
+    // Write the current chunk as the first chunk to the new process
+    if (newProcess.stdin) {
+      newProcess.stdin.write(Buffer.from(chunkData), (err: any) => {
+        if (err) {
+          console.error(`Failed to write first chunk to new FFmpeg stdin (${processId}):`, err)
+        }
+      })
+    } else {
+      throw new Error(`FFmpeg stdin not available for new process ${processId}`)
+    }
+
+    // Update state with the new process
+    process.ffmpegProcess = newProcess
+    process.isRetrying = false
+    // creationTime remains the original start time to enforce the 10s limit
+
+    return
+  }
+
   try {
     // Save chunk as backup if enabled
     if (process.chunkBackupEnabled) {
@@ -188,23 +243,26 @@ const appendChunkToVideoRecording = async (
     // Write chunk directly to FFmpeg stdin
     if (process.ffmpegProcess.stdin && !process.ffmpegProcess.stdin.destroyed) {
       return new Promise((resolve, reject) => {
-        process.ffmpegProcess.stdin!.write(Buffer.from(chunkData), (err) => {
+        process.ffmpegProcess.stdin!.write(Buffer.from(chunkData), (err: any) => {
           if (err) {
             // Check if error is EPIPE (FFmpeg exited)
             if (err.message.includes('EPIPE')) {
-              console.error(`FFmpeg process ${processId} has exited, cannot write chunk ${chunkNumber}`)
-              reject(new Error(`FFmpeg process exited unexpectedly`))
-            } else {
-              console.error(`Failed to write chunk ${chunkNumber} to FFmpeg stdin (${processId}):`, err)
-              reject(err)
+              console.warn(`FFmpeg process ${processId} stdin closed (EPIPE). Ignoring chunk ${chunkNumber}.`)
+              resolve()
+              return
             }
+            reject(err)
           } else {
             resolve()
           }
         })
       })
     } else {
-      throw new Error(`FFmpeg stdin not available or destroyed for process ${processId}`)
+      // If stdin is not available or destroyed, it means FFmpeg has likely exited.
+      // We should not throw here, but rather let the process handle it via 'close' or 'error' events.
+      // If this happens, it means a chunk was sent after the process was already gone.
+      console.warn(`FFmpeg stdin not available or destroyed for process ${processId}. Ignoring chunk ${chunkNumber}.`)
+      return Promise.resolve()
     }
   } catch (error) {
     console.error(`Failed to append chunk to live stream process ${processId}:`, error)

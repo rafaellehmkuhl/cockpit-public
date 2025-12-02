@@ -93,7 +93,7 @@ export interface VideoLibraryFile extends CommonVideoInfo {
   isProcessed: boolean
 }
 
-export interface VideoLibraryLogFile extends CommonVideoInfo {}
+export interface VideoLibraryLogFile extends CommonVideoInfo { }
 
 export interface VideoProgress {
   filename: string
@@ -284,6 +284,22 @@ export interface LiveStreamProcess {
    * Whether to save raw chunk backups during streaming
    */
   chunkBackupEnabled: boolean
+  /**
+   * Whether the process is currently on the "try to start" loop
+   */
+  isRetrying: boolean
+  /**
+   * Timestamp when the process was created
+   */
+  creationTime: number
+  /**
+   * The hash of the recording
+   */
+  recordingHash: string
+  /**
+   * The name of the video file
+   */
+  fileName: string
 }
 
 /**
