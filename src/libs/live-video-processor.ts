@@ -1,3 +1,4 @@
+import { analyzeChunkForNALUnits } from '@/libs/h264-analyzer'
 import { isElectron } from '@/libs/utils'
 import type { VideoChunkQueueItem, ZipExtractionResult } from '@/types/video'
 import { videoSubtitlesFilename } from '@/utils/video'
@@ -87,6 +88,27 @@ export class LiveVideoProcessor {
       console.warn('Attempted to add chunk to inactive live processor')
       return
     }
+
+    // Analyze chunk for NAL units
+    const analysis = await analyzeChunkForNALUnits(chunkBlob)
+
+    // Log analysis results
+    if (analysis.hasIDR) {
+      const idrWithParams = analysis.hasSPS && analysis.hasPPS
+      console.log(
+        `[Chunk ${chunkNumber}] Format: ${analysis.format} | Contains IDR frame | SPS: ${
+          analysis.hasSPS ? '✓' : '✗'
+        } | PPS: ${analysis.hasPPS ? '✓' : '✗'}${idrWithParams ? ' (complete)' : ' (incomplete)'}`
+      )
+    } else {
+      console.log(`[Chunk ${chunkNumber}] Format: ${analysis.format} | No IDR frame detected`)
+    }
+
+    // Log all detected NAL units for debugging
+    // if (analysis.nalUnits.length > 0) {
+    //   const nalSummary = analysis.nalUnits.map((nal) => nal.typeName).join(', ')
+    //   console.log(`[Chunk ${chunkNumber}] NAL units: ${nalSummary}`)
+    // }
 
     // Add chunk to processing queue
     this.chunkQueue.push({ blob: chunkBlob, chunkNumber })

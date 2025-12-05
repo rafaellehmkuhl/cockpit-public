@@ -266,8 +266,9 @@ export interface LiveStreamProcess {
   id: string
   /**
    * The FFmpeg child process handling the stream
+   * Can be undefined if the process hasn't started yet (buffering phase)
    */
-  ffmpegProcess: ChildProcess
+  ffmpegProcess?: ChildProcess
   /**
    * Full path to the output MP4 file
    */
@@ -284,6 +285,14 @@ export interface LiveStreamProcess {
    * Whether to save raw chunk backups during streaming
    */
   chunkBackupEnabled: boolean
+  /**
+   * Whether the FFmpeg process has been started
+   */
+  isStarted: boolean
+  /**
+   * Buffer of initial chunks to accumulate before starting FFmpeg
+   */
+  initialBuffer: Uint8Array[]
 }
 
 /**

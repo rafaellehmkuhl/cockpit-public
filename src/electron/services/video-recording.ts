@@ -60,29 +60,26 @@ const writeBlobToFile = async (blobData: Uint8Array, filePath: string): Promise<
  * @param {boolean} keepChunkBackup - Whether to keep raw chunks as backup (default: true)
  * @returns {Promise<LiveConcatProcessResult>} Promise that resolves to the process information
  */
-const startVideoRecording = async (
-  firstChunkData: Uint8Array,
-  recordingHash: string,
-  fileName: string,
-  keepChunkBackup = true
-): Promise<LiveConcatProcessResult> => {
-  const processId = uuid()
+/**
+ * Spawn FFmpeg process for an active stream
+ * @param {LiveStreamProcess} streamProcess - The active stream process
+ */
+const spawnFfmpegProcess = (streamProcess: LiveStreamProcess): void => {
+  const { id, outputPath } = streamProcess
 
-  // Create temporary directory for chunk backups (if enabled)
-  const tempDir = await createTempDirectory(`cockpit_video_recording_${recordingHash}`)
-
-  // Get video folder path and construct output path
-  const videosPath = join(cockpitFolderPath, 'videos')
-  await fs.mkdir(videosPath, { recursive: true })
-
-  // Output directly as MP4 with fragmented format
-  const outputPath = join(videosPath, fileName)
-
-  console.log(`Starting live FFmpeg streaming process ${processId}`)
+  console.log(`Starting live FFmpeg streaming process ${id}`)
   console.log(`Output path: ${outputPath}`)
 
   // Spawn FFmpeg with stdin input and fragmented MP4 output
+  // Using -probesize and -analyzeduration to ensure robust start with buffered chunks
   const ffmpegArgs = [
+    '-hide_banner',
+    '-loglevel',
+    'info',
+    '-probesize',
+    '100M', // 100MB probe size
+    '-analyzeduration',
+    '10M', // 10 seconds analysis
     '-f',
     'webm', // Input format is WebM
     '-i',
@@ -104,6 +101,9 @@ const startVideoRecording = async (
   const ffmpegPath = getFFmpegPath()
   const ffmpegProcess = spawn(ffmpegPath, ffmpegArgs)
 
+  streamProcess.ffmpegProcess = ffmpegProcess
+  streamProcess.isStarted = true
+
   // Handle FFmpeg stderr output (for debugging)
   ffmpegProcess.stderr?.on('data', (data) => {
     const output = data.toString().trim()
@@ -114,21 +114,48 @@ const startVideoRecording = async (
       !output.includes('time=') &&
       !output.includes('bitrate=')
     ) {
-      console.log(`FFmpeg (${processId}):`, output)
+      console.log(`FFmpeg (${id}):`, output)
     }
   })
 
   // Handle FFmpeg process errors
   ffmpegProcess.on('error', (error) => {
-    console.error(`FFmpeg process error (${processId}):`, error)
-    activeStreamProcesses.delete(processId)
+    console.error(`FFmpeg process error (${id}):`, error)
+    activeStreamProcesses.delete(id)
   })
 
   // Handle FFmpeg process exit
   ffmpegProcess.on('close', (code, signal) => {
-    console.log(`FFmpeg process ${processId} closed with code ${code}, signal ${signal}`)
-    activeStreamProcesses.delete(processId)
+    console.log(`FFmpeg process ${id} closed with code ${code}, signal ${signal}`)
+    activeStreamProcesses.delete(id)
   })
+}
+
+/**
+ * Start a live video streaming process with FFmpeg
+ * @param {Uint8Array} firstChunkData - The first video chunk data
+ * @param {string} recordingHash - Unique identifier for this recording
+ * @param {string} fileName - The name of the video file
+ * @param {boolean} keepChunkBackup - Whether to keep raw chunks as backup (default: true)
+ * @returns {Promise<LiveConcatProcessResult>} Promise that resolves to the process information
+ */
+const startVideoRecording = async (
+  firstChunkData: Uint8Array,
+  recordingHash: string,
+  fileName: string,
+  keepChunkBackup = true
+): Promise<LiveConcatProcessResult> => {
+  const processId = uuid()
+
+  // Create temporary directory for chunk backups (if enabled)
+  const tempDir = await createTempDirectory(`cockpit_video_recording_${recordingHash}`)
+
+  // Get video folder path and construct output path
+  const videosPath = join(cockpitFolderPath, 'videos')
+  await fs.mkdir(videosPath, { recursive: true })
+
+  // Output directly as MP4 with fragmented format
+  const outputPath = join(videosPath, fileName)
 
   // Save first chunk as backup if enabled
   if (keepChunkBackup) {
@@ -136,28 +163,21 @@ const startVideoRecording = async (
     await writeBlobToFile(firstChunkData, firstChunkPath)
   }
 
-  // Write first chunk to FFmpeg stdin
-  if (ffmpegProcess.stdin) {
-    ffmpegProcess.stdin.write(Buffer.from(firstChunkData), (err) => {
-      if (err) {
-        console.error(`Failed to write first chunk to FFmpeg stdin (${processId}):`, err)
-      }
-    })
-  } else {
-    throw new Error(`FFmpeg stdin not available for process ${processId}`)
-  }
-
-  // Store process information
+  // Store process information - initially NOT started (buffering phase)
   const streamProcess: LiveStreamProcess = {
     id: processId,
-    ffmpegProcess,
+    ffmpegProcess: undefined,
     outputPath,
     tempDir,
     isFinalized: false,
     chunkBackupEnabled: keepChunkBackup,
+    isStarted: false,
+    initialBuffer: [firstChunkData],
   }
 
   activeStreamProcesses.set(processId, streamProcess)
+
+  console.log(`Initialized video recording process ${processId} (buffering phase)`)
 
   return { id: processId, outputPath }
 }
@@ -185,26 +205,48 @@ const appendChunkToVideoRecording = async (
       await writeBlobToFile(chunkData, chunkPath)
     }
 
-    // Write chunk directly to FFmpeg stdin
-    if (process.ffmpegProcess.stdin && !process.ffmpegProcess.stdin.destroyed) {
-      return new Promise((resolve, reject) => {
-        process.ffmpegProcess.stdin!.write(Buffer.from(chunkData), (err) => {
-          if (err) {
-            // Check if error is EPIPE (FFmpeg exited)
-            if (err.message.includes('EPIPE')) {
-              console.error(`FFmpeg process ${processId} has exited, cannot write chunk ${chunkNumber}`)
-              reject(new Error(`FFmpeg process exited unexpectedly`))
-            } else {
-              console.error(`Failed to write chunk ${chunkNumber} to FFmpeg stdin (${processId}):`, err)
-              reject(err)
-            }
-          } else {
-            resolve()
+    if (!process.isStarted) {
+      // Buffering phase
+      process.initialBuffer.push(chunkData)
+
+      // Check if we have enough chunks (e.g., 10 chunks = 10 seconds)
+      if (process.initialBuffer.length >= 10) {
+        console.log(`Buffering complete for ${processId} (${process.initialBuffer.length} chunks), starting FFmpeg...`)
+        spawnFfmpegProcess(process)
+
+        // Write all buffered chunks
+        if (process.ffmpegProcess?.stdin) {
+          for (const buf of process.initialBuffer) {
+            process.ffmpegProcess.stdin.write(Buffer.from(buf))
           }
-        })
-      })
+          // Clear buffer to free memory
+          process.initialBuffer = []
+        } else {
+          throw new Error(`FFmpeg stdin not available for process ${processId} after spawn`)
+        }
+      }
     } else {
-      throw new Error(`FFmpeg stdin not available or destroyed for process ${processId}`)
+      // Streaming phase - write directly to FFmpeg
+      if (process.ffmpegProcess?.stdin && !process.ffmpegProcess.stdin.destroyed) {
+        return new Promise((resolve, reject) => {
+          process.ffmpegProcess!.stdin!.write(Buffer.from(chunkData), (err) => {
+            if (err) {
+              // Check if error is EPIPE (FFmpeg exited)
+              if (err.message.includes('EPIPE')) {
+                console.error(`FFmpeg process ${processId} has exited, cannot write chunk ${chunkNumber}`)
+                reject(new Error(`FFmpeg process exited unexpectedly`))
+              } else {
+                console.error(`Failed to write chunk ${chunkNumber} to FFmpeg stdin (${processId}):`, err)
+                reject(err)
+              }
+            } else {
+              resolve()
+            }
+          })
+        })
+      } else {
+        throw new Error(`FFmpeg stdin not available or destroyed for process ${processId}`)
+      }
     }
   } catch (error) {
     console.error(`Failed to append chunk to live stream process ${processId}:`, error)
@@ -231,8 +273,20 @@ const finalizeVideoRecording = async (processId: string): Promise<void> => {
   try {
     console.log(`Finalizing live stream process ${processId}`)
 
+    if (!process.isStarted) {
+      console.log(`Process ${processId} finalized before buffering complete. Spawning FFmpeg now.`)
+      // If we never started (short recording), start now to process what we have
+      spawnFfmpegProcess(process)
+      if (process.ffmpegProcess?.stdin) {
+        for (const buf of process.initialBuffer) {
+          process.ffmpegProcess.stdin.write(Buffer.from(buf))
+        }
+        process.initialBuffer = []
+      }
+    }
+
     // Close FFmpeg stdin to signal end of input
-    if (process.ffmpegProcess.stdin && !process.ffmpegProcess.stdin.destroyed) {
+    if (process.ffmpegProcess?.stdin && !process.ffmpegProcess.stdin.destroyed) {
       process.ffmpegProcess.stdin.end()
       console.log(`Closed FFmpeg stdin for process ${processId}`)
     }
@@ -241,8 +295,14 @@ const finalizeVideoRecording = async (processId: string): Promise<void> => {
     return new Promise((resolve, reject) => {
       const timeoutMs = 60000 // 1 minute timeout for finalization
 
+      // If process is not started or doesn't exist (shouldn't happen due to logic above), resolve
+      if (!process.ffmpegProcess) {
+        resolve()
+        return
+      }
+
       const timeout = setTimeout(() => {
-        if (process.ffmpegProcess.killed || process.ffmpegProcess.exitCode !== null) return
+        if (!process.ffmpegProcess || process.ffmpegProcess.killed || process.ffmpegProcess.exitCode !== null) return
 
         console.error(`FFmpeg finalization timeout for process ${processId}`)
         try {
