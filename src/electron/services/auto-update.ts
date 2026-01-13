@@ -1,7 +1,7 @@
 import { BrowserWindow, ipcMain } from 'electron'
 import electronUpdater, { type AppUpdater } from 'electron-updater'
 
-import { PlatformUtils } from '../../types/platform'
+import { Architecture, Platform } from '../../types/platform'
 import { getSystemInfo } from './system-info'
 
 /**
@@ -11,15 +11,16 @@ import { getSystemInfo } from './system-info'
 export const setupAutoUpdater = (mainWindow: BrowserWindow): void => {
   const systemInfo = getSystemInfo()
 
-  // Skip auto-updates for ARM64 Macs to prevent downloading wrong architecture
-  if (PlatformUtils.isArm64Mac(systemInfo.platform, systemInfo.arch)) {
-    console.log('Skipping auto-updater setup on ARM64 Mac to prevent architecture mismatch issues')
-    return
-  }
-
   const autoUpdater: AppUpdater = electronUpdater.autoUpdater
   autoUpdater.logger = console
   autoUpdater.autoDownload = false // Prevent automatic downloads
+
+  // On macOS ARM64, use the arm64 channel to download the correct architecture
+  // The channel name determines the metadata file: 'arm64' -> 'latest-mac-arm64.yml'
+  if (systemInfo.platform === Platform.MACOS && systemInfo.processArch === Architecture.ARM64) {
+    autoUpdater.channel = 'arm64'
+    console.log('Set auto-updater channel to arm64 for macOS ARM64')
+  }
 
   autoUpdater
     .checkForUpdates()
