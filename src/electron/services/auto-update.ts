@@ -15,11 +15,11 @@ export const setupAutoUpdater = (mainWindow: BrowserWindow): void => {
   autoUpdater.logger = console
   autoUpdater.autoDownload = false // Prevent automatic downloads
 
-  // On macOS ARM64, use the arm64 channel to download the correct architecture
-  // The channel name determines the metadata file: 'arm64' -> 'latest-mac-arm64.yml'
+  // On macOS ARM64, use the latest-arm64 channel to download the correct architecture
+  // The channel name determines the metadata file: 'latest-arm64' -> 'latest-arm64-mac.yml'
   if (systemInfo.platform === Platform.MACOS && systemInfo.processArch === Architecture.ARM64) {
-    autoUpdater.channel = 'arm64'
-    console.log('Set auto-updater channel to arm64 for macOS ARM64')
+    autoUpdater.channel = 'latest-arm64'
+    console.log('Set auto-updater channel to latest-arm64 for macOS ARM64')
   }
 
   autoUpdater
