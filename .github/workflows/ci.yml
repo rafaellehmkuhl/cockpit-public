@@ -211,11 +211,13 @@ jobs:
           # Only rename if the generic name exists.
           if [ -f dist/latest-mac.yml ]; then mv dist/latest-mac.yml dist/latest-mac-arm64.yml; fi
 
-      - name: Upload binary artifact
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Cockpit-${{ matrix.suffix }}-${{ matrix.arch }}-${{ env.VERSION }}.${{ matrix.extension }}
-          path: dist/Cockpit-${{ matrix.suffix }}-${{ matrix.arch }}-${{ env.VERSION }}.${{ matrix.extension }}
+          name: Artifacts uploading for ${{ matrix.suffix }} (${{ matrix.arch }})
+          path: |
+            dist/Cockpit-${{ matrix.suffix }}-${{ matrix.arch }}-${{ env.VERSION }}.${{ matrix.extension }}
+            dist/Cockpit-${{ matrix.suffix }}-${{ matrix.arch }}-${{ env.VERSION }}.${{ matrix.extension }}.blockmap
           if-no-files-found: error
 
       - name: Upload binary release
@@ -312,8 +314,11 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Cockpit-${{ matrix.suffix }}-${{ matrix.arch }}-${{ env.VERSION }}.${{ matrix.extension }}
-          path: dist/Cockpit-${{ matrix.suffix }}-${{ matrix.arch }}-${{ env.VERSION }}.${{ matrix.extension }}
+          name: Artifacts uploading for flatpak
+          path: |
+            dist/*.${{ matrix.extension }}
+            dist/*.yml
+            dist/*.blockmap
           if-no-files-found: error
 
       - name: Upload Release
