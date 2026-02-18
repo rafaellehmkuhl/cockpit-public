@@ -425,6 +425,52 @@ declare global {
        */
       finalizeVideoRecording: (processId: string) => Promise<void>
       /**
+       * Start an RTSP preview process for Electron video playback.
+       * @param rtspUrl - Full RTSP URL, including optional credentials.
+       */
+      startRtspPreview: (rtspUrl: string) => Promise<{
+        /**
+         *
+         */
+        id: string
+        /**
+         *
+         */
+        url: string
+      }>
+      /**
+       * Stop an RTSP preview process.
+       * @param processId - The ID of the RTSP preview process.
+       */
+      stopRtspPreview: (processId: string) => Promise<void>
+      /**
+       * Start recording on an existing RTSP preview stream.
+       * Restarts FFmpeg with dual output (preview + MP4 file) using a single RTSP connection.
+       * @param processId - The ID of the running RTSP preview process.
+       * @param fileName - Output filename in Cockpit videos directory.
+       * @returns {Promise<{outputPath: string}>} The full path to the recording file
+       */
+      startRtspRecording: (
+        processId: string,
+        fileName: string
+      ) => Promise<{
+        /**
+         * The full output path of the video file
+         */
+        outputPath: string
+      }>
+      /**
+       * Stop recording on an RTSP stream, finalize the MP4, generate a thumbnail, and restart preview.
+       * @param processId - The ID of the RTSP stream process.
+       * @returns {Promise<{outputPath: string | undefined}>} The path to the finished recording
+       */
+      stopRtspRecording: (processId: string) => Promise<{
+        /**
+         * The full output path of the finished recording, or undefined if not recording
+         */
+        outputPath: string | undefined
+      }>
+      /**
        * Extract video chunks from ZIP file
        * @param zipFilePath - Path to the ZIP file
        * @returns Promise resolving to extraction result with chunk paths and metadata

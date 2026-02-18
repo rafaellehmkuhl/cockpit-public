@@ -156,7 +156,7 @@ function update(): void {
 watch(videoStore.activeStreams, (streams): void => {
   Object.keys(streams).forEach((streamName) => {
     if (streamName !== props.streamName) return
-    const session = streams[streamName]?.webRtcManager.session
+    const session = streams[streamName]?.webRtcManager?.session
     if (!session || !session.peerConnection) return
     if (webrtcStats.peersToMonitor[session.consumerId]) return
     webrtcStats.addConnection({

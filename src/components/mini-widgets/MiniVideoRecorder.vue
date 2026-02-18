@@ -282,7 +282,8 @@ const startRecording = (): void => {
     return
   }
 
-  if (!videoStore.getStreamData(selectedExternalId.value)?.connected) {
+  const streamProtocol = videoStore.getStreamProtocol(selectedExternalId.value)
+  if (streamProtocol === 'webrtc' && !videoStore.getStreamData(selectedExternalId.value)?.connected) {
     showDialog({ title: 'Cannot start recording.', message: 'Stream is not connected.', variant: 'error' })
     return
   }
@@ -311,6 +312,13 @@ const timePassedString = computed(() => {
 
 const updateCurrentStream = async (internalStreamName: string | undefined): Promise<void> => {
   assertStreamIsSelectedAndAvailable(internalStreamName)
+
+  const externalId = internalStreamName ? videoStore.externalStreamId(internalStreamName) : undefined
+  if (externalId && videoStore.getStreamProtocol(externalId) === 'rtsp') {
+    miniWidget.value.options.internalStreamName = internalStreamName
+    isLoadingStream.value = false
+    return
+  }
 
   mediaStream.value = undefined
   isLoadingStream.value = true

@@ -14,7 +14,7 @@ export interface StreamData {
   /**
    * The responsible for its management
    */
-  webRtcManager: WebRTCManager
+  webRtcManager?: WebRTCManager
   /**
    * MediaStream object, if WebRTC stream is chosen
    */
@@ -28,6 +28,18 @@ export interface StreamData {
    * MediaRecorder object for that stream
    */
   mediaRecorder: MediaRecorder | undefined
+  /**
+   * RTSP preview stream URL (Electron-only), if stream protocol is RTSP.
+   */
+  rtspPreviewUrl?: string
+  /**
+   * RTSP stream process id (Electron-only). Used for both preview and recording.
+   */
+  rtspPreviewId?: string
+  /**
+   * Output path for an active RTSP recording (Electron-only). Undefined when not recording.
+   */
+  rtspRecordingOutputPath?: string
   /**
    * Date object with info on when a recording was started, if so
    */
@@ -189,7 +201,11 @@ export type WebRTCStatsEvent = {
 export type VideoStreamCorrespondency = {
   name: string
   externalId: string
+  protocol?: VideoStreamProtocol
+  rtspUrl?: string
 }
+
+export type VideoStreamProtocol = 'webrtc' | 'rtsp'
 
 export type FilesToZip = {
   file: FileDescriptor

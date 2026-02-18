@@ -58,7 +58,11 @@
                     <td>
                       <div class="flex items-center justify-center">
                         <ScrollingText
-                          :text="getStreamInfo(item.externalId)?.sourceName || 'Unknown'"
+                          :text="
+                            videoStore.getStreamProtocol(item.externalId) === 'rtsp'
+                              ? 'Direct RTSP'
+                              : getStreamInfo(item.externalId)?.sourceName || 'Unknown'
+                          "
                           max-width="120px"
                           class="text-sm text-gray-300"
                         />
@@ -129,6 +133,26 @@
                 <span v-if="ignoredStreamExternalIds.length > 0" class="text-gray-400 text-sm ml-2">
                   ({{ ignoredStreamExternalIds.length }} ignored)
                 </span>
+              </div>
+              <div v-if="isElectron()" class="mt-4 mr-2 mb-2 w-[95%]">
+                <div class="text-sm text-gray-300 mb-2">Add direct RTSP stream (Standalone)</div>
+                <div class="flex items-end gap-2 w-full">
+                  <v-text-field
+                    v-model="rtspUrlInput"
+                    label="RTSP URL"
+                    placeholder="rtsp://user:password@camera-ip:554/stream"
+                    density="compact"
+                    variant="outlined"
+                    class="flex-1 min-w-0"
+                    hide-details
+                    @keyup.enter="addRtspStream"
+                    @input="rtspInputError = ''"
+                  />
+                  <v-btn color="primary" variant="flat" class="shrink-0 mb-[3px]" @click="addRtspStream">Add</v-btn>
+                </div>
+                <div v-if="rtspInputError" class="text-red-300 text-sm mt-2">
+                  {{ rtspInputError }}
+                </div>
               </div>
             </div>
           </template>
@@ -445,6 +469,8 @@ const unavailableStreamId = ref('')
 const showIgnoredStreams = ref(false)
 const streamInformation = ref<ProcessedStreamInfo[]>([])
 let fetchInterval: ReturnType<typeof setInterval> | null = null
+const rtspUrlInput = ref('')
+const rtspInputError = ref('')
 
 const streamsToShow = computed(() => {
   return [
@@ -483,6 +509,20 @@ const cancelEditDialog = (): void => {
 
 const deleteStream = (item: VideoStreamCorrespondency): void => {
   videoStore.deleteStreamCorrespondency(item.externalId)
+}
+
+const addRtspStream = (): void => {
+  try {
+    rtspInputError.value = ''
+    if (!rtspUrlInput.value.trim()) {
+      rtspInputError.value = 'Please provide an RTSP URL.'
+      return
+    }
+    videoStore.addRtspStreamCorrespondency(rtspUrlInput.value.trim())
+    rtspUrlInput.value = ''
+  } catch (error) {
+    rtspInputError.value = (error as Error).message
+  }
 }
 
 const restoreIgnoredStream = (externalId: string): void => {
@@ -542,11 +582,18 @@ const stopStreamInfoFetching = (): void => {
 }
 
 const getStreamInfo = (externalId: string): ProcessedStreamInfo | undefined => {
+  if (videoStore.getStreamProtocol(externalId) === 'rtsp') return undefined
   return streamInformation.value.find((info) => info.name === externalId)
 }
 
 // eslint-disable-next-line
 const getStreamStatus = (externalId: string): { status: 'Available' | 'Unavailable' | 'Offline' | 'Unknown'; icon: string; color: string } => {
+  if (videoStore.getStreamProtocol(externalId) === 'rtsp') {
+    return isElectron()
+      ? { status: 'Available', icon: 'mdi-check-circle', color: '#297e1944' }
+      : { status: 'Unavailable', icon: 'mdi-close-circle', color: '#ff000044' }
+  }
+
   const isInAvailableList = videoStore.namesAvailableStreams.includes(externalId)
   const streamInfo = getStreamInfo(externalId)
   const isRunning = streamInfo?.running ?? false

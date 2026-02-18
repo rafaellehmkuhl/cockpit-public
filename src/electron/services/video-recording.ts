@@ -1,7 +1,11 @@
+import type { ChildProcess } from 'child_process'
 import { spawn } from 'child_process'
 import { ipcMain } from 'electron'
 import { promises as fs } from 'fs'
 import { createWriteStream } from 'fs'
+import type { ServerResponse } from 'http'
+import { createServer as createHttpServer } from 'http'
+import { createServer } from 'net'
 import { tmpdir } from 'os'
 import { basename, dirname, join } from 'path'
 import { pipeline } from 'stream'
@@ -32,6 +36,65 @@ import { cockpitFolderPath, filesystemStorage } from './storage'
 const activeStreamProcesses = new Map<string, LiveStreamProcess>()
 
 /**
+ *
+ */
+interface RtspStreamState {
+  /**
+   *
+   */
+  processId: string
+  /**
+   *
+   */
+  rtspUrl: string
+  /**
+   *
+   */
+  ffmpegProcess: ChildProcess
+  /**
+   *
+   */
+  httpServer: ReturnType<typeof createHttpServer>
+  /**
+   *
+   */
+  port: number
+  /**
+   *
+   */
+  clients: Set<ServerResponse>
+  /**
+   *
+   */
+  latestFrame: Buffer | null
+  /**
+   *
+   */
+  frameBuffer: Buffer
+  /**
+   *
+   */
+  broadcastInterval: ReturnType<typeof setInterval>
+  /**
+   *
+   */
+  isRecording: boolean
+  /**
+   *
+   */
+  recordingOutputPath?: string
+  /**
+   *
+   */
+  intentionalRestart: boolean
+}
+
+const activeRtspStreams = new Map<string, RtspStreamState>()
+const JPEG_SOI = Buffer.from([0xff, 0xd8])
+const JPEG_EOI = Buffer.from([0xff, 0xd9])
+const MJPEG_BOUNDARY = 'cockpitframe'
+
+/**
  * Create a temporary directory for live video processing
  * @param {string} prefix - Prefix for the directory name
  * @returns {Promise<string>} Promise that resolves to the directory path
@@ -50,6 +113,23 @@ const createTempDirectory = async (prefix: string): Promise<string> => {
 const writeBlobToFile = async (blobData: Uint8Array, filePath: string): Promise<void> => {
   await fs.mkdir(dirname(filePath), { recursive: true })
   await fs.writeFile(filePath, blobData)
+}
+
+const getFreeTcpPort = async (): Promise<number> => {
+  return await new Promise((resolve, reject) => {
+    const server = createServer()
+    server.unref()
+    server.on('error', reject)
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address()
+      if (!address || typeof address === 'string') {
+        server.close(() => reject(new Error('Could not allocate a free TCP port.')))
+        return
+      }
+      const { port } = address
+      server.close(() => resolve(port))
+    })
+  })
 }
 
 /**
@@ -321,6 +401,324 @@ const finalizeVideoRecording = async (processId: string): Promise<void> => {
     activeStreamProcesses.delete(processId)
     throw error
   }
+}
+
+/**
+ * Build FFmpeg arguments for an RTSP stream.
+ * Produces MJPEG preview on stdout, and optionally records to an MP4 file.
+ * @param {string} rtspUrl - RTSP URL to connect to
+ * @param {string} [recordingOutputPath] - If provided, also record the original stream to this MP4 path
+ * @returns {string[]} FFmpeg argument array
+ */
+const buildRtspFfmpegArgs = (rtspUrl: string, recordingOutputPath?: string): string[] => {
+  const args: string[] = [
+    '-y',
+    '-rtsp_transport',
+    'tcp',
+    '-i',
+    rtspUrl,
+    '-map',
+    '0:v',
+    '-an',
+    '-q:v',
+    '5',
+    '-r',
+    '20',
+    '-f',
+    'mjpeg',
+    'pipe:1',
+  ]
+  if (recordingOutputPath) {
+    args.push(
+      '-map',
+      '0:v',
+      '-c:v',
+      'copy',
+      '-movflags',
+      'frag_keyframe+empty_moov+default_base_moof',
+      '-f',
+      'mp4',
+      recordingOutputPath
+    )
+  }
+  return args
+}
+
+/**
+ * Gracefully kill a child process with SIGINT, falling back to SIGKILL after a timeout.
+ * @param {ChildProcess} proc - The process to kill
+ * @param {number} [timeoutMs=5000] - Milliseconds to wait before SIGKILL
+ * @returns {Promise<void>}
+ */
+const gracefulKillProcess = async (proc: ChildProcess, timeoutMs = 5000): Promise<void> => {
+  if (proc.killed || proc.exitCode !== null) return
+  return new Promise<void>((resolve) => {
+    const killTimeout = setTimeout(() => {
+      if (!proc.killed && proc.exitCode === null) {
+        console.warn('FFmpeg did not exit gracefully, sending SIGKILL')
+        proc.kill('SIGKILL')
+      }
+    }, timeoutMs)
+    proc.once('close', () => {
+      clearTimeout(killTimeout)
+      resolve()
+    })
+    proc.kill('SIGINT')
+  })
+}
+
+/**
+ * Spawn an FFmpeg process for an RTSP stream state and wire up stdout parsing + auto-reconnect.
+ * @param {RtspStreamState} state - The managed RTSP stream state
+ * @param {string} [recordingOutputPath] - If provided, also record to this path
+ */
+const spawnRtspFfmpeg = (state: RtspStreamState, recordingOutputPath?: string): void => {
+  state.isRecording = !!recordingOutputPath
+  state.recordingOutputPath = recordingOutputPath
+  state.frameBuffer = Buffer.alloc(0)
+
+  const ffmpegPath = getFFmpegPath()
+  const args = buildRtspFfmpegArgs(state.rtspUrl, recordingOutputPath)
+  const ffmpegProcess = spawn(ffmpegPath, args)
+  state.ffmpegProcess = ffmpegProcess
+
+  ffmpegProcess.stdout?.on('data', (chunk: Buffer) => {
+    state.frameBuffer = Buffer.concat([state.frameBuffer, chunk] as any)
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const soiIndex = state.frameBuffer.indexOf(JPEG_SOI as any)
+      if (soiIndex === -1) break
+      const eoiIndex = state.frameBuffer.indexOf(JPEG_EOI as any, soiIndex + 2)
+      if (eoiIndex === -1) break
+      state.latestFrame = Buffer.from(state.frameBuffer.subarray(soiIndex, eoiIndex + 2) as any)
+      state.frameBuffer = state.frameBuffer.subarray(eoiIndex + 2)
+    }
+    if (state.frameBuffer.length > 10 * 1024 * 1024) {
+      state.frameBuffer = Buffer.alloc(0)
+    }
+  })
+
+  ffmpegProcess.stderr?.on('data', (data) => {
+    const output = data.toString().trim()
+    if (!output.includes('frame=') && !output.includes('fps=') && !output.includes('size=')) {
+      console.log(`RTSP FFmpeg (${state.processId}):`, output)
+    }
+  })
+
+  ffmpegProcess.on('error', (error) => {
+    console.error(`RTSP FFmpeg process error (${state.processId}):`, error)
+  })
+
+  ffmpegProcess.on('close', (code, signal) => {
+    console.log(`RTSP FFmpeg (${state.processId}) closed: code=${code}, signal=${signal}`)
+    if (!state.intentionalRestart && activeRtspStreams.has(state.processId)) {
+      console.log(`RTSP stream ${state.processId} died unexpectedly, reconnecting in 3s...`)
+      setTimeout(() => {
+        if (!activeRtspStreams.has(state.processId) || state.intentionalRestart) return
+        console.log(`Reconnecting RTSP stream ${state.processId}...`)
+        spawnRtspFfmpeg(state, state.isRecording ? state.recordingOutputPath : undefined)
+      }, 3000)
+    }
+  })
+}
+
+/**
+ * Start an RTSP preview stream: spawns FFmpeg, creates an MJPEG HTTP server, waits for the first frame.
+ * @param {string} rtspUrl - The RTSP URL to stream from
+ * @returns {Promise<{id: string, url: string}>} The process ID and the preview HTTP URL
+ */
+const startRtspPreview = async (
+  rtspUrl: string
+): Promise<{
+  /**
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc *
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+   */
+  id: string
+  /**
+iiiiiiiiiiii *
+iiiiiiiiiiii
+   */
+  url: string
+}> => {
+  const processId = uuid()
+  const port = await getFreeTcpPort()
+
+  const state: RtspStreamState = {
+    processId,
+    rtspUrl,
+    ffmpegProcess: undefined as unknown as ChildProcess,
+    httpServer: undefined as unknown as ReturnType<typeof createHttpServer>,
+    port,
+    clients: new Set(),
+    latestFrame: null,
+    frameBuffer: Buffer.alloc(0),
+    broadcastInterval: undefined as unknown as ReturnType<typeof setInterval>,
+    isRecording: false,
+    intentionalRestart: true,
+  }
+
+  const httpServer = createHttpServer((_req, res) => {
+    res.writeHead(200, {
+      'Content-Type': `multipart/x-mixed-replace; boundary=${MJPEG_BOUNDARY}`,
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Connection': 'keep-alive',
+    })
+    state.clients.add(res)
+    _req.on('close', () => state.clients.delete(res))
+  })
+  state.httpServer = httpServer
+
+  state.broadcastInterval = setInterval(() => {
+    if (!state.latestFrame || state.clients.size === 0) return
+    const frame = state.latestFrame
+    const header = `--${MJPEG_BOUNDARY}\r\nContent-Type: image/jpeg\r\nContent-Length: ${frame.length}\r\n\r\n`
+    for (const client of state.clients) {
+      try {
+        client.write(header)
+        client.write(frame)
+        client.write('\r\n')
+      } catch {
+        state.clients.delete(client)
+      }
+    }
+  }, 50)
+
+  await new Promise<void>((resolve, reject) => {
+    httpServer.on('error', reject)
+    httpServer.listen(port, '127.0.0.1', () => resolve())
+  })
+
+  spawnRtspFfmpeg(state)
+  activeRtspStreams.set(processId, state)
+
+  const url = `http://127.0.0.1:${port}`
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Timed out waiting for first RTSP frame (15s)')), 15000)
+      const check = setInterval(() => {
+        if (state.latestFrame) {
+          clearTimeout(timeout)
+          clearInterval(check)
+          resolve()
+        }
+      }, 100)
+      state.ffmpegProcess.once('close', (code) => {
+        if (!state.latestFrame) {
+          clearTimeout(timeout)
+          clearInterval(check)
+          reject(new Error(`FFmpeg exited with code ${code} before producing frames`))
+        }
+      })
+    })
+    state.intentionalRestart = false
+  } catch (error) {
+    await stopRtspPreview(processId)
+    throw error
+  }
+
+  return { id: processId, url }
+}
+
+/**
+ * Stop an RTSP preview stream: kills FFmpeg, closes the HTTP server, cleans up state.
+ * @param {string} processId - The process ID returned by startRtspPreview
+ * @returns {Promise<void>}
+ */
+const stopRtspPreview = async (processId: string): Promise<void> => {
+  const state = activeRtspStreams.get(processId)
+  if (!state) return
+
+  state.intentionalRestart = true
+  activeRtspStreams.delete(processId)
+
+  clearInterval(state.broadcastInterval)
+  for (const client of state.clients) {
+    try {
+      client.end()
+    } catch {
+      /* client already closed */
+    }
+  }
+  state.clients.clear()
+  state.httpServer.close()
+
+  await gracefulKillProcess(state.ffmpegProcess)
+}
+
+/**
+ * Start recording on an existing RTSP stream by restarting FFmpeg with a dual output (preview + MP4 file).
+ * @param {string} processId - The process ID of the running preview stream
+ * @param {string} fileName - Output filename inside Cockpit's videos directory
+ * @returns {Promise<{outputPath: string}>} The full path to the recording file
+ */
+const startRtspRecording = async (
+  processId: string,
+  fileName: string
+): Promise<{
+  /**
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc *
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+   */
+  outputPath: string
+}> => {
+  const state = activeRtspStreams.get(processId)
+  if (!state) throw new Error(`RTSP stream ${processId} not found`)
+  if (state.isRecording) throw new Error(`RTSP stream ${processId} is already recording`)
+
+  const videosPath = join(cockpitFolderPath, 'videos')
+  await fs.mkdir(videosPath, { recursive: true })
+  const outputPath = join(videosPath, fileName)
+
+  state.intentionalRestart = true
+  await gracefulKillProcess(state.ffmpegProcess)
+  state.intentionalRestart = false
+  spawnRtspFfmpeg(state, outputPath)
+
+  return { outputPath }
+}
+
+/**
+ * Stop recording on an RTSP stream: gracefully stops FFmpeg (finalizing the MP4), generates a thumbnail,
+ * stores it in the database, then restarts FFmpeg with preview only.
+ * @param {string} processId - The process ID of the recording stream
+ * @returns {Promise<{outputPath: string | undefined}>} The output path of the finished recording
+ */
+const stopRtspRecording = async (
+  processId: string
+): Promise<{
+  /**
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc *
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+   */
+  outputPath: string | undefined
+}> => {
+  const state = activeRtspStreams.get(processId)
+  if (!state || !state.isRecording || !state.recordingOutputPath) return { outputPath: undefined }
+
+  const outputPath = state.recordingOutputPath
+
+  state.intentionalRestart = true
+  await gracefulKillProcess(state.ffmpegProcess)
+
+  try {
+    const videoFileName = basename(outputPath)
+    const thumbnailFileName = videoThumbnailFilename(videoFileName)
+    const tempThumbnailPath = join(dirname(outputPath), `temp_${thumbnailFileName}`)
+    await generateThumbnailFromMP4(outputPath, tempThumbnailPath, 1)
+    const thumbnailBuffer = await fs.readFile(tempThumbnailPath)
+    await filesystemStorage.setItem(thumbnailFileName, thumbnailBuffer as any, ['videos'])
+    await fs.unlink(tempThumbnailPath)
+    console.log(`RTSP recording thumbnail generated: ${thumbnailFileName}`)
+  } catch (error) {
+    console.warn('Failed to generate thumbnail for RTSP recording:', error)
+  }
+
+  state.intentionalRestart = false
+  spawnRtspFfmpeg(state)
+
+  return { outputPath }
 }
 
 /**
@@ -799,6 +1197,42 @@ export const setupVideoRecordingService = (): void => {
       return zipFilePath
     } catch (error) {
       console.error('Error creating video chunks ZIP:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('start-rtsp-preview', async (_, rtspUrl: string) => {
+    try {
+      return await startRtspPreview(rtspUrl)
+    } catch (error) {
+      console.error('Error starting RTSP preview:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('stop-rtsp-preview', async (_, processId: string) => {
+    try {
+      await stopRtspPreview(processId)
+    } catch (error) {
+      console.error('Error stopping RTSP preview:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('start-rtsp-recording', async (_, processId: string, fileName: string) => {
+    try {
+      return await startRtspRecording(processId, fileName)
+    } catch (error) {
+      console.error('Error starting RTSP recording:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('stop-rtsp-recording', async (_, processId: string) => {
+    try {
+      return await stopRtspRecording(processId)
+    } catch (error) {
+      console.error('Error stopping RTSP recording:', error)
       throw error
     }
   })

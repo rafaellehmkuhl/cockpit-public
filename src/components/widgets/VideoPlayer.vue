@@ -53,9 +53,24 @@
         </v-btn>
       </div>
     </Transition>
-    <video id="mainDisplayStream" ref="videoElement" muted autoplay playsinline disablePictureInPicture>
+    <video
+      v-if="!isRtspStreamSelected"
+      id="mainDisplayStream"
+      ref="videoElement"
+      muted
+      autoplay
+      playsinline
+      disablePictureInPicture
+    >
       Your browser does not support the video tag.
     </video>
+    <img
+      v-else-if="rtspPreviewUrl"
+      :src="rtspPreviewUrl"
+      class="rtsp-preview"
+      @load="onRtspPreviewLoad"
+      @error="onRtspPreviewError"
+    />
   </div>
   <v-dialog v-model="widgetStore.widgetManagerVars(widget.hash).configMenuOpen" width="auto">
     <v-card class="pa-4 text-white" style="border-radius: 15px" :style="interfaceStore.globalGlassMenuStyles">
@@ -151,6 +166,7 @@ const widget = toRefs(props).widget
 const nameSelectedStream = ref<string | undefined>()
 const videoElement = ref<HTMLVideoElement | undefined>()
 const mediaStream = ref<MediaStream | undefined>()
+const rtspPreviewUrl = ref<string | undefined>()
 const streamConnected = ref(false)
 const showVerboseLoadingTemporary = ref(false)
 const videoPlaying = ref(false)
@@ -174,6 +190,11 @@ onBeforeMount(() => {
 
 const externalStreamId = computed(() => {
   return nameSelectedStream.value ? videoStore.externalStreamId(nameSelectedStream.value) : undefined
+})
+
+const isRtspStreamSelected = computed(() => {
+  if (!externalStreamId.value) return false
+  return videoStore.getStreamProtocol(externalStreamId.value) === 'rtsp'
 })
 
 watch(
@@ -207,17 +228,26 @@ const streamConnectionRoutine = setInterval(() => {
   }
 
   if (externalStreamId.value !== undefined) {
-    const updatedMediaStream = videoStore.getMediaStream(externalStreamId.value)
-    // If the widget is not connected to the MediaStream, try to connect it
-    // Use reference comparison for MediaStream objects, not deep equality, as the media stream can be the same with one
-    // or more attributes having changed.
-    if (updatedMediaStream !== mediaStream.value) {
-      mediaStream.value = updatedMediaStream
-    }
+    if (isRtspStreamSelected.value) {
+      const updatedRtspUrl = videoStore.getRtspPreviewUrl(externalStreamId.value)
+      if (updatedRtspUrl !== rtspPreviewUrl.value) {
+        rtspPreviewUrl.value = updatedRtspUrl
+      }
+      streamConnected.value = updatedRtspUrl !== undefined
+      videoPlaying.value = updatedRtspUrl !== undefined
+    } else {
+      const updatedMediaStream = videoStore.getMediaStream(externalStreamId.value)
+      // If the widget is not connected to the MediaStream, try to connect it
+      // Use reference comparison for MediaStream objects, not deep equality, as the media stream can be the same with one
+      // or more attributes having changed.
+      if (updatedMediaStream !== mediaStream.value) {
+        mediaStream.value = updatedMediaStream
+      }
 
-    const updatedStreamState = videoStore.getStreamData(externalStreamId.value)?.connected ?? false
-    if (updatedStreamState !== streamConnected.value) {
-      streamConnected.value = updatedStreamState
+      const updatedStreamState = videoStore.getStreamData(externalStreamId.value)?.connected ?? false
+      if (updatedStreamState !== streamConnected.value) {
+        streamConnected.value = updatedStreamState
+      }
     }
   }
 
@@ -237,12 +267,14 @@ onBeforeUnmount(() => {
 watch(nameSelectedStream, () => {
   widget.value.options.internalStreamName = nameSelectedStream.value
   mediaStream.value = undefined
+  rtspPreviewUrl.value = undefined
   videoPlaying.value = false
   showSuccessState.value = false
   if (successTimeoutId) clearTimeout(successTimeoutId)
 })
 
 watch(mediaStream, () => {
+  if (isRtspStreamSelected.value) return
   if (!videoElement.value || !mediaStream.value) {
     videoPlaying.value = false
     showSuccessState.value = false
@@ -268,6 +300,20 @@ watch(mediaStream, () => {
     })
 })
 
+const onRtspPreviewLoad = (): void => {
+  videoPlaying.value = true
+  showSuccessState.value = true
+  if (successTimeoutId) clearTimeout(successTimeoutId)
+  successTimeoutId = setTimeout(() => {
+    showSuccessState.value = false
+  }, 1000)
+}
+
+const onRtspPreviewError = (): void => {
+  videoPlaying.value = false
+  showSuccessState.value = false
+}
+
 const rotateVideo = (angle: number): void => {
   widget.value.options.rotationAngle += angle
 }
@@ -286,18 +332,20 @@ const transformStyle = computed(() => {
 
 const serverStatus = computed(() => {
   if (externalStreamId.value === undefined) return 'Unknown.'
-  return videoStore.getStreamData(externalStreamId.value)?.webRtcManager.signallerStatus ?? 'Unknown.'
+  if (isRtspStreamSelected.value) return 'Direct RTSP (Electron)'
+  return videoStore.getStreamData(externalStreamId.value)?.webRtcManager?.signallerStatus ?? 'Unknown.'
 })
 
 const streamStatus = computed(() => {
   if (externalStreamId.value === undefined) return 'Unknown.'
+  if (isRtspStreamSelected.value) return 'Using direct RTSP stream.'
 
   const availableSources = videoStore.availableIceIps
   if (!availableSources.isEmpty() && !availableSources.find((ip) => videoStore.allowedIceIps.includes(ip))) {
     return `Stream is coming from IPs [${availableSources.join(', ')}], which are not in the list of allowed sources
       [${videoStore.allowedIceIps.join(', ')}].\\n Please check your configuration.`
   }
-  return videoStore.getStreamData(externalStreamId.value)?.webRtcManager.streamStatus ?? 'Unknown.'
+  return videoStore.getStreamData(externalStreamId.value)?.webRtcManager?.streamStatus ?? 'Unknown.'
 })
 
 const shouldShowVerboseLoading = computed(() => {
@@ -335,6 +383,14 @@ const toggleVerboseLoading = (): void => {
   transform: v-bind('transformStyle');
 }
 video {
+  height: 100%;
+  width: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  object-fit: v-bind('widget.options.videoFitStyle');
+}
+.rtsp-preview {
   height: 100%;
   width: 100%;
   position: absolute;
