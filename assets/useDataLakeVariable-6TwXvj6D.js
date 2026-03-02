@@ -1,0 +1,1 @@
+import{r as u,w as c,j as b,aM as f,ag as v,ac as s}from"./index-DzLSK8n1.js";function m(l,V){const i=u(void 0);let e,t;const r=a=>{i.value=a},o=a=>{if(e&&t&&(s(t,e),e=void 0),t=a,!a){i.value=void 0;return}const n=f(a);n!==void 0&&r(n),e=v(a,r)};return c(l,a=>o(a),{immediate:!0}),b(()=>{e&&t&&s(t,e)}),{value:i}}export{m as u};
