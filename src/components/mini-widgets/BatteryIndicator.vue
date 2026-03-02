@@ -200,9 +200,9 @@ import { useDebounce } from '@vueuse/core'
 import { computed, onBeforeMount, onUnmounted, ref, toRefs, watch } from 'vue'
 
 import { defaultBatteryLevelColorScheme, defaultBatteryLevelThresholds } from '@/assets/defaults'
+import { useDataLakeVariable } from '@/composables/useDataLakeVariable'
 import { datalogger, DatalogVariable } from '@/libs/sensors-logging'
 import { useAppInterfaceStore } from '@/stores/appInterface'
-import { useMainVehicleStore } from '@/stores/mainVehicle'
 import { useWidgetManagerStore } from '@/stores/widgetManager'
 import { BatteryLevel, BatteryLevelThresholds } from '@/types/general'
 import type { MiniWidget } from '@/types/widgets'
@@ -222,9 +222,11 @@ const defaultOptions = {
   showCurrent: true,
   showPower: true,
   toggleInterval: 1000,
+  voltageVariableId: '/mavlink/1/1/SYS_STATUS/voltage_battery',
+  currentVariableId: '/mavlink/1/1/SYS_STATUS/current_battery',
+  remainingVariableId: '/mavlink/1/1/SYS_STATUS/battery_remaining',
 }
 
-const store = useMainVehicleStore()
 const widgetStore = useWidgetManagerStore()
 const interfaceStore = useAppInterfaceStore()
 
@@ -241,7 +243,27 @@ miniWidget.value.options.batteryThresholds ??= Object.assign({}, defaultBatteryL
 
 const batteryThresholds = computed<BatteryLevelThresholds>(() => miniWidget.value.options.batteryThresholds)
 
-const rawVoltage = computed<number | null>(() => store?.powerSupply?.voltage ?? null)
+const { value: rawVoltageFromDL } = useDataLakeVariable(() => miniWidget.value.options.voltageVariableId)
+const { value: rawCurrentFromDL } = useDataLakeVariable(() => miniWidget.value.options.currentVariableId)
+const { value: rawRemainingFromDL } = useDataLakeVariable(() => miniWidget.value.options.remainingVariableId)
+
+const rawVoltage = computed<number | null>(() => {
+  if (rawVoltageFromDL.value === undefined) return null
+  return (rawVoltageFromDL.value as number) / 1000
+})
+
+const current = computed<number | undefined>(() => {
+  const raw = rawCurrentFromDL.value as number | undefined
+  if (raw === undefined || raw === -1) return undefined
+  return raw / 100
+})
+
+const remaining = computed<number | undefined>(() => {
+  const raw = rawRemainingFromDL.value as number | undefined
+  if (raw === undefined || raw === -1) return undefined
+  return raw
+})
+
 // Keeps a stable voltage reading for 4 seconds to avoid rapid battery level changes
 const debouncedVoltage = useDebounce(rawVoltage, 4000)
 
@@ -251,7 +273,6 @@ const currentBatteryLevel = computed<BatteryLevel>(() => {
   if (voltage == null) return 'unknown'
 
   const { critical, low, medium, high } = batteryThresholds.value
-
   if (voltage >= high) return 'high'
   if (voltage >= medium) return 'medium'
   if (voltage >= low) return 'low'
@@ -266,26 +287,27 @@ const currentBatteryColor = computed(() => {
 })
 
 const voltageDisplayValue = computed(() => {
-  if (store?.powerSupply?.voltage === undefined) return '--'
-  return Math.abs(store.powerSupply.voltage) >= 100
-    ? store.powerSupply.voltage.toFixed(0)
-    : store.powerSupply.voltage.toFixed(1)
+  if (rawVoltage.value === null) return '--'
+  return Math.abs(rawVoltage.value) >= 100 ? rawVoltage.value.toFixed(0) : rawVoltage.value.toFixed(1)
 })
 
 const currentDisplayValue = computed(() => {
-  if (store?.powerSupply?.current === undefined) return '--'
-  return Math.abs(store.powerSupply.current) >= 100
-    ? store.powerSupply.current.toFixed(0)
-    : store.powerSupply.current.toFixed(1)
+  if (current.value === undefined) return '--'
+  return Math.abs(current.value) >= 100 ? current.value.toFixed(0) : current.value.toFixed(1)
+})
+
+const instantaneousWatts = computed<number | undefined>(() => {
+  if (rawVoltage.value === null || current.value === undefined) return undefined
+  return rawVoltage.value * current.value
 })
 
 const instantaneousWattsDisplayValue = computed(() => {
-  return store.instantaneousWatts !== undefined ? store.instantaneousWatts.toFixed(1) : '--'
+  return instantaneousWatts.value !== undefined ? instantaneousWatts.value.toFixed(1) : '--'
 })
 
 const remainingDisplayValue = computed(() => {
-  if (store?.powerSupply?.remaining === undefined) return -1
-  return Math.abs(store.powerSupply.remaining) > 100 ? 100 : store.powerSupply.remaining
+  if (remaining.value === undefined) return -1
+  return Math.abs(remaining.value) > 100 ? 100 : remaining.value
 })
 
 const setupToggleInterval = (): void => {
