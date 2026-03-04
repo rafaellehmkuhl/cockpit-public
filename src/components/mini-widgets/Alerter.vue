@@ -1,5 +1,5 @@
 <template>
-  <div ref="currentAlertBar" class="flex" :class="{ 'pointer-events-none': widgetStore.editingMode }">
+  <div ref="currentAlertBar" class="flex items-center" :class="{ 'pointer-events-none': widgetStore.editingMode }">
     <div
       class="mx-1 my-1.5 w-[500px] rounded-md"
       :class="{ 'alert-border-blink': shouldBlinkBorder }"
@@ -38,8 +38,9 @@
       v-if="isShowingExpandedAlerts || lockAlertsOpened"
       icon="mdi-arrow-vertical-lock"
       variant="text"
-      :color="lockAlertsOpened ? 'orange ' : 'white'"
-      class="-mr-8 -ml-4 mt-[2px] bg-transparent"
+      size="small"
+      :color="lockAlertsOpened ? 'orange' : 'white'"
+      class="ml-1 bg-transparent"
       @click="toggleExpandedAlertLock()"
     ></v-btn>
   </div>
