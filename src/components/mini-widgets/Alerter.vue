@@ -13,7 +13,7 @@
       </div>
       <div
         ref="expandedAlertsBar"
-        class="expanded-alerts-bar absolute left-0 right-0 p-2 transition-all rounded top-12 max-h-[30vh] overflow-y-auto text-slate-50 scrollbar-hide bg-slate-800/75 select-none flex flex-col"
+        class="expanded-alerts-bar absolute left-0 right-0 p-2 transition-all rounded top-14 max-h-[30vh] overflow-y-auto text-slate-50 scrollbar-hide bg-slate-800/75 select-none flex flex-col"
         :class="{ 'opacity-0 invisible': !isShowingExpandedAlerts }"
       >
         <div v-for="(alert, i) in sortedAlertsReversed" :key="alert.time_created.toISOString()">
