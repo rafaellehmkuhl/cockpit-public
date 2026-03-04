@@ -1,5 +1,5 @@
 <template>
-  <div ref="currentAlertBar" class="flex items-center" :class="{ 'pointer-events-none': widgetStore.editingMode }">
+  <div ref="currentAlertBar" class="flex" :class="{ 'pointer-events-none': widgetStore.editingMode }">
     <div
       class="relative mx-1 my-1.5 w-[500px] rounded-md"
       :class="{ 'alert-border-blink': shouldBlinkBorder }"
@@ -13,40 +13,46 @@
       </div>
       <div
         ref="expandedAlertsBar"
-        class="expanded-alerts-bar absolute left-0 right-0 p-2 transition-all rounded max-h-[30vh] overflow-y-auto text-slate-50 scrollbar-hide bg-slate-800/75 select-none flex flex-col"
+        class="expanded-alerts-bar absolute left-0 right-0 transition-all rounded bg-slate-800/75 select-none flex flex-col max-h-[30vh]"
+        style="border: 1px solid #94a3b866"
         :class="{
           'opacity-0 invisible': !isShowingExpandedAlerts,
           'top-14': !shouldExpandUpward,
           'bottom-14': shouldExpandUpward,
         }"
       >
-        <div v-for="(alert, i) in sortedAlertsReversed" :key="alert.time_created.toISOString()">
-          <div
-            :title="alert.message"
-            class="flex items-center justify-between whitespace-nowrap"
-            :style="alertRowHighlightStyle(alert.level)"
-          >
-            <p class="mx-1 overflow-hidden text-lg font-medium leading-none text-ellipsis">{{ alert.message }}</p>
+        <div class="p-2 overflow-y-auto text-slate-50 scrollbar-hide flex flex-col">
+          <div v-for="(alert, i) in sortedAlertsReversed" :key="alert.time_created.toISOString()">
             <div
-              class="flex flex-col justify-center mx-1 font-mono text-xs font-semibold leading-3 text-right text-gray-100"
+              :title="alert.message"
+              class="flex items-center justify-between whitespace-nowrap"
+              :style="alertRowHighlightStyle(alert.level)"
             >
-              <p>{{ formattedDate(alert.time_created || new Date()) }}</p>
-              <p :style="{ color: alertLevelColors[alert.level] }">{{ alert.level.toUpperCase() }}</p>
+              <p class="mx-1 overflow-hidden text-lg font-medium leading-none text-ellipsis">{{ alert.message }}</p>
+              <div
+                class="flex flex-col justify-center mx-1 font-mono text-xs font-semibold leading-3 text-right text-gray-100"
+              >
+                <p>{{ formattedDate(alert.time_created || new Date()) }}</p>
+                <p :style="{ color: alertLevelColors[alert.level] }">{{ alert.level.toUpperCase() }}</p>
+              </div>
             </div>
+            <div v-if="i !== alertStore.alerts.length - 1" class="h-px mx-1 mb-2 bg-slate-50/30" />
           </div>
-          <div v-if="i !== alertStore.alerts.length - 1" class="h-px mx-1 mb-2 bg-slate-50/30" />
+        </div>
+        <div
+          class="flex items-center justify-center py-0.5 cursor-pointer hover:brightness-125 transition-all"
+          style="border-top: 1px solid #94a3b866; background-color: #94a3b866"
+          @click="toggleExpandedAlertLock()"
+        >
+          <v-icon
+            icon="mdi-arrow-vertical-lock"
+            size="x-small"
+            class="lock-icon transition-colors"
+            :class="lockAlertsOpened ? 'text-amber-400' : 'text-slate-400 hover:text-slate-200'"
+          />
         </div>
       </div>
     </div>
-    <v-btn
-      v-if="isShowingExpandedAlerts || lockAlertsOpened"
-      icon="mdi-arrow-vertical-lock"
-      variant="text"
-      size="small"
-      :color="lockAlertsOpened ? 'orange' : 'white'"
-      class="ml-1 bg-transparent"
-      @click="toggleExpandedAlertLock()"
-    ></v-btn>
   </div>
 
   <InteractionDialog
