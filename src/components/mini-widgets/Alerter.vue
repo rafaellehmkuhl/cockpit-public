@@ -31,7 +31,7 @@
               class="flex flex-col justify-center mx-1 font-mono text-xs font-semibold leading-3 text-right text-gray-100"
             >
               <p>{{ formattedDate(alert.time_created || new Date()) }}</p>
-              <p>{{ alert.level.toUpperCase() }}</p>
+              <p :style="{ color: alertLevelColors[alert.level] }">{{ alert.level.toUpperCase() }}</p>
             </div>
           </div>
           <div v-if="i !== alertStore.alerts.length - 1" class="h-px mx-1 mb-2 bg-slate-50/30" />
