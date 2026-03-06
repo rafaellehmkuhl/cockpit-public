@@ -3,12 +3,10 @@
     <v-tooltip :text="widgetStore.editingMode ? 'Exit edit mode' : 'Enter edit mode'" location="bottom">
       <template #activator="{ props: tooltipProps }">
         <div v-bind="tooltipProps" class="relative cursor-pointer mr-2 scale-75" @click="toggleEditMode">
-          <FontAwesomeIcon icon="fa-solid fa-pencil" size="xl" class="text-white mb-1" />
-          <FontAwesomeIcon
-            :icon="widgetStore.editingMode ? 'fa-square-caret-down' : 'fa-square-caret-up'"
-            size="lg"
-            class="absolute right-[2px] mt-[13px] -mr-2"
-          />
+          <v-icon class="text-white mb-1">mdi-pencil</v-icon>
+          <v-icon size="small" class="absolute right-[2px] mt-[13px] -mr-2">{{
+            widgetStore.editingMode ? 'mdi-menu-down' : 'mdi-menu-up'
+          }}</v-icon>
         </div>
       </template>
     </v-tooltip>

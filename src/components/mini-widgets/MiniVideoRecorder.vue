@@ -19,7 +19,7 @@
       >
         <div class="text-xs text-white select-none scroll-text">{{ nameSelectedStream }}</div>
       </div>
-      <FontAwesomeIcon v-else icon="fa-solid fa-video" class="h-6 text-slate-100" />
+      <v-icon v-else class="h-6 text-slate-100">mdi-video</v-icon>
     </template>
     <div v-if="isRecording" class="w-16 text-justify text-slate-100">
       {{ timePassedString }}

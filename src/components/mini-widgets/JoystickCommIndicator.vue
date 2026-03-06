@@ -8,13 +8,10 @@
           :class="indicatorClass"
           @click="widgetStore.miniWidgetManagerVars(miniWidget.hash).configMenuOpen = true"
         >
-          <FontAwesomeIcon icon="fa-solid fa-gamepad" size="xl" />
-          <FontAwesomeIcon
-            v-if="!joystickConnected || !controllerStore.enableForwarding"
-            icon="fa-solid fa-slash"
-            size="xl"
-            class="absolute left-0"
-          />
+          <v-icon>mdi-gamepad-variant</v-icon>
+          <v-icon v-if="!joystickConnected || !controllerStore.enableForwarding" class="absolute left-0"
+            >mdi-slash-forward</v-icon
+          >
         </div>
       </template>
     </v-tooltip>

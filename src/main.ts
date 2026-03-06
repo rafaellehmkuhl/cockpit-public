@@ -6,10 +6,6 @@ import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
 import '@/libs/system-logging'
 import '@/utils/widget-migrations'
 
-import { library } from '@fortawesome/fontawesome-svg-core'
-import { far } from '@fortawesome/free-regular-svg-icons'
-import { fas } from '@fortawesome/free-solid-svg-icons'
-import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 import * as Sentry from '@sentry/vue'
 import FloatingVue from 'floating-vue'
 import { createPinia } from 'pinia'
@@ -35,7 +31,6 @@ import { useOmniscientLoggerStore } from './stores/omniscientLogger'
 // Run migrations that are needed for the app to work
 runMigrations()
 
-library.add(fas, far)
 loadFonts()
 
 const app = createApp(App)
@@ -63,7 +58,6 @@ if (settingsManager.getKeyValue('cockpit-enable-usage-statistics-telemetry') && 
   Sentry.getCurrentScope().setLevel('info')
 }
 
-app.component('FontAwesomeIcon', FontAwesomeIcon)
 app.component('VueDraggableResizable', VueDraggableResizable)
 app.directive('contextmenu', contextMenu)
 app.use(router).use(vuetify).use(createPinia()).use(FloatingVue).use(VueVirtualScroller)

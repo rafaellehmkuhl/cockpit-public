@@ -202,10 +202,9 @@
           class="absolute w-32 h-32 -translate-x-32 -translate-y-32 bottom-[20%] left-1/3 bg-[#FF000055] z-[65] rounded-xl flex items-center justify-center hover:bg-slate-200/50 transition-all"
         >
           <div class="relative flex justify-center items-center w-full h-full">
-            <FontAwesomeIcon
-              icon="fa-solid fa-trash"
-              class="absolute h-16 transition-all -translate-x-7 -translate-y-8 top-1/2 left-1/2 text-white"
-            />
+            <v-icon size="64" class="absolute transition-all -translate-x-7 -translate-y-8 top-1/2 left-1/2 text-white"
+              >mdi-trash-can</v-icon
+            >
             <VueDraggable
               v-model="trashList"
               :animation="150"
