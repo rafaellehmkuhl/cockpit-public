@@ -1,11 +1,32 @@
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
-import { defineConfig } from 'vite'
+import { type Plugin, defineConfig } from 'vite'
 import electron, { startup, treeKillSync } from 'vite-plugin-electron'
 import { VitePWA } from 'vite-plugin-pwa'
 import vuetify from 'vite-plugin-vuetify'
 
 import { getVersion } from './src/libs/non-browser-utils'
+
+/**
+ * Strips non-woff2 font format references from @mdi/font CSS.
+ * Cockpit only targets modern Chrome, so eot/woff/ttf fallbacks are dead weight (~3MB).
+ * @returns {Plugin} Vite plugin
+ */
+function mdiFontWoff2Only(): Plugin {
+  return {
+    name: 'mdi-font-woff2-only',
+    enforce: 'pre',
+    transform(code, id) {
+      if (!id.includes('@mdi/font/css/materialdesignicons')) return
+      return code
+        .replace(/src: url\("\.\.\/fonts\/materialdesignicons-webfont\.eot[^"]*"\);/, '')
+        .replace(
+          /src: url\([^)]+\) format\("embedded-opentype"\),\s*url\(([^)]+)\) format\("woff2"\)[^;]+;/,
+          'src: url($1) format("woff2");'
+        )
+    },
+  }
+}
 
 // Check if we're running in Electron mode or building the application
 const isElectron = process.env.ELECTRON === 'true'
@@ -43,6 +64,7 @@ const baseConfig = {
         },
       ]),
     vue(),
+    mdiFontWoff2Only(),
     vuetify({
       autoImport: true,
     }),
