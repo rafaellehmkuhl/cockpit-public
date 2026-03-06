@@ -8,13 +8,14 @@ import vuetify from 'vite-plugin-vuetify'
 import { getVersion } from './src/libs/non-browser-utils'
 
 /**
- * Strips non-woff2 font format references from @mdi/font CSS.
- * Cockpit only targets modern Chrome, so eot/woff/ttf fallbacks are dead weight (~3MB).
+ * Optimises the @mdi/font CSS for modern Chrome:
+ * - Strips eot/woff/ttf fallbacks, keeping only woff2 (~3MB saved)
+ * - Adds font-display: block so icons stay invisible while loading instead of flashing as squares
  * @returns {Plugin} Vite plugin
  */
-function mdiFontWoff2Only(): Plugin {
+function mdiFontOptimise(): Plugin {
   return {
-    name: 'mdi-font-woff2-only',
+    name: 'mdi-font-optimise',
     enforce: 'pre',
     transform(code, id) {
       if (!id.includes('@mdi/font/css/materialdesignicons')) return
@@ -24,6 +25,67 @@ function mdiFontWoff2Only(): Plugin {
           /src: url\([^)]+\) format\("embedded-opentype"\),\s*url\(([^)]+)\) format\("woff2"\)[^;]+;/,
           'src: url($1) format("woff2");'
         )
+        .replace(/font-style: normal;\n}/, 'font-style: normal;\n  font-display: block;\n}')
+    },
+  }
+}
+
+/**
+ * Preloads critical assets (MDI font + splash screen images) by injecting link tags
+ * into index.html, so the browser starts downloading them immediately rather than
+ * waiting for the JS -> CSS/component discovery waterfall.
+ * @returns {Plugin} Vite plugin
+ */
+function preloadCriticalAssets(): Plugin {
+  const splashImageNames = ['splash-background', 'cockpit-name-logo']
+
+  return {
+    name: 'preload-critical-assets',
+    transformIndexHtml: {
+      order: 'post',
+      handler(_html, ctx) {
+        if (!ctx.bundle) return []
+
+        const bundleKeys = Object.keys(ctx.bundle)
+        const tags: {
+          /**
+           *
+           */
+          tag: string
+          /**
+           *
+           */
+          attrs: Record<string, string>
+          /**
+           *
+           */
+          injectTo: 'head-prepend'
+        }[] = []
+
+        const fontAsset = bundleKeys.find(
+          (key) => key.includes('materialdesignicons-webfont') && key.endsWith('.woff2')
+        )
+        if (fontAsset) {
+          tags.push({
+            tag: 'link',
+            attrs: { rel: 'preload', as: 'font', type: 'font/woff2', href: `/${fontAsset}`, crossorigin: 'anonymous' },
+            injectTo: 'head-prepend',
+          })
+        }
+
+        for (const name of splashImageNames) {
+          const imageAsset = bundleKeys.find((key) => key.includes(name) && /\.(png|jpg|webp)$/.test(key))
+          if (imageAsset) {
+            tags.push({
+              tag: 'link',
+              attrs: { rel: 'preload', as: 'image', href: `/${imageAsset}` },
+              injectTo: 'head-prepend',
+            })
+          }
+        }
+
+        return tags
+      },
     },
   }
 }
@@ -64,7 +126,8 @@ const baseConfig = {
         },
       ]),
     vue(),
-    mdiFontWoff2Only(),
+    mdiFontOptimise(),
+    preloadCriticalAssets(),
     vuetify({
       autoImport: true,
     }),
