@@ -205,11 +205,11 @@
 </template>
 
 <script setup lang="ts">
-import * as MdiExports from '@mdi/js/mdi'
 import { watchThrottled } from '@vueuse/core'
 import Fuse from 'fuse.js'
 import { computed, onBeforeMount, onMounted, ref, toRefs, watch } from 'vue'
 
+import { mdiIconNames } from '@/assets/mdi-icon-names'
 import { useInteractionDialog } from '@/composables/interactionDialog'
 import {
   getDataLakeVariableData,
@@ -249,9 +249,7 @@ onBeforeMount(() => {
     })
   }
 
-  iconsNames = Object.keys(MdiExports).map((originalName) => {
-    return originalName.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase())
-  })
+  iconsNames = mdiIconNames
 })
 
 const widgetStore = useWidgetManagerStore()
