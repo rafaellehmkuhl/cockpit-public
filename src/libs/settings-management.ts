@@ -838,6 +838,7 @@ export class SettingsManager {
 
     const totalKeys = Object.keys(this.keyValueVehicleUpdateQueue[vehicleId][userId]).length
     let pushedCount = 0
+    let skippedCount = 0
     this.emitSyncStatus({ type: 'push-started', totalKeys })
 
     while (Object.keys(this.keyValueVehicleUpdateQueue[vehicleId][userId]).length !== 0) {
@@ -852,8 +853,8 @@ export class SettingsManager {
             this.persistQueue()
             const reason = noValue ? 'no value' : sameValue ? 'same value' : 'vehicle is newer'
             this.emitSyncStatus({ type: 'push-skipped', key, reason })
-            pushedCount++
-            this.emitSyncStatus({ type: 'push-progress', key, pushed: pushedCount, total: totalKeys })
+            skippedCount++
+            this.emitSyncStatus({ type: 'push-progress', key, pushed: pushedCount, skipped: skippedCount, total: totalKeys })
             continue
           }
         }
@@ -867,7 +868,7 @@ export class SettingsManager {
           delete this.keyValueVehicleUpdateQueue[vehicleId][userId][key]
           this.persistQueue()
           pushedCount++
-          this.emitSyncStatus({ type: 'push-progress', key, pushed: pushedCount, total: totalKeys })
+          this.emitSyncStatus({ type: 'push-progress', key, pushed: pushedCount, skipped: skippedCount, total: totalKeys })
         } catch (error) {
           const msg = `Error sending key '${key}' for user '${userId}' to vehicle '${vehicleId}'.`
           console.error('[SettingsManager]', msg, error)

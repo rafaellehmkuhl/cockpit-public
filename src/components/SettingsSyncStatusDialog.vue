@@ -30,7 +30,7 @@
             rounded
           />
           <div v-if="pushProgress.total > 0" class="text-xs mt-1 opacity-60">
-            {{ pushProgress.pushed }} / {{ pushProgress.total }} settings pushed
+            {{ pushProgress.pushed }} pushed, {{ pushProgress.skipped }} unchanged ({{ pushProgress.total }} total)
           </div>
         </div>
 
@@ -106,7 +106,8 @@ const shortVehicleId = computed(() => {
 
 const progressPercent = computed(() => {
   if (pushProgress.value.total === 0) return 0
-  return (pushProgress.value.pushed / pushProgress.value.total) * 100
+  const processed = pushProgress.value.pushed + pushProgress.value.skipped
+  return (processed / pushProgress.value.total) * 100
 })
 
 const resultColor = computed(() => {
