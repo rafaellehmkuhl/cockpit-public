@@ -350,10 +350,8 @@ export class SettingsManager {
 
       this.pushKeyValueUpdateToVehicleUpdateQueue(vehicleId!, userId!, key, value, newEpoch)
       if (this.hasVehicleAddress()) {
-        this.emitSyncStatus({ type: 'sync-started', reason: 'setting-update', user: userId!, vehicleId: vehicleId! })
-        this.emitSyncStatus({ type: 'sync-step', step: `Pushing '${key}' to vehicle` })
+        this.emitSyncStatus({ type: 'key-pushed', key, user: userId!, vehicleId: vehicleId! })
         await this.sendKeyValueUpdatesToVehicle(userId!, vehicleId!, this.currentVehicleAddress)
-        this.emitSyncStatus({ type: 'sync-completed' })
       }
 
     }, keyValueUpdateDebounceTime)

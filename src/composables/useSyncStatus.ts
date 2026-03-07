@@ -1,5 +1,6 @@
 import { onUnmounted, reactive, toRefs } from 'vue'
 
+import { openSnackbar } from '@/composables/snackbar'
 import { settingsManager } from '@/libs/settings-management'
 import type { SyncReason, SyncSettingDetail, SyncStatusEvent } from '@/types/settings-management'
 
@@ -60,6 +61,14 @@ interface SyncState {
    *
    */
   showDialog: boolean
+  /**
+   *
+   */
+  autoCloseActive: boolean
+  /**
+   *
+   */
+  autoCloseProgress: number
 }
 
 /**
@@ -79,28 +88,41 @@ export function useSyncStatus() {
     currentUser: '',
     currentVehicleId: '',
     showDialog: false,
+    autoCloseActive: false,
+    autoCloseProgress: 100,
   })
 
-  let autoDismissTimeout: ReturnType<typeof setTimeout> | undefined
-
-  const clearAutoDismiss = (): void => {
-    if (autoDismissTimeout) {
-      clearTimeout(autoDismissTimeout)
-      autoDismissTimeout = undefined
-    }
+  const dismissDialog = (): void => {
+    state.showDialog = false
+    state.autoCloseActive = false
   }
 
-  const scheduleAutoDismiss = (): void => {
-    clearAutoDismiss()
-    autoDismissTimeout = setTimeout(() => {
-      state.showDialog = false
-    }, 5000)
+  const startAutoClose = (): void => {
+    state.autoCloseActive = true
+    state.autoCloseProgress = 100
+    const intervalMs = 50
+    const step = (intervalMs / 3000) * 100
+    const interval = setInterval(() => {
+      if (!state.autoCloseActive) {
+        clearInterval(interval)
+        return
+      }
+      state.autoCloseProgress -= step
+      if (state.autoCloseProgress <= 0) {
+        clearInterval(interval)
+        dismissDialog()
+      }
+    }, intervalMs)
+  }
+
+  const cancelAutoClose = (): void => {
+    state.autoCloseActive = false
   }
 
   const handleSyncEvent = (event: SyncStatusEvent): void => {
     switch (event.type) {
       case 'sync-started':
-        clearAutoDismiss()
+        cancelAutoClose()
         state.isSyncing = true
         state.syncReason = event.reason
         state.currentUser = event.user
@@ -136,7 +158,7 @@ export function useSyncStatus() {
         state.isSyncing = false
         state.syncResult = 'success'
         state.currentStep = 'Sync complete'
-        scheduleAutoDismiss()
+        startAutoClose()
         break
 
       case 'sync-aborted':
@@ -144,13 +166,21 @@ export function useSyncStatus() {
         state.syncResult = 'aborted'
         state.syncError = event.reason
         state.currentStep = 'Sync aborted'
-        scheduleAutoDismiss()
+        startAutoClose()
         break
 
       case 'sync-error':
         state.syncError = event.error
         state.syncResult = 'error'
         state.currentStep = 'Sync error'
+        break
+
+      case 'key-pushed':
+        openSnackbar({
+          message: `Pushing '${event.key}' to vehicle (${event.vehicleId.slice(0, 8)}) for user '${event.user}'`,
+          variant: 'info',
+          duration: 5000,
+        })
         break
     }
   }
@@ -159,16 +189,12 @@ export function useSyncStatus() {
 
   onUnmounted(() => {
     settingsManager.unregisterSyncStatusListener(listenerId)
-    clearAutoDismiss()
+    cancelAutoClose()
   })
-
-  const dismissDialog = (): void => {
-    state.showDialog = false
-    clearAutoDismiss()
-  }
 
   return {
     ...toRefs(state),
     dismissDialog,
+    cancelAutoClose,
   }
 }
