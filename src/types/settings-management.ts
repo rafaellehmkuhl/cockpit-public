@@ -235,6 +235,10 @@ export type SyncStatusEvent =
       /**
        *
        */
+      skipped: number
+      /**
+       *
+       */
       total: number
     }
   | {

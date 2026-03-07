@@ -34,6 +34,10 @@ interface SyncState {
     /**
      *
      */
+    skipped: number
+    /**
+     *
+     */
     total: number
   }
   /**
@@ -69,7 +73,7 @@ export function useSyncStatus() {
     syncReason: null,
     currentStep: '',
     resolvedSettings: [],
-    pushProgress: { pushed: 0, total: 0 },
+    pushProgress: { pushed: 0, skipped: 0, total: 0 },
     syncResult: null,
     syncError: null,
     currentUser: '',
@@ -122,7 +126,7 @@ export function useSyncStatus() {
         break
 
       case 'push-progress':
-        state.pushProgress = { pushed: event.pushed, total: event.total }
+        state.pushProgress = { pushed: event.pushed, skipped: event.skipped, total: event.total }
         break
 
       case 'push-skipped':
