@@ -146,7 +146,7 @@ export const NoVehicleIdErrorName = 'NoVehicleIdError'
 /**
  * The reason a sync operation was triggered
  */
-export type SyncReason = 'vehicle-online' | 'user-changed' | 'setting-update'
+export type SyncReason = 'vehicle-online' | 'user-changed'
 
 /**
  * How a setting was resolved during the merge between local and vehicle
@@ -280,6 +280,24 @@ export type SyncStatusEvent =
        *
        */
       error: string
+    }
+  | {
+      /**
+       *
+       */
+      type: 'key-pushed'
+      /**
+       *
+       */
+      key: string
+      /**
+       *
+       */
+      user: string
+      /**
+       *
+       */
+      vehicleId: string
     }
 
 /**

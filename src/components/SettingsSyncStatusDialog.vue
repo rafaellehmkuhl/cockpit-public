@@ -13,7 +13,6 @@
       <v-card-subtitle class="pb-2">
         <template v-if="syncReason === 'vehicle-online'"> Vehicle came online — syncing settings </template>
         <template v-else-if="syncReason === 'user-changed'"> User changed — syncing settings </template>
-        <template v-else-if="syncReason === 'setting-update'"> Pushing setting update to vehicle </template>
         <div v-if="currentUser || currentVehicleId" class="text-xs mt-1 opacity-70">
           User: <strong>{{ currentUser }}</strong> &middot; Vehicle: <strong>{{ shortVehicleId }}</strong>
         </div>
@@ -59,10 +58,22 @@
         </v-expand-transition>
       </v-card-text>
 
-      <v-card-actions class="pt-0 justify-end">
-        <v-btn size="small" variant="text" @click="dismissDialog">
-          {{ isSyncing ? 'Dismiss' : 'Close' }}
-        </v-btn>
+      <v-progress-linear
+        v-if="autoCloseActive"
+        :model-value="autoCloseProgress"
+        color="white"
+        height="3"
+        class="mt-1 opacity-40"
+      />
+      <v-card-actions class="pt-1 justify-between">
+        <span v-if="autoCloseActive" class="text-xs opacity-50 pl-2">Closing automatically...</span>
+        <span v-else />
+        <div class="d-flex gap-1">
+          <v-btn v-if="autoCloseActive" size="small" variant="text" @click="cancelAutoClose">Keep open</v-btn>
+          <v-btn size="small" variant="text" @click="dismissDialog">
+            {{ isSyncing ? 'Dismiss' : 'Close' }}
+          </v-btn>
+        </div>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -88,7 +99,10 @@ const {
   currentUser,
   currentVehicleId,
   showDialog,
+  autoCloseActive,
+  autoCloseProgress,
   dismissDialog,
+  cancelAutoClose,
 } = useSyncStatus()
 
 const dialogVisible = computed({
