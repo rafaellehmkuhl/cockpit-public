@@ -10,6 +10,8 @@ import {
   SettingsListener,
   SettingsListeners,
   SettingsPackage,
+  SyncStatusEvent,
+  SyncStatusListener,
   UserSettings,
   VehicleOnlineEvent,
   VehicleSettings,
@@ -56,6 +58,20 @@ interface UserChangeListenerEntry {
    * The callback function to call when the user changes
    */
   callback: UserChangeListener
+}
+
+/**
+ * Sync status listener with ID for unregistration
+ */
+interface SyncStatusListenerEntry {
+  /**
+   * The ID of the listener
+   */
+  id: string
+  /**
+   * The callback function to call when the sync status changes
+   */
+  callback: SyncStatusListener
 }
 
 /**
@@ -219,6 +235,7 @@ export class SettingsManager {
   public currentVehicleId: string = fallbackVehicleId
   private listeners: SettingsListeners = {}
   private userChangeListeners: UserChangeListenerEntry[] = []
+  private syncStatusListeners: SyncStatusListenerEntry[] = []
   private keyValueUpdateTimeouts: Record<string, ReturnType<typeof setTimeout>> = {}
   private lastLocalUserVehicleSettings: SettingsPackage = {}
   private currentVehicleAddress: string = nullValue
@@ -333,7 +350,10 @@ export class SettingsManager {
 
       this.pushKeyValueUpdateToVehicleUpdateQueue(vehicleId!, userId!, key, value, newEpoch)
       if (this.hasVehicleAddress()) {
+        this.emitSyncStatus({ type: 'sync-started', reason: 'setting-update', user: userId!, vehicleId: vehicleId! })
+        this.emitSyncStatus({ type: 'sync-step', step: `Pushing '${key}' to vehicle` })
         await this.sendKeyValueUpdatesToVehicle(userId!, vehicleId!, this.currentVehicleAddress)
+        this.emitSyncStatus({ type: 'sync-completed' })
       }
 
     }, keyValueUpdateDebounceTime)
@@ -416,6 +436,35 @@ export class SettingsManager {
   private notifyUserChangeListeners = (): void => {
     this.userChangeListeners.forEach((listener) => {
       listener.callback(this.currentUsername)
+    })
+  }
+
+  /**
+   * Registers a listener for sync status events
+   * @param {SyncStatusListener} callback - The callback to call when sync status changes
+   * @returns {string} The listener ID for unregistration
+   */
+  public registerSyncStatusListener = (callback: SyncStatusListener): string => {
+    const listenerId = uuidv4()
+    this.syncStatusListeners.push({ id: listenerId, callback })
+    return listenerId
+  }
+
+  /**
+   * Unregisters a sync status listener
+   * @param {string} listenerId - The ID of the listener to unregister
+   */
+  public unregisterSyncStatusListener = (listenerId: string): void => {
+    this.syncStatusListeners = this.syncStatusListeners.filter((listener) => listener.id !== listenerId)
+  }
+
+  /**
+   * Emits a sync status event to all registered listeners
+   * @param {SyncStatusEvent} event - The sync status event to emit
+   */
+  private emitSyncStatus = (event: SyncStatusEvent): void => {
+    this.syncStatusListeners.forEach((listener) => {
+      listener.callback(event)
     })
   }
 
@@ -784,9 +833,12 @@ export class SettingsManager {
       return
     }
 
-    // Let's first get the settings from the vehicle, so we only update the settings that have changed
     const vehicleSettings = await this.getValidSettingsFromVehicle(vehicleAddress)
     await this.confirmVehicleIdOrThrow(vehicleAddress, vehicleId)
+
+    const totalKeys = Object.keys(this.keyValueVehicleUpdateQueue[vehicleId][userId]).length
+    let pushedCount = 0
+    this.emitSyncStatus({ type: 'push-started', totalKeys })
 
     while (Object.keys(this.keyValueVehicleUpdateQueue[vehicleId][userId]).length !== 0) {
       const updatesForUser = Object.entries(this.keyValueVehicleUpdateQueue[vehicleId][userId])
@@ -798,6 +850,10 @@ export class SettingsManager {
           if (noValue || sameValue || vehicleSettingIsNewer) {
             delete this.keyValueVehicleUpdateQueue[vehicleId][userId][key]
             this.persistQueue()
+            const reason = noValue ? 'no value' : sameValue ? 'same value' : 'vehicle is newer'
+            this.emitSyncStatus({ type: 'push-skipped', key, reason })
+            pushedCount++
+            this.emitSyncStatus({ type: 'push-progress', key, pushed: pushedCount, total: totalKeys })
             continue
           }
         }
@@ -810,15 +866,17 @@ export class SettingsManager {
           await this.vehicle.setKeyData(vehicleAddress, `${vehicleNewStyleSettingsKey}/${userId}/${key}`, setting)
           delete this.keyValueVehicleUpdateQueue[vehicleId][userId][key]
           this.persistQueue()
+          pushedCount++
+          this.emitSyncStatus({ type: 'push-progress', key, pushed: pushedCount, total: totalKeys })
         } catch (error) {
           const msg = `Error sending key '${key}' for user '${userId}' to vehicle '${vehicleId}'.`
           console.error('[SettingsManager]', msg, error)
+          this.emitSyncStatus({ type: 'sync-error', error: msg })
         }
       }
       await sleep(1000)
     }
 
-    // Clear persisted queue after successful sync
     this.clearPersistedQueue()
   }
 
@@ -1034,6 +1092,7 @@ export class SettingsManager {
           case hasLocalSetting && hasVehicleSetting && isEqual(localSetting.value, vehicleSetting.value):
             console.debug(`[SettingsManager] Setting key '${key}' to the common version (both local and vehicle versions are defined and equal).`)
             mergedSettings[user][vehicleId][key] = localSetting
+            this.emitSyncStatus({ type: 'setting-resolved', detail: { key, resolution: 'same' } })
             break
           case !hasLocalSetting && !hasVehicleSetting:
             console.debug(`[SettingsManager] Skipping key '${key}' (both local and vehicle versions are undefined).`)
@@ -1041,22 +1100,27 @@ export class SettingsManager {
           case hasLocalSetting && !hasVehicleSetting:
             console.debug(`[SettingsManager] Setting key '${key}' to local version (local version is defined and vehicle version is undefined).`)
             mergedSettings[user][vehicleId][key] = localSetting
+            this.emitSyncStatus({ type: 'setting-resolved', detail: { key, resolution: 'new-on-local' } })
             break
           case !hasLocalSetting && hasVehicleSetting:
             console.debug(`[SettingsManager] Setting key '${key}' to vehicle version (vehicle version is defined and local version is undefined).`)
             mergedSettings[user][vehicleId][key] = vehicleSetting
+            this.emitSyncStatus({ type: 'setting-resolved', detail: { key, resolution: 'new-on-vehicle' } })
             break
           case localSetting.epochLastChangedLocally > vehicleSetting.epochLastChangedLocally:
             console.debug(`[SettingsManager] Setting key '${key}' to local version (local version is newer than vehicle version).`)
             mergedSettings[user][vehicleId][key] = localSetting
+            this.emitSyncStatus({ type: 'setting-resolved', detail: { key, resolution: 'from-local' } })
             break
           case vehicleSetting.epochLastChangedLocally > localSetting.epochLastChangedLocally:
             console.debug(`[SettingsManager] Setting key '${key}' to vehicle version (vehicle version is newer than local version).`)
             mergedSettings[user][vehicleId][key] = vehicleSetting
+            this.emitSyncStatus({ type: 'setting-resolved', detail: { key, resolution: 'from-vehicle' } })
             break
           case localSetting.epochLastChangedLocally === vehicleSetting.epochLastChangedLocally:
             console.debug(`[SettingsManager] Setting key '${key}' to vehicle version (both versions have the same epoch).`)
             mergedSettings[user][vehicleId][key] = vehicleSetting
+            this.emitSyncStatus({ type: 'setting-resolved', detail: { key, resolution: 'same' } })
             break
           default:
             console.debug(`[SettingsManager] Setting key '${key}' to vehicle version (default case).`)
@@ -1064,6 +1128,7 @@ export class SettingsManager {
               epochLastChangedLocally: 0,
               value: vehicleSetting.value,
             }
+            this.emitSyncStatus({ type: 'setting-resolved', detail: { key, resolution: 'from-vehicle' } })
             break
         }
       })
@@ -1260,52 +1325,54 @@ export class SettingsManager {
     const signal = this.abortController?.signal
     console.log('[SettingsManager]', 'Handling vehicle getting online!')
 
-    // Check if aborted before starting
     if (signal?.aborted) {
       console.log('[SettingsManager] Sync aborted before start')
+      this.emitSyncStatus({ type: 'sync-aborted', reason: 'Vehicle went offline before sync started' })
       return
     }
 
-    // Before anything else, back up old-style vehicle settings in the vehicle, if needed
+    this.emitSyncStatus({ type: 'sync-step', step: 'Backing up old-style vehicle settings' })
     await this.backupOldStyleVehicleSettingsIfNeeded(vehicleAddress)
 
     if (signal?.aborted) {
       console.log('[SettingsManager] Sync aborted after backup')
+      this.emitSyncStatus({ type: 'sync-aborted', reason: 'Vehicle went offline during backup' })
       return
     }
 
-    // Then migrate local old-style settings to the vehicle, if needed
+    this.emitSyncStatus({ type: 'sync-step', step: 'Migrating old-style vehicle settings' })
     await this.migrateOldStyleVehicleSettingsIfNeeded(vehicleAddress)
 
     if (signal?.aborted) {
       console.log('[SettingsManager] Sync aborted after migration')
+      this.emitSyncStatus({ type: 'sync-aborted', reason: 'Vehicle went offline during migration' })
       return
     }
 
-    // Set the current vehicle address
     console.log(`[SettingsManager] Setting current vehicle address to: '${vehicleAddress}'.`)
     this.currentVehicleAddress = vehicleAddress
 
-    // Get ID of the connected vehicle
+    this.emitSyncStatus({ type: 'sync-step', step: 'Retrieving vehicle ID' })
     const vehicleId = await this.getVehicleIdFromVehicleOrGenerateAndPushANewOne(vehicleAddress)
 
     if (signal?.aborted) {
       console.log('[SettingsManager] Sync aborted after getting vehicle ID')
+      this.emitSyncStatus({ type: 'sync-aborted', reason: 'Vehicle went offline while retrieving vehicle ID' })
       return
     }
 
     console.log(`[SettingsManager] Got vehicle ID '${vehicleId}' from vehicle '${vehicleAddress}'.`)
-
-    // Set the current vehicle ID
     console.log(`[SettingsManager] Setting current vehicle ID to: '${vehicleId}'.`)
     this.currentVehicleId = vehicleId
 
-    // Import migrated vehicle settings to local storage if we don't have them yet
-    // This should happen after we have the vehicle ID, because we need to know to which vehicle we are importing the settings to
+    this.emitSyncStatus({ type: 'sync-started', reason: 'vehicle-online', user: this.currentUsername, vehicleId })
+
+    this.emitSyncStatus({ type: 'sync-step', step: 'Importing migrated vehicle settings' })
     await this.importMigratedVehicleSettingsToLocalStorageIfNeeded(vehicleAddress)
 
     if (signal?.aborted) {
       console.log('[SettingsManager] Sync aborted after importing settings')
+      this.emitSyncStatus({ type: 'sync-aborted', reason: 'Vehicle went offline during settings import' })
       return
     }
 
@@ -1357,15 +1424,17 @@ export class SettingsManager {
 
     if (signal?.aborted) {
       console.log('[SettingsManager] Sync aborted after setting local settings')
+      this.emitSyncStatus({ type: 'sync-aborted', reason: 'Vehicle went offline after setting local settings' })
       return
     }
 
-    // Now that we have local settings for the current user and vehicle, we can get the best settings between local and vehicle
+    this.emitSyncStatus({ type: 'sync-step', step: 'Merging local and vehicle settings' })
     console.log('[SettingsManager]', `Getting best settings between local and vehicle for user '${this.currentUsername}' and vehicle '${this.currentVehicleId}'.`)
     const bestSettingsWithVehicle = await this.getBestSettingsBetweenLocalAndVehicle(vehicleAddress, vehicleId)
 
     if (signal?.aborted) {
       console.log('[SettingsManager] Sync aborted after getting best settings')
+      this.emitSyncStatus({ type: 'sync-aborted', reason: 'Vehicle went offline during settings merge' })
       return
     }
 
@@ -1373,21 +1442,17 @@ export class SettingsManager {
     console.debug(`[SettingsManager] Best settings for current user and vehicle:`)
     console.debug(JSON.stringify(bestSettingsForCurrentUserAndVehicle, null, 2))
 
-    // Set the local settings to the best settings between local and vehicle for the current user and vehicle
     this.setLocalSettingsForUserAndVehicle(this.currentUsername, this.currentVehicleId, bestSettingsForCurrentUserAndVehicle)
-
-    // Update last connected vehicle to the current one
     this.saveLastConnectedVehicle(this.currentVehicleId)
-
-    // Apply side effect of setting local settings
     this.notifyAllListenersAboutSettingsChange()
 
     if (signal?.aborted) {
       console.log('[SettingsManager] Sync aborted before pushing to vehicle')
+      this.emitSyncStatus({ type: 'sync-aborted', reason: 'Vehicle went offline before pushing settings' })
       return
     }
 
-    // Push the best settings to the vehicle
+    this.emitSyncStatus({ type: 'sync-step', step: 'Pushing settings to vehicle' })
     await this.pushSettingsToVehicleUpdateQueue(
       this.currentUsername,
       this.currentVehicleId,
@@ -1395,6 +1460,7 @@ export class SettingsManager {
       bestSettingsForCurrentUserAndVehicle
     )
 
+    this.emitSyncStatus({ type: 'sync-completed' })
     console.info('[SettingsManager] Successfully synced settings with vehicle!')
   }
 
@@ -1405,7 +1471,6 @@ export class SettingsManager {
   public handleUserChanging = async (username: string): Promise<void> => {
     console.log('[SettingsManager]', `Will handle user change from '${this.currentUsername}' to '${username}'.`)
 
-    // Set the current user
     if (possibleNullValues.includes(username)) {
       console.log(`[SettingsManager] Invalid username. Setting current user to the fallback user.`)
       this.currentUsername = fallbackUsername
@@ -1413,6 +1478,8 @@ export class SettingsManager {
       console.log(`[SettingsManager] Setting current user to: '${username}'.`)
       this.currentUsername = username
     }
+
+    this.emitSyncStatus({ type: 'sync-started', reason: 'user-changed', user: this.currentUsername, vehicleId: this.currentVehicleId })
 
     let toBeUsedUser: string | undefined | undefined = undefined
     let toBeUsedVehicle: string | undefined | undefined = undefined
@@ -1458,26 +1525,20 @@ export class SettingsManager {
       toBeUsedSettings = this.getSettingsWithEpochZeroed(toBeUsedSettings)
     }
 
-    // Set the local settings for the user/vehicle combination that we found (or the migrated old-style settings)
     this.setLocalSettingsForUserAndVehicle(this.currentUsername, this.currentVehicleId, toBeUsedSettings)
 
-    // Now that we have local settings for the current user and vehicle, we can get the best settings between local and vehicle
+    this.emitSyncStatus({ type: 'sync-step', step: 'Merging local and vehicle settings' })
     console.log('[SettingsManager]', `Getting best settings between local and vehicle for user '${this.currentUsername}' and vehicle '${this.currentVehicleId}'.`)
     const bestSettingsWithVehicle = await this.getBestSettingsBetweenLocalAndVehicle(this.currentVehicleAddress, this.currentVehicleId)
     const bestSettingsForCurrentUserAndVehicle = bestSettingsWithVehicle[this.currentUsername][this.currentVehicleId]
     console.debug(`[SettingsManager] Best settings for current user and vehicle:`)
     console.debug(JSON.stringify(bestSettingsForCurrentUserAndVehicle, null, 2))
 
-    // Set the local settings to the best settings between local and vehicle for the current user and vehicle
     this.setLocalSettingsForUserAndVehicle(this.currentUsername, this.currentVehicleId, bestSettingsForCurrentUserAndVehicle)
-
-    // Update last connected user to the current one
     this.saveLastConnectedUser(this.currentUsername)
-
-    // Apply side effect of setting local settings
     this.notifyAllListenersAboutSettingsChange()
 
-    // Push the best settings to the vehicle
+    this.emitSyncStatus({ type: 'sync-step', step: 'Pushing settings to vehicle' })
     await this.pushSettingsToVehicleUpdateQueue(
       this.currentUsername,
       this.currentVehicleId,
@@ -1485,6 +1546,7 @@ export class SettingsManager {
       bestSettingsForCurrentUserAndVehicle
     )
 
+    this.emitSyncStatus({ type: 'sync-completed' })
     console.info('[SettingsManager] Successfully switched settings to those of the new user!')
   }
 
@@ -1526,21 +1588,16 @@ export class SettingsManager {
   public handleVehicleGettingOffline = (): void => {
     console.log('[SettingsManager]', 'Handling vehicle getting offline')
 
-    // Cancel any in-progress sync operations
     if (this.abortController) {
       console.log('[SettingsManager]', 'Aborting in-progress sync operation')
       this.abortController.abort()
       this.abortController = null
+      this.emitSyncStatus({ type: 'sync-aborted', reason: 'Vehicle went offline' })
     }
 
-    // Reset sync state
     this.syncInProgress = false
     this.pendingSyncAddress = null
-
-    // Persist current queue state to ensure no updates are lost
     this.persistQueue()
-
-    // Clear current vehicle context
     this.currentVehicleAddress = nullValue
   }
 }
