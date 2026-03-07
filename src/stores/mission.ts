@@ -4,6 +4,7 @@ import { computed, reactive, ref, watch } from 'vue'
 
 import { useBlueOsStorage } from '@/composables/settingsSyncer'
 import { eventCategoriesDefaultMapping } from '@/libs/slide-to-confirm'
+import { useMainVehicleStore } from '@/stores/mainVehicle'
 import {
   AltitudeReferenceType,
   MapTileProvider,
@@ -19,6 +20,7 @@ const DEFAULT_MAP_CENTER: WaypointCoordinates = [-27.5935, -48.55854]
 const DEFAULT_MAP_ZOOM = 15
 
 export const useMissionStore = defineStore('mission', () => {
+  const mainVehicleStore = useMainVehicleStore()
   const missionName = ref('')
   const slideEventsEnabled = useBlueOsStorage('cockpit-slide-events-enabled', true)
   const slideEventsCategoriesRequired = useBlueOsStorage(
