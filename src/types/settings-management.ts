@@ -142,3 +142,143 @@ declare global {
  * NoVehicleIdErrorName is the name of the error for when a vehicle ID is not found.
  */
 export const NoVehicleIdErrorName = 'NoVehicleIdError'
+
+/**
+ * The reason a sync operation was triggered
+ */
+export type SyncReason = 'vehicle-online' | 'user-changed' | 'setting-update'
+
+/**
+ * How a setting was resolved during the merge between local and vehicle
+ */
+export type SyncSettingResolution = 'from-vehicle' | 'from-local' | 'same' | 'new-on-vehicle' | 'new-on-local'
+
+/**
+ * Details about how an individual setting was resolved during sync
+ */
+export interface SyncSettingDetail {
+  /**
+   * The setting key
+   */
+  key: string
+  /**
+   * How the setting was resolved
+   */
+  resolution: SyncSettingResolution
+}
+
+/**
+ * Discriminated union of all sync status events emitted by the SettingsManager
+ */
+export type SyncStatusEvent =
+  | {
+      /**
+       *
+       */
+      type: 'sync-started'
+      /**
+       *
+       */
+      reason: SyncReason
+      /**
+       *
+       */
+      user: string
+      /**
+       *
+       */
+      vehicleId: string
+    }
+  | {
+      /**
+       *
+       */
+      type: 'sync-step'
+      /**
+       *
+       */
+      step: string
+    }
+  | {
+      /**
+       *
+       */
+      type: 'setting-resolved'
+      /**
+       *
+       */
+      detail: SyncSettingDetail
+    }
+  | {
+      /**
+       *
+       */
+      type: 'push-started'
+      /**
+       *
+       */
+      totalKeys: number
+    }
+  | {
+      /**
+       *
+       */
+      type: 'push-progress'
+      /**
+       *
+       */
+      key: string
+      /**
+       *
+       */
+      pushed: number
+      /**
+       *
+       */
+      total: number
+    }
+  | {
+      /**
+       *
+       */
+      type: 'push-skipped'
+      /**
+       *
+       */
+      key: string
+      /**
+       *
+       */
+      reason: string
+    }
+  | {
+      /**
+       *
+       */
+      type: 'sync-completed'
+    }
+  | {
+      /**
+       *
+       */
+      type: 'sync-aborted'
+      /**
+       *
+       */
+      reason: string
+    }
+  | {
+      /**
+       *
+       */
+      type: 'sync-error'
+      /**
+       *
+       */
+      error: string
+    }
+
+/**
+ * Callback type for sync status listeners
+ */
+export type SyncStatusListener = (event: SyncStatusEvent) => void
