@@ -148,6 +148,8 @@
 </template>
 
 <script setup lang="ts">
+import '@/composables/useVehicleRegistry'
+
 import { useStorage, useWindowSize } from '@vueuse/core'
 import { computed, onBeforeMount, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
