@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="dialogVisible" persistent max-width="520" :scrim="isSyncing">
+  <v-dialog v-model="dialogVisible" max-width="520">
     <v-card class="rounded-lg pa-2" :style="interfaceStore.globalGlassMenuStyles">
       <v-card-title class="d-flex align-center gap-2 pb-1">
         <v-icon :class="{ 'animate-spin': isSyncing }" size="24">mdi-sync</v-icon>
