@@ -175,7 +175,7 @@ const panelPositionStyle = computed<Record<string, string>>((): Record<string, s
 .close_btn {
   z-index: 500;
   position: absolute;
-  margin-top: 3px;
+  top: 4px;
 }
 .reopen_btn {
   z-index: 500;
