@@ -164,6 +164,8 @@ import {
   registerActionCallback,
   unregisterActionCallback,
 } from '@/libs/joystick/protocols/cockpit-actions'
+import { detectIncognito } from 'detectincognitojs'
+
 import { isElectron, sleep } from '@/libs/utils'
 import { useMissionStore } from '@/stores/mission'
 
@@ -175,6 +177,7 @@ import MiniWidgetContainer from './components/MiniWidgetContainer.vue'
 import SlideToConfirm from './components/SlideToConfirm.vue'
 import SplashScreen from './components/SplashScreen.vue'
 import { openMainMenuIfSafeOrDesired } from './composables/armSafetyDialog'
+import { openSnackbar } from './composables/snackbar'
 import { useSnackbar } from './composables/snackbar'
 import { checkBlueOsUserDataSimilarity } from './libs/blueos'
 import { useAppInterfaceStore } from './stores/appInterface'
@@ -376,7 +379,7 @@ const currentBottomBarHeightPixels = computed(() => `${widgetStore.currentBottom
 const showDiscoveryDialog = ref(false)
 const preventAutoSearch = useStorage('cockpit-prevent-auto-vehicle-discovery-dialog', false)
 
-onMounted(() => {
+onMounted(async () => {
   if (isElectron() && !preventAutoSearch.value) {
     // Wait 5 seconds to check if we're connected to a vehicle
     setTimeout(() => {
@@ -389,6 +392,19 @@ onMounted(() => {
     setTimeout(() => {
       interfaceStore.isTutorialVisible = true
     }, 6000)
+  }
+
+  try {
+    const { isPrivate } = await detectIncognito()
+    if (isPrivate) {
+      openSnackbar({
+        message: 'You appear to be in incognito/private mode. Some features like settings persistence may not work correctly.',
+        duration: 10000,
+        variant: 'warning',
+      })
+    }
+  } catch {
+    // Ignore detection failures
   }
 })
 </script>
