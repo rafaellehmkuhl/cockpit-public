@@ -762,6 +762,16 @@ export const useWidgetManagerStore = defineStore('widget-manager', () => {
     { deep: true }
   )
 
+  watch(
+    () => currentProfile.value?.views?.length,
+    () => {
+      if (!currentProfile.value?.views?.length) return
+      if (currentViewIndex.value < currentProfile.value.views.length) return
+      console.warn('Current view index is out of bounds. Resetting to 0.')
+      currentViewIndex.value = 0
+    }
+  )
+
   // Closes the side config panel on view change and edit mode exit
   watch([editingMode, currentViewIndex], ([isInEditMode, newViewIdx], [, oldViewIdx]) => {
     if (!isInEditMode || newViewIdx !== oldViewIdx) {
