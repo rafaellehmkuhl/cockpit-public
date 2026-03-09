@@ -1,4 +1,4 @@
-import { useStorage, useThrottleFn } from '@vueuse/core'
+import { useDebounceFn, useStorage, useThrottleFn } from '@vueuse/core'
 import { BlobReader, BlobWriter, ZipWriter } from '@zip.js/zip.js'
 import { differenceInSeconds } from 'date-fns'
 import { saveAs } from 'file-saver'
@@ -1084,8 +1084,8 @@ export const useVideoStore = defineStore('video', () => {
     getStreamStatus,
     getStreamPeerConnection,
     isRecording,
-    stopRecording,
-    startRecording,
+    stopRecording: useDebounceFn(stopRecording, 500),
+    startRecording: useDebounceFn(startRecording, 500),
     unprocessedVideos,
     createZipAndDownload,
     isVideoFilename,
