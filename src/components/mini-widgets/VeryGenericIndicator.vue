@@ -301,11 +301,12 @@ const parsedState = computed(() => {
     return value.toFixed(decimalPlaces)
   }
 
-  if (value < 0 && value > -10) return value.toFixed(1)
-  if (value <= -10 && value > -100) return value.toFixed(1)
-  if (value <= -100 && value > -1000) return value.toFixed(0)
-  if (value <= -1000 && value > -10000) return `${(value / 1000).toFixed(1)}k`
-  if (value <= -10000) return `${(value / 1000).toFixed(0)}k`
+  if (value < 0 && value > -1) return value.toFixed(3)
+  if (value <= -1 && value > -100) return value.toFixed(2)
+  if (value <= -100 && value > -1000) return value.toFixed(1)
+  if (value <= -1000 && value > -10000) return value.toFixed(0)
+  if (value <= -10000 && value > -100000) return `${(value / 1000).toFixed(1)}k`
+  if (value <= -100000) return `${(value / 1000).toFixed(0)}k`
 
   if (value < 1) return value.toFixed(3)
   if (value >= 1 && value < 100) return value.toFixed(2)
