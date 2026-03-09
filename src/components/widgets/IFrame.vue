@@ -153,7 +153,7 @@ const props = defineProps<{
 const widget = toRefs(props).widget
 
 const iframe_loaded = ref(false)
-const transparency = ref(0)
+const transparency = ref(widget.value.options.transparency ?? 0)
 const inputURL = ref(widget.value.options.source)
 const isWrapped = ref(false)
 const vehicleAddressFromDataLake = ref<string>('')
@@ -258,6 +258,7 @@ onBeforeMount((): void => {
   const defaultOptions = {
     source: 'http://' + defaultBlueOsAddress,
     useVehicleAddressAsBase: false,
+    transparency: 0,
   }
   widget.value.options = { ...defaultOptions, ...widget.value.options }
 
@@ -305,6 +306,10 @@ const iframeStyle = computed<string>(() => {
 
 const iframeOpacity = computed<number>(() => {
   return (100 - transparency.value) / 100
+})
+
+watch(transparency, (val) => {
+  widget.value.options.transparency = val
 })
 
 /**
