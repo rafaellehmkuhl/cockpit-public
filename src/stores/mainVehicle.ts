@@ -656,6 +656,7 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
         console.log('Vehicle type changed to', vehicleType.value)
 
         controllerStore.ensureMappingForVehicleType(vehicleType.value)
+        widgetStore.ensureProfileForVehicleType(vehicleType.value)
 
         try {
           controllerStore.loadDefaultProtocolMappingForVehicle(vehicleType.value)

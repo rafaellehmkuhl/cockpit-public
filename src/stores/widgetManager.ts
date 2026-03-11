@@ -815,6 +815,30 @@ export const useWidgetManagerStore = defineStore('widget-manager', () => {
     loadProfile(defaultProfile)
   }
 
+  /**
+   * Ensures a default widget profile exists for the given vehicle type.
+   * If no profile is tied to the vehicle type, creates one from the built-in defaults.
+   * @param {MavType} vehicleType - The vehicle type to ensure a profile for
+   */
+  const ensureProfileForVehicleType = (vehicleType: MavType): void => {
+    // @ts-ignore: We know that the value is a string
+    const existingHash = vehicleTypeProfileCorrespondency.value[vehicleType]
+    if (existingHash && savedProfiles.value.some((p) => p.hash === existingHash)) return
+
+    // @ts-ignore: We know that the value is a string
+    const defaultHash = defaultProfileVehicleCorrespondency[vehicleType]
+    const template = widgetProfiles.find((p) => p.hash === defaultHash)
+    if (!template) return
+
+    const userProfile = structuredClone(template)
+    userProfile.name = userProfile.name.replace('Default', 'User')
+    userProfile.hash = uuid4()
+    savedProfiles.value.push(userProfile)
+
+    // @ts-ignore: We know that the value is a string
+    vehicleTypeProfileCorrespondency.value[vehicleType] = userProfile.hash
+  }
+
   const selectNextViewCallbackId = registerActionCallback(availableCockpitActions.go_to_next_view, selectNextView)
   onBeforeUnmount(() => unregisterActionCallback(selectNextViewCallbackId))
 
@@ -939,6 +963,7 @@ export const useWidgetManagerStore = defineStore('widget-manager', () => {
     toggleFullScreen,
     isFullScreen,
     loadDefaultProfileForVehicle,
+    ensureProfileForVehicleType,
     isWidgetVisible,
     widgetClearanceForVisibleArea,
     isRealMiniWidget,
