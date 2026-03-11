@@ -476,6 +476,28 @@ export const useControllerStore = defineStore('controller', () => {
     }
   }
 
+  /**
+   * Ensures a default joystick protocol mapping exists for the given vehicle type.
+   * If no mapping is tied to the vehicle type, creates one from the built-in defaults.
+   * @param {MavType} vehicleType - The vehicle type to ensure a mapping for
+   */
+  const ensureMappingForVehicleType = (vehicleType: MavType): void => {
+    // @ts-ignore: We know that the value is a string
+    const existingHash = vehicleTypeProtocolMappingCorrespondency.value[vehicleType]
+    if (existingHash && protocolMappings.value.some((m) => m.hash === existingHash)) return
+
+    // @ts-ignore: We know that the value is a string
+    const defaultHash = defaultProtocolMappingVehicleCorrespondency[vehicleType]
+    const template = cockpitStandardToProtocols.find((m) => m.hash === defaultHash)
+    if (!template) return
+
+    const userMapping = structuredClone(template)
+    protocolMappings.value.push(userMapping)
+
+    // @ts-ignore: We know that the value is a string
+    vehicleTypeProtocolMappingCorrespondency.value[vehicleType] = userMapping.hash
+  }
+
   const actionsToCallFromJoystick = ref<CockpitActionsFunction[]>([])
   const addActionToCallFromJoystick = (actionId: CockpitActionsFunction): void => {
     if (!actionsToCallFromJoystick.value.includes(actionId)) {
@@ -593,6 +615,7 @@ export const useControllerStore = defineStore('controller', () => {
     exportFunctionsMapping,
     importFunctionsMapping,
     loadDefaultProtocolMappingForVehicle,
+    ensureMappingForVehicleType,
     joystickCalibrationOptions,
     currentMainJoystick,
     disabledJoysticks,

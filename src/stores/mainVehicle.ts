@@ -655,6 +655,8 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
       if (oldVehicleType !== vehicleType.value && vehicleType.value !== undefined) {
         console.log('Vehicle type changed to', vehicleType.value)
 
+        controllerStore.ensureMappingForVehicleType(vehicleType.value)
+
         try {
           controllerStore.loadDefaultProtocolMappingForVehicle(vehicleType.value)
           console.info(`Loaded default joystick protocol mapping for vehicle type ${vehicleType.value}.`)
