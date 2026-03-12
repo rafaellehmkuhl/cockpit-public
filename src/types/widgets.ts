@@ -98,6 +98,7 @@ export enum MiniWidgetType {
   SatelliteIndicator = 'SatelliteIndicator',
   SnapshotTool = 'SnapshotTool',
   TakeoffLandCommander = 'TakeoffLandCommander',
+  VehicleSelector = 'VehicleSelector',
   VeryGenericIndicator = 'VeryGenericIndicator',
   ViewSelector = 'ViewSelector',
 }
