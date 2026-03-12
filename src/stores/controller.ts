@@ -75,6 +75,7 @@ export const useControllerStore = defineStore('controller', () => {
     'cockpit-default-vehicle-type-protocol-mappings',
     defaultProtocolMappingVehicleCorrespondency
   )
+  const removedDefaultMappingHashes = useBlueOsStorage<string[]>('cockpit-removed-default-joystick-mappings', [])
 
   const cockpitStdMappings = computed<typeof availableGamepadToCockpitMaps>(() => {
     const mappings = {} as typeof availableGamepadToCockpitMaps
@@ -452,10 +453,11 @@ export const useControllerStore = defineStore('controller', () => {
     mapping.hash = correspondentDefault?.hash ?? uuid4()
   })
 
-  // Add default mappings that the user does not have
+  // Add default mappings that the user does not have (unless explicitly removed by the user)
   const updatedMappings = protocolMappings.value
   cockpitStandardToProtocols.forEach((defMapping) => {
     if (protocolMappings.value.find((mapping) => mapping.hash === defMapping.hash)) return
+    if (removedDefaultMappingHashes.value.includes(defMapping.hash)) return
     updatedMappings.push(defMapping)
   })
   protocolMappings.value = updatedMappings
@@ -496,6 +498,8 @@ export const useControllerStore = defineStore('controller', () => {
 
     // @ts-ignore: We know that the value is a string
     vehicleTypeProtocolMappingCorrespondency.value[vehicleType] = userMapping.hash
+
+    removedDefaultMappingHashes.value = removedDefaultMappingHashes.value.filter((h) => h !== userMapping.hash)
   }
 
   const actionsToCallFromJoystick = ref<CockpitActionsFunction[]>([])
@@ -570,6 +574,7 @@ export const useControllerStore = defineStore('controller', () => {
 
   /**
    * Deletes a protocol mapping from the store by hash.
+   * If the mapping is a built-in default, tracks its hash to prevent automatic re-addition on next boot.
    * If the currently active mapping is deleted, switches to the first remaining mapping.
    * @param {string} mappingHash - Hash of the mapping to delete
    */
@@ -584,6 +589,11 @@ export const useControllerStore = defineStore('controller', () => {
         timer: 4000,
       })
       return
+    }
+
+    const isBuiltInDefault = cockpitStandardToProtocols.some((m) => m.hash === mappingHash)
+    if (isBuiltInDefault && !removedDefaultMappingHashes.value.includes(mappingHash)) {
+      removedDefaultMappingHashes.value = [...removedDefaultMappingHashes.value, mappingHash]
     }
 
     const wasActive = protocolMapping.value.hash === mappingHash
