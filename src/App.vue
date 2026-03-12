@@ -133,6 +133,7 @@
   <ActionDiscoveryModal auto-check-on-mount />
   <UpdateNotification v-if="isElectron()" />
   <ArchitectureWarning v-if="isElectron()" />
+  <SettingsSyncStatusDialog />
   <SnackbarContainer />
   <SkullAnimation
     :is-visible="interfaceStore.showSkullAnimation"
@@ -148,6 +149,8 @@
 </template>
 
 <script setup lang="ts">
+import '@/composables/useVehicleRegistry'
+
 import { useStorage, useWindowSize } from '@vueuse/core'
 import { computed, onBeforeMount, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
@@ -155,6 +158,7 @@ import ActionDiscoveryModal from '@/components/ActionDiscoveryModal.vue'
 import ArchitectureWarning from '@/components/ArchitectureWarning.vue'
 import GlassModal from '@/components/GlassModal.vue'
 import ProfileCleanupDialog from '@/components/ProfileCleanupDialog.vue'
+import SettingsSyncStatusDialog from '@/components/SettingsSyncStatusDialog.vue'
 import SkullAnimation from '@/components/SkullAnimation.vue'
 import SnackbarContainer from '@/components/SnackbarContainer.vue'
 import Tutorial from '@/components/Tutorial.vue'

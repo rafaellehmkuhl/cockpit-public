@@ -142,3 +142,165 @@ declare global {
  * NoVehicleIdErrorName is the name of the error for when a vehicle ID is not found.
  */
 export const NoVehicleIdErrorName = 'NoVehicleIdError'
+
+/**
+ * The reason a sync operation was triggered
+ */
+export type SyncReason = 'vehicle-online' | 'user-changed'
+
+/**
+ * How a setting was resolved during the merge between local and vehicle
+ */
+export type SyncSettingResolution = 'from-vehicle' | 'from-local' | 'same' | 'new-on-vehicle' | 'new-on-local'
+
+/**
+ * Details about how an individual setting was resolved during sync
+ */
+export interface SyncSettingDetail {
+  /**
+   * The setting key
+   */
+  key: string
+  /**
+   * How the setting was resolved
+   */
+  resolution: SyncSettingResolution
+}
+
+/**
+ * Discriminated union of all sync status events emitted by the SettingsManager
+ */
+export type SyncStatusEvent =
+  | {
+      /**
+       * The reason the sync was started
+       */
+      type: 'sync-started'
+      /**
+       * The username of the user that triggered the sync
+       */
+      reason: SyncReason
+      /**
+       * The ID of the vehicle that triggered the sync
+       */
+      user: string
+      /**
+       *
+       */
+      vehicleId: string
+    }
+  | {
+      /**
+       * The current step of the sync
+       */
+      type: 'sync-step'
+      /**
+       * The setting was resolved
+       */
+      step: string
+    }
+  | {
+      /**
+       * The sync started
+       */
+      type: 'setting-resolved'
+      /**
+       * The key of the setting that was pushed
+       */
+      detail: SyncSettingDetail
+    }
+  | {
+      /**
+       *
+       */
+      type: 'push-started'
+      /**
+       * The number of keys that were pushed
+       */
+      totalKeys: number
+    }
+  | {
+      /**
+       * The number of keys that were skipped while pushing
+       */
+      type: 'push-progress'
+      /**
+       * The key of the setting that was skipped
+       */
+      key: string
+      /**
+       * The number of keys that were pushed
+       */
+      pushed: number
+      /**
+       * The number of keys that were skipped while pushing
+       */
+      skipped: number
+      /**
+       * The total number of keys that were pushed
+       */
+      total: number
+    }
+  | {
+      /**
+       * The key that was skipped
+       */
+      type: 'push-skipped'
+      /**
+       * The error that occurred while pushing the setting
+       */
+      key: string
+      /**
+       * The reason the push was skipped
+       */
+      reason: string
+    }
+  | {
+      /**
+       * The sync completed successfully
+       */
+      type: 'sync-completed'
+    }
+  | {
+      /**
+       * The sync was aborted
+       */
+      type: 'sync-aborted'
+      /**
+       * The reason the sync was aborted
+       */
+      reason: string
+    }
+  | {
+      /**
+       * The sync failed
+       */
+      type: 'sync-error'
+      /**
+       * The error that occurred while syncing
+       */
+      error: string
+    }
+  | {
+      /**
+       * The key that was pushed to the vehicle
+       */
+      type: 'key-pushed'
+      /**
+       * The key that was pushed to the vehicle
+       */
+      key: string
+      /**
+       * The username of the user that pushed the setting
+       */
+      user: string
+      /**
+       * The ID of the vehicle that the setting was pushed to
+       */
+      vehicleId: string
+    }
+
+/**
+ * Callback type for sync status listeners
+ */
+export type SyncStatusListener = (event: SyncStatusEvent) => void
