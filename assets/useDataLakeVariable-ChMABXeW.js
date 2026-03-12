@@ -1,1 +1,0 @@
-import{r as o,w as b,b8 as c,j as v,aO as f,ah as V,ae as n}from"./index-C2B19Btt.js";function m(s){const i=o(void 0);let a,t;const u=e=>{if(a&&t&&(n(t,a),a=void 0),t=e,!e){i.value=void 0;return}const r=f(e);r!==void 0&&(i.value=r),a=V(e,l=>{i.value=l})};return b(()=>c(s),e=>u(e),{immediate:!0}),v(()=>{a&&t&&n(t,a)}),{value:i}}export{m as u};
