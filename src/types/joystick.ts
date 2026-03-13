@@ -1,4 +1,4 @@
-import { JoystickModel } from '@/libs/joystick/manager'
+import { JoystickModel } from '@/types/joystick-model'
 
 import { SDLControllerState, SDLJoystickState } from './sdl'
 
@@ -578,9 +578,17 @@ export interface JoystickMapSuggestionGroup {
    */
   name: string
   /**
+   * Optional description for the suggestion group
+   */
+  description?: string
+  /**
    * List of button mapping suggestions in this group
    */
   buttonMappingSuggestions: JoystickMapSuggestion[]
+  /**
+   * Optional list of joystick profile hashes this group targets
+   */
+  targetVehicleTypes?: string[]
 }
 
 /**
