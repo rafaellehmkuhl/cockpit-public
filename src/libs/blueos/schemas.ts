@@ -1,9 +1,8 @@
 import camelcaseKeys from 'camelcase-keys'
 import { z } from 'zod'
 
-import { HttpRequestMethod } from '@/libs/actions/http-request'
 import { MAVLinkType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
-import { customActionTypes } from '@/libs/joystick/protocols/cockpit-actions'
+import { customActionTypes, HttpRequestMethod } from '@/types/cockpit-actions'
 import { CockpitModifierKeyOption, JoystickProtocol } from '@/types/joystick'
 
 /**
@@ -32,7 +31,7 @@ const ServiceMetadataSchema = z
         cockpit: z.string().optional(),
       })
       .nullish(),
-    worksInRelativePaths: z.boolean().optional(),
+    worksInRelativePaths: z.boolean().nullish(),
     sanitizedName: z.string().optional(),
   })
   .nullish()
@@ -101,7 +100,9 @@ const JoystickButtonMappingSuggestionSchema = z
 const JoystickMapSuggestionGroupSchema = z.object({
   id: z.string(),
   name: z.string(),
+  description: z.string().optional(),
   buttonMappingSuggestions: z.array(JoystickButtonMappingSuggestionSchema),
+  targetVehicleTypes: z.array(z.string()).optional(),
   version: z.string().optional(),
 })
 
