@@ -5,11 +5,7 @@ import { v4 as uuid4 } from 'uuid'
 import { computed, onMounted, ref, toRaw, watch } from 'vue'
 
 import { defaultJoystickCalibration } from '@/assets/defaults'
-import {
-  availableGamepadToCockpitMaps,
-  cockpitStandardToProtocols,
-  defaultProtocolMappingVehicleCorrespondency,
-} from '@/assets/joystick-profiles'
+import { availableGamepadToCockpitMaps, defaultProtocolMappingVehicleCorrespondency } from '@/assets/joystick-profiles'
 import { useInteractionDialog } from '@/composables/interactionDialog'
 import { useBlueOsStorage } from '@/composables/settingsSyncer'
 import { checkForOtherManualControlSources } from '@/libs/blueos'
@@ -25,7 +21,6 @@ import { allAvailableAxes, allAvailableButtons, performJoystickMappingMigrations
 import { CockpitActionsFunction, executeActionCallback } from '@/libs/joystick/protocols/cockpit-actions'
 import { modifierKeyActions, otherAvailableActions } from '@/libs/joystick/protocols/other'
 import { isElectron } from '@/libs/utils'
-import { Alert, AlertLevel } from '@/types/alert'
 import {
   type GamepadToCockpitStdMapping,
   type JoystickProtocolActionsMapping,
@@ -40,7 +35,6 @@ import {
   JoystickProtocol,
 } from '@/types/joystick'
 
-import { useAlertStore } from './alert'
 import { useMainVehicleStore } from './mainVehicle'
 
 export type controllerUpdateCallback = (
@@ -50,18 +44,35 @@ export type controllerUpdateCallback = (
   actionsJoystickConfirmRequired: Record<string, boolean>
 ) => void
 
-const protocolMappingsKey = 'cockpit-protocol-mappings-v1'
-const protocolMappingIndexKey = 'cockpit-protocol-mapping-index-v1'
+export const legacyProtocolMappingsKey = 'cockpit-protocol-mappings-v1'
+const joystickFunctionsMappingKey = 'cockpit-joystick-functions-mapping-v1'
 const cockpitStdMappingsKey = 'cockpit-standard-mappings-v2'
 const maxSupportedInputIndexes = 63
 
+const blankMapping: JoystickProtocolActionsMapping = {
+  name: 'Custom mapping',
+  hash: uuid4(),
+  axesCorrespondencies: {
+    [JoystickAxis.A0]: { action: otherAvailableActions.no_function, min: -1000, max: 1000 },
+    [JoystickAxis.A1]: { action: otherAvailableActions.no_function, min: -1000, max: 1000 },
+    [JoystickAxis.A2]: { action: otherAvailableActions.no_function, min: -1000, max: 1000 },
+    [JoystickAxis.A3]: { action: otherAvailableActions.no_function, min: -1000, max: 1000 },
+  },
+  buttonsCorrespondencies: {
+    [CockpitModifierKeyOption.regular]: Object.fromEntries(
+      Array.from({ length: 18 }, (_, i) => [i, { action: otherAvailableActions.no_function }])
+    ),
+    [CockpitModifierKeyOption.shift]: Object.fromEntries(
+      Array.from({ length: 18 }, (_, i) => [i, { action: otherAvailableActions.no_function }])
+    ),
+  },
+}
+
 export const useControllerStore = defineStore('controller', () => {
-  const alertStore = useAlertStore()
   const mainVehicleStore = useMainVehicleStore()
   const joysticks = ref<Map<number, Joystick>>(new Map())
   const updateCallbacks = ref<controllerUpdateCallback[]>([])
-  const protocolMappings = useBlueOsStorage(protocolMappingsKey, cockpitStandardToProtocols)
-  const protocolMappingIndex = useBlueOsStorage(protocolMappingIndexKey, 0)
+  const protocolMapping = useBlueOsStorage<JoystickProtocolActionsMapping>(joystickFunctionsMappingKey, blankMapping)
   const userCustomCockpitStdMappings = useBlueOsStorage<{ [key in JoystickModel]?: GamepadToCockpitStdMapping }>(
     cockpitStdMappingsKey,
     {}
@@ -71,17 +82,60 @@ export const useControllerStore = defineStore('controller', () => {
   const enableForwarding = ref(false)
   const preventJoystickForwarding = ref(false)
   const holdLastInputWhenWindowHidden = useBlueOsStorage('cockpit-hold-last-joystick-input-when-window-hidden', false)
-  const vehicleTypeProtocolMappingCorrespondency = useBlueOsStorage<typeof defaultProtocolMappingVehicleCorrespondency>(
+
+  // Legacy data for migration (read old keys)
+  const legacyProtocolMappings = useBlueOsStorage<JoystickProtocolActionsMapping[]>(legacyProtocolMappingsKey, [])
+  const legacyMappingIndex = useBlueOsStorage<number>('cockpit-protocol-mapping-index-v1', 0)
+  const legacyCorrespondency = useBlueOsStorage<typeof defaultProtocolMappingVehicleCorrespondency>(
     'cockpit-default-vehicle-type-protocol-mappings',
     defaultProtocolMappingVehicleCorrespondency
   )
+
+  /**
+   * Whether legacy mapping data exists and needs migration.
+   * @returns {boolean} True if legacy mappings exist
+   */
+  const hasLegacyData = computed(() => legacyProtocolMappings.value.length > 0)
+
+  /**
+   * Migrates from legacy multi-mapping storage to a single joystick functions mapping.
+   * If a vehicle type is provided, selects the mapping tied to that type.
+   * If multiple are tied, picks the first one.
+   * Falls back to the previously active mapping if no match is found.
+   * @param {MavType} vehicleType - The connected vehicle's type
+   */
+  const migrateFromLegacyMappings = (vehicleType: MavType): void => {
+    if (!hasLegacyData.value) return
+
+    const mappings = legacyProtocolMappings.value
+    // @ts-ignore: We know that the value is a string
+    const matchHash = legacyCorrespondency.value[vehicleType]
+    const matching = mappings.filter((m) => m.hash === matchHash)
+
+    let chosen: JoystickProtocolActionsMapping
+    if (matching.length >= 1) {
+      chosen = structuredClone(toRaw(matching[0]))
+    } else {
+      const idx = Math.min(legacyMappingIndex.value, mappings.length - 1)
+      chosen = structuredClone(toRaw(mappings[Math.max(idx, 0)]))
+    }
+
+    protocolMapping.value = chosen
+    legacyProtocolMappings.value = []
+    console.info(`Migrated to single joystick functions mapping from legacy mappings for vehicle type ${vehicleType}.`)
+  }
+
+  // Run schema migrations on the current mapping
+  const migratedArray = performJoystickMappingMigrations([protocolMapping.value])
+  if (migratedArray.length > 0) {
+    protocolMapping.value = migratedArray[0]
+  }
 
   const cockpitStdMappings = computed<typeof availableGamepadToCockpitMaps>(() => {
     const mappings = {} as typeof availableGamepadToCockpitMaps
     Object.entries(userCustomCockpitStdMappings.value).forEach(([key, value]) => {
       mappings[key as JoystickModel] = value
     })
-    // Always use (and override with) mappings from our database if available
     Object.entries(availableGamepadToCockpitMaps).forEach(([key, value]) => {
       mappings[key as JoystickModel] = value
     })
@@ -96,35 +150,12 @@ export const useControllerStore = defineStore('controller', () => {
 
   const currentMainJoystick = ref<Joystick | undefined>(undefined)
 
-  // Confirmation per joystick action required currently is only available for cockpit actions
   const actionsJoystickConfirmRequired = useBlueOsStorage(
     'cockpit-actions-joystick-confirm-required',
     {} as Record<string, boolean>
   )
 
-  const protocolMapping = computed<JoystickProtocolActionsMapping>({
-    get() {
-      return protocolMappings.value[protocolMappingIndex.value]
-    },
-    set(newValue) {
-      protocolMappings.value[protocolMappingIndex.value] = newValue
-    },
-  })
-
-  /**
-   * Change current protocol mapping for given one
-   * @param { JoystickProtocolActionsMapping } mapping - The functions mapping to be loaded
-   */
-  const loadProtocolMapping = (mapping: JoystickProtocolActionsMapping): void => {
-    const mappingIndex = protocolMappings.value.findIndex((p) => p.name === mapping.name)
-    if (mappingIndex === -1) {
-      throw new Error('Could not find mapping.')
-    }
-    protocolMappingIndex.value = mappingIndex
-  }
-
   const initializeProtocolMapping = (mapping: JoystickProtocolActionsMapping): void => {
-    // Initialize axesCorrespondencies for all axes up to maxSupportedInputIndexes
     for (let axis = 0; axis <= maxSupportedInputIndexes; axis++) {
       if (mapping.axesCorrespondencies[axis] === undefined) {
         mapping.axesCorrespondencies[axis] = {
@@ -135,7 +166,6 @@ export const useControllerStore = defineStore('controller', () => {
       }
     }
 
-    // Initialize buttonsCorrespondencies for all buttons up to maxSupportedInputIndexes
     const modifierKeys = Object.keys(mapping.buttonsCorrespondencies)
     for (const modKey of modifierKeys) {
       const buttonsCorrespondency = mapping.buttonsCorrespondencies[modKey as CockpitModifierKeyOption]
@@ -171,9 +201,7 @@ export const useControllerStore = defineStore('controller', () => {
   const processJoystickConnectionEvent = async (event: JoysticksMap): Promise<void> => {
     const newMap = new Map(Array.from(event).map(([index, gamepad]) => [index, new Joystick(gamepad)]))
 
-    // Add new joysticks
     for (const [index, joystick] of newMap) {
-      // Check if there were joysticks connected before this one
       const thereWereJoysticksBefore = joysticks.value.size > 0
 
       if (joysticks.value.has(index)) continue
@@ -187,7 +215,6 @@ export const useControllerStore = defineStore('controller', () => {
         return
       }
 
-      // Check if other GCS is sending MANUAL_CONTROL messages
       const vehicleAddress = await mainVehicleStore.getVehicleAddress()
       const otherSourceDetected = await checkForOtherManualControlSources(vehicleAddress)
 
@@ -214,7 +241,6 @@ export const useControllerStore = defineStore('controller', () => {
       }
     }
 
-    // Remove joysticks that doesn't not exist anymore
     for (const key of joysticks.value.keys()) {
       if (event.has(key)) continue
       const model = joysticks.value.get(key)?.model
@@ -226,11 +252,9 @@ export const useControllerStore = defineStore('controller', () => {
       }
     }
 
-    // If there's at least one joystick connected, set it as the current main joystick
     if (joysticks.value.size >= 1) {
       currentMainJoystick.value = Array.from(joysticks.value.values())[0]
 
-      // If there's no calibration options for the current main joystick, use the default calibration
       if (joystickCalibrationOptions.value[currentMainJoystick.value.model] === undefined) {
         console.info('No calibration options found for joystick model. Using default calibration.')
         const newCalibration = {
@@ -252,13 +276,9 @@ export const useControllerStore = defineStore('controller', () => {
     }
   }
 
-  // Disable joystick forwarding if the window/tab is not visible (except on Electron)
   const windowVisibility = useDocumentVisibility()
   watch(windowVisibility, (value) => {
-    // Disable this failcheck if the user explicitly wants to hold the last input when the window is hidden
-    // This can be considered unsafe, as the user might not be aware of the joystick input being forwarded to the vehicle
     if (holdLastInputWhenWindowHidden.value) return
-
     if (isElectron()) return
 
     if (value === 'hidden') {
@@ -284,7 +304,6 @@ export const useControllerStore = defineStore('controller', () => {
       buttons: [...event.gamepad.buttons.map((button) => button.value)],
     }
 
-    // If joystick forwarding is disabled, disable the callback processing
     if (!enableForwarding.value) return
 
     for (const callback of updateCallbacks.value) {
@@ -327,7 +346,6 @@ export const useControllerStore = defineStore('controller', () => {
         if (btnMapping && btnMapping.action) {
           return btnMapping.action
         } else {
-          // Return a default action or handle accordingly
           return otherAvailableActions.no_function
         }
       })
@@ -337,11 +355,10 @@ export const useControllerStore = defineStore('controller', () => {
 
   let lastValidProtocolMapping = structuredClone(toRaw(protocolMapping.value))
   watch(
-    protocolMappings,
+    protocolMapping,
     () => {
-      // Check if there's any duplicated axis actions. If so, unmap (set to no_function) the axes that use to have the same action
       const oldMapping = structuredClone(toRaw(lastValidProtocolMapping))
-      const newMapping = protocolMappings.value[protocolMappingIndex.value]
+      const newMapping = protocolMapping.value
       const mappedAxisActions = Object.values(newMapping.axesCorrespondencies).map((v) => v.action.id)
       const duplicateAxisActions = mappedAxisActions
         .filter((item, index) => mappedAxisActions.indexOf(item) !== index)
@@ -349,7 +366,7 @@ export const useControllerStore = defineStore('controller', () => {
       if (!duplicateAxisActions.isEmpty()) {
         Object.entries(newMapping.axesCorrespondencies).forEach(([axis, mapping]) => {
           const isDuplicated = duplicateAxisActions.includes(mapping.action.id)
-          const oldMappingId = oldMapping.axesCorrespondencies[axis as unknown as JoystickAxis].action.id
+          const oldMappingId = oldMapping.axesCorrespondencies[axis as unknown as JoystickAxis]?.action?.id
           const wasMapped = oldMappingId === mapping.action.id
           if (isDuplicated && wasMapped) {
             const warningText = `Unmapping '${mapping.action.name}' from input ${axis} layout.
@@ -358,9 +375,8 @@ export const useControllerStore = defineStore('controller', () => {
             newMapping.axesCorrespondencies[axis as unknown as JoystickAxis].action = otherAvailableActions.no_function
           }
         })
-        protocolMappings.value[protocolMappingIndex.value] = newMapping
       }
-      lastValidProtocolMapping = structuredClone(toRaw(protocolMappings.value[protocolMappingIndex.value]))
+      lastValidProtocolMapping = structuredClone(toRaw(protocolMapping.value))
     },
     { deep: true }
   )
@@ -419,7 +435,7 @@ export const useControllerStore = defineStore('controller', () => {
 
   const exportFunctionsMapping = (protocolActionsMapping: JoystickProtocolActionsMapping): void => {
     const blob = new Blob([JSON.stringify(protocolActionsMapping)], { type: 'text/plain;charset=utf-8' })
-    saveAs(blob, `cockpit-std-profile-joystick-${protocolActionsMapping.name}.json`)
+    saveAs(blob, `cockpit-joystick-functions-mapping-${protocolActionsMapping.name}.json`)
   }
 
   const importFunctionsMapping = async (e: Event): Promise<void> => {
@@ -437,43 +453,10 @@ export const useControllerStore = defineStore('controller', () => {
         return
       }
       protocolMapping.value = maybeFunctionsMapping
-      showDialog({ message: 'Functions mapping imported successful.', variant: 'success', timer: 2000 })
+      showDialog({ message: 'Functions mapping imported successfully.', variant: 'success', timer: 2000 })
     }
     // @ts-ignore: We know the event type and need refactor of the event typing
     reader.readAsText(e.target.files[0])
-  }
-
-  // Add hash on mappings that don't have it - TODO: Remove for 1.0.0 release
-  Object.values(protocolMappings.value).forEach((mapping) => {
-    if (mapping.hash !== undefined) return
-
-    // If the mapping is a correspondent of a cockpit standard mapping, use the correspondent hash
-    const correspondentDefault = cockpitStandardToProtocols.find((defMapping) => defMapping.name === mapping.name)
-    mapping.hash = correspondentDefault?.hash ?? uuid4()
-  })
-
-  // Add default mappings that the user does not have
-  const updatedMappings = protocolMappings.value
-  cockpitStandardToProtocols.forEach((defMapping) => {
-    if (protocolMappings.value.find((mapping) => mapping.hash === defMapping.hash)) return
-    updatedMappings.push(defMapping)
-  })
-  protocolMappings.value = updatedMappings
-  protocolMappings.value = performJoystickMappingMigrations(updatedMappings)
-
-  const loadDefaultProtocolMappingForVehicle = (vehicleType: MavType): void => {
-    // @ts-ignore: We know that the value is a string
-    const defaultMappingHash = vehicleTypeProtocolMappingCorrespondency.value[vehicleType]
-    const defaultProtocolMapping = protocolMappings.value.find((mapping) => mapping.hash === defaultMappingHash)
-    if (!defaultProtocolMapping) {
-      throw new Error('Could not find default mapping for this vehicle.')
-    }
-
-    try {
-      loadProtocolMapping(defaultProtocolMapping)
-    } catch (error) {
-      alertStore.pushAlert(new Alert(AlertLevel.Warning, 'Could not load default mapping for vehicle type.'))
-    }
   }
 
   const actionsToCallFromJoystick = ref<CockpitActionsFunction[]>([])
@@ -491,8 +474,6 @@ export const useControllerStore = defineStore('controller', () => {
     enableForwarding.value = true
   }
 
-  // Track previous button states to detect rising edges (button press transitions)
-  // Format: Map<actionId, wasActive>
   const previousActionStates = ref<Map<string, boolean>>(new Map())
 
   registerControllerUpdateCallback(async (joystickState, actionsMapping, activeActions, actionsConfirmRequired) => {
@@ -502,21 +483,13 @@ export const useControllerStore = defineStore('controller', () => {
 
     actionsToCallFromJoystick.value = []
 
-    // Get list of active actions for this joystick state
     const currentActiveActions = activeActions.filter((action) => action.protocol === JoystickProtocol.CockpitAction)
 
-    // Process each active cockpit action
     currentActiveActions.forEach((action) => {
-      // Create a unique key for this action
       const actionStateKey = `action_${action.id}`
-
-      // Check if this action was active in the previous state
       const wasActive = previousActionStates.value.get(actionStateKey) || false
-
-      // Store current state for next time
       previousActionStates.value.set(actionStateKey, true)
 
-      // Only trigger action on rising edge (button was just pressed)
       if (!wasActive) {
         try {
           addActionToCallFromJoystick(action.id as CockpitActionsFunction)
@@ -526,7 +499,6 @@ export const useControllerStore = defineStore('controller', () => {
       }
     })
 
-    // Reset inactive actions' states
     Array.from(previousActionStates.value.keys()).forEach((actionStateKey) => {
       const actionId = actionStateKey.replace('action_', '')
       const isCurrentlyActive = currentActiveActions.some((action) => action.id === actionId)
@@ -552,19 +524,16 @@ export const useControllerStore = defineStore('controller', () => {
     holdLastInputWhenWindowHidden,
     joysticks,
     protocolMapping,
-    protocolMappings,
-    protocolMappingIndex,
     cockpitStdMappings,
     availableAxesActions,
     availableButtonActions,
-    vehicleTypeProtocolMappingCorrespondency,
     actionsJoystickConfirmRequired,
-    loadProtocolMapping,
+    hasLegacyData,
+    migrateFromLegacyMappings,
     exportJoystickMapping,
     importJoystickMapping,
     exportFunctionsMapping,
     importFunctionsMapping,
-    loadDefaultProtocolMappingForVehicle,
     joystickCalibrationOptions,
     currentMainJoystick,
     disabledJoysticks,
