@@ -245,6 +245,7 @@ export type ProcessedStreamInfo = {
   height: number
   fps: number
   running: boolean
+  rtspEndpoints: string[]
 }
 /* eslint-enable jsdoc/require-jsdoc */
 
@@ -484,6 +485,10 @@ export const getStreamInformationFromVehicle = async (vehicleAddress: string): P
         fps = config.frame_interval.denominator / config.frame_interval.numerator
       }
 
+      const rtspEndpoints = (stream.video_and_stream.stream_information.endpoints ?? []).filter(
+        (ep) => ep.startsWith('rtsp://') || ep.startsWith('rtsps://')
+      )
+
       return {
         name: stream.video_and_stream.name,
         sourceName,
@@ -491,6 +496,7 @@ export const getStreamInformationFromVehicle = async (vehicleAddress: string): P
         height: config.height,
         fps,
         running: stream.running,
+        rtspEndpoints,
       }
     })
   } catch (error) {
