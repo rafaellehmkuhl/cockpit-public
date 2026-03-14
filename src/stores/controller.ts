@@ -91,17 +91,20 @@ export const useControllerStore = defineStore('controller', () => {
     defaultProtocolMappingVehicleCorrespondency
   )
 
+  const legacyMigrationDone = ref(false)
+
   /**
    * Whether legacy mapping data exists and needs migration.
-   * @returns {boolean} True if legacy mappings exist
+   * @returns {boolean} True if legacy mappings exist and haven't been migrated yet
    */
-  const hasLegacyData = computed(() => legacyProtocolMappings.value.length > 0)
+  const hasLegacyData = computed(() => !legacyMigrationDone.value && legacyProtocolMappings.value.length > 0)
 
   /**
    * Migrates from legacy multi-mapping storage to a single joystick functions mapping.
    * If a vehicle type is provided, selects the mapping tied to that type.
    * If multiple are tied, picks the first one.
    * Falls back to the previously active mapping if no match is found.
+   * Old storage keys are left untouched so older versions can still load.
    * @param {MavType} vehicleType - The connected vehicle's type
    */
   const migrateFromLegacyMappings = (vehicleType: MavType): void => {
@@ -121,7 +124,7 @@ export const useControllerStore = defineStore('controller', () => {
     }
 
     protocolMapping.value = chosen
-    legacyProtocolMappings.value = []
+    legacyMigrationDone.value = true
     console.info(`Migrated to single joystick functions mapping from legacy mappings for vehicle type ${vehicleType}.`)
   }
 
