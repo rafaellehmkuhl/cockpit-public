@@ -1,5 +1,7 @@
 import { v4 as uuid } from 'uuid'
 
+import { perfBegin, perfEnd } from '@/libs/performance-instrumentation'
+
 import { settingsManager } from '../settings-management'
 
 /**
@@ -172,24 +174,63 @@ export const getDataLakeVariableData = (id: string): string | number | boolean |
   return dataLakeVariableData[id]
 }
 
+const dirtyValueIds = new Set<string>()
+const dirtyTimestampIds = new Set<string>()
+let flushScheduled = false
+
+/**
+ * Schedule a single RAF callback to flush all pending notifications.
+ * Multiple calls before the next frame are no-ops.
+ */
+function scheduleFlush(): void {
+  if (flushScheduled) return
+  flushScheduled = true
+  requestAnimationFrame(flushNotifications)
+}
+
+/**
+ * Flush all pending listener notifications in a single batch.
+ * Called once per animation frame, notifying each dirty variable's listeners
+ * with the latest value. Deduplicates: a variable updated N times per frame
+ * results in a single notification with the final value.
+ */
+function flushNotifications(): void {
+  flushScheduled = false
+
+  perfBegin('dataLake:notifyListeners')
+  for (const id of dirtyValueIds) {
+    notifyDataLakeVariableListeners(id)
+  }
+  for (const id of dirtyTimestampIds) {
+    if (!dirtyValueIds.has(id)) {
+      notifyDataLakeVariableTimestampListeners(id)
+    }
+  }
+  dirtyValueIds.clear()
+  dirtyTimestampIds.clear()
+  perfEnd('dataLake:notifyListeners')
+}
+
 export const setDataLakeVariableData = (id: string, data: string | number | boolean): void => {
-  // Always update the timestamp regardless of value change
+  perfBegin('dataLake:setVariable')
   dataLakeVariableTimestamps[id] = performance.now()
 
-  // If the value is not changing, skip the value "update" but notify timestamp listeners
   if (dataLakeVariableData[id] === data) {
-    notifyDataLakeVariableTimestampListeners(id)
+    dirtyTimestampIds.add(id)
+    scheduleFlush()
+    perfEnd('dataLake:setVariable')
     return
   }
 
   dataLakeVariableData[id] = data
 
-  // If this variable has persistValue enabled, save the value to localStorage
   if (dataLakeVariableInfo[id]?.persistValue) {
     savePersistentValues()
   }
 
-  notifyDataLakeVariableListeners(id)
+  dirtyValueIds.add(id)
+  scheduleFlush()
+  perfEnd('dataLake:setVariable')
 }
 
 export const deleteDataLakeVariable = (id: string): void => {
@@ -245,13 +286,13 @@ const notifyDataLakeVariableListeners = (id: string): void => {
   if (dataLakeVariableListeners[id]) {
     const value = dataLakeVariableData[id]
     if (value === undefined) return
-    Object.entries(dataLakeVariableListeners[id]).forEach(([listenerId, listener]) => {
+    for (const [listenerId, listener] of Object.entries(dataLakeVariableListeners[id])) {
       try {
         listener.callback(value)
       } catch (error) {
         console.error(`[DataLake] Error in listener "${listenerId}" for variable "${id}":`, error)
       }
-    })
+    }
   }
 }
 
@@ -259,15 +300,14 @@ const notifyDataLakeVariableTimestampListeners = (id: string): void => {
   if (dataLakeVariableListeners[id]) {
     const value = dataLakeVariableData[id]
     if (value === undefined) return
-    Object.entries(dataLakeVariableListeners[id])
-      .filter(([, listener]) => listener.notifyOnTimestampChange)
-      .forEach(([listenerId, listener]) => {
-        try {
-          listener.callback(value)
-        } catch (error) {
-          console.error(`[DataLake] Error in timestamp listener "${listenerId}" for variable "${id}":`, error)
-        }
-      })
+    for (const [listenerId, listener] of Object.entries(dataLakeVariableListeners[id])) {
+      if (!listener.notifyOnTimestampChange) continue
+      try {
+        listener.callback(value)
+      } catch (error) {
+        console.error(`[DataLake] Error in timestamp listener "${listenerId}" for variable "${id}":`, error)
+      }
+    }
   }
 }
 

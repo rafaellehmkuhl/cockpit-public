@@ -46,7 +46,7 @@
       <div ref="routerSection" class="router-view">
         <div class="main-view" :class="{ 'edit-mode': widgetStore.editingMode }" :style="connectionStatusFeedback">
           <div
-            v-show="showTopBarNow"
+            v-show="showTopBarNow && !isFullScreenRoute"
             id="mainTopBar"
             class="bar top-bar"
             :style="[
@@ -92,7 +92,7 @@
           <div v-for="view in widgetStore.viewsToShow" :key="view.name">
             <Transition name="fade">
               <div
-                v-show="view.name === currentSelectedViewName && showBottomBarNow"
+                v-show="view.name === currentSelectedViewName && showBottomBarNow && !isFullScreenRoute"
                 class="bar bottom-bar"
                 :style="[
                   interfaceStore.globalGlassMenuStyles,
@@ -149,6 +149,7 @@
 <script setup lang="ts">
 import { useStorage, useWindowSize } from '@vueuse/core'
 import { computed, onBeforeMount, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
 import ActionDiscoveryModal from '@/components/ActionDiscoveryModal.vue'
 import ArchitectureWarning from '@/components/ArchitectureWarning.vue'
@@ -190,6 +191,10 @@ const vehicleStore = useMainVehicleStore()
 const interfaceStore = useAppInterfaceStore()
 const devStore = useDevelopmentStore()
 const missionStore = useMissionStore()
+const route = useRoute()
+
+const fullScreenRoutes = ['/benchmark']
+const isFullScreenRoute = computed(() => fullScreenRoutes.includes(route.path))
 
 // Initialize the snapshot store to register action callbacks
 useSnapshotStore()

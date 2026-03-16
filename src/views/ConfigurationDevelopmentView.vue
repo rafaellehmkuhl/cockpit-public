@@ -43,7 +43,7 @@
               @update:model-value="reloadCockpitAndWarnUser()"
             />
           </div>
-          <div class="flex flex-row w-full justify-start gap-x-[40px]">
+          <div class="flex flex-row w-full justify-start gap-x-[40px] items-center">
             <v-switch
               v-model="devStore.showSplashScreenOnStartup"
               label="Show splashscreen on startup"
@@ -51,6 +51,10 @@
               hide-details
               class="min-w-[155px]"
             />
+            <v-btn variant="outlined" class="rounded-md" @click="router.push('/benchmark')">
+              <v-icon start>mdi-speedometer</v-icon>
+              Performance Benchmark
+            </v-btn>
           </div>
           <v-slider
             v-model="devStore.widgetDevInfoBlurLevel"
@@ -116,8 +120,8 @@
 
 import { parse } from 'date-fns'
 import { saveAs } from 'file-saver'
-import { onBeforeMount, onBeforeUnmount } from 'vue'
-import { ref } from 'vue'
+import { onBeforeMount, onBeforeUnmount, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 import ExpansiblePanel from '@/components/ExpansiblePanel.vue'
 import {
@@ -133,6 +137,7 @@ import { useAppInterfaceStore } from '@/stores/appInterface'
 import { useDevelopmentStore } from '@/stores/development'
 
 import BaseConfigurationView from './BaseConfigurationView.vue'
+const router = useRouter()
 const devStore = useDevelopmentStore()
 const interfaceStore = useAppInterfaceStore()
 

@@ -27,6 +27,7 @@ import {
 } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { MavFrame } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { type Message } from '@/libs/connection/m2r/messages/mavlink2rest-message'
+import { perfBegin, perfEnd } from '@/libs/performance-instrumentation'
 import { settingsManager } from '@/libs/settings-management'
 import { Signal, SignalTyped } from '@/libs/signal'
 import { degrees, frequencyHzToIntervalUs, isEqual, round, sleep } from '@/libs/utils'
@@ -302,6 +303,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
    * @param {Uint8Array} message
    */
   onIncomingMessage(message: Uint8Array): void {
+    perfBegin('mavlink:onIncomingMessage')
     const textDecoder = new TextDecoder()
     let mavlink_message: Package
     const text_message = textDecoder.decode(message)
@@ -310,19 +312,23 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
     } catch (error) {
       const pattern = /Ok\((\d+)\)/
       const match = pattern.exec(text_message)
-      if (match) return
+      if (match) {
+        perfEnd('mavlink:onIncomingMessage')
+        return
+      }
       console.error(`Failed to parse mavlink message: ${text_message}`)
+      perfEnd('mavlink:onIncomingMessage')
       return
     }
 
     const { system_id, component_id } = mavlink_message.header
 
     if (system_id !== this.currentSystemId || component_id !== 1) {
-      // For non-main systems, only inject variables from the MAVLink messages into the DataLake if the user wants to
       if (this.shouldCreateDatalakeVariablesFromOtherSystems) {
         this.addPackageVariablesToDataLake(mavlink_message)
       }
 
+      perfEnd('mavlink:onIncomingMessage')
       return
     }
 
@@ -492,6 +498,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
     }
 
     this.onMAVLinkPackage(mavlink_message)
+    perfEnd('mavlink:onIncomingMessage')
   }
 
   /**
@@ -1524,6 +1531,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
    * @param { Package } mavlinkPackage
    */
   private addPackageVariablesToDataLake(mavlinkPackage: Package): void {
+    perfBegin('mavlink:addToDataLake')
     const messageType = mavlinkPackage.message.type
     const { system_id: messageSystemId, component_id: messageComponentId } = mavlinkPackage.header
     const prefix = `/mavlink/${messageSystemId}/${messageComponentId}`
@@ -1587,6 +1595,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
         setDataLakeVariableData(newStylePath, value)
       })
     }
+    perfEnd('mavlink:addToDataLake')
   }
 
   /**

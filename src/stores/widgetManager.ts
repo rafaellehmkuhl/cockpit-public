@@ -308,7 +308,12 @@ export const useWidgetManagerStore = defineStore('widget-manager', () => {
    * @param { Widget } widget - Widget
    */
   const isWidgetVisible = (widget: Widget): boolean => {
-    return document.visibilityState === 'visible' && viewFromWidget(widget).hash === currentView.value.hash
+    if (document.visibilityState !== 'visible') return false
+    try {
+      return viewFromWidget(widget).hash === currentView.value.hash
+    } catch {
+      return true
+    }
   }
 
   /**
