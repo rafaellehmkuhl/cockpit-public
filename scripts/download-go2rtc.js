@@ -8,6 +8,8 @@ const path = require('path')
 const os = require('os')
 const { execSync } = require('child_process')
 
+const { verifySha256 } = require('./verify-sha256')
+
 /**
  * Download go2rtc binary for the current platform
  */
@@ -20,6 +22,7 @@ const PLATFORM_CONFIG = {
       url: `https://github.com/AlexxIT/go2rtc/releases/download/v${GO2RTC_VERSION}/go2rtc_win64.zip`,
       archivePath: 'go2rtc.exe',
       targetFile: 'go2rtc.exe',
+      sha256: null,
     },
   },
   darwin: {
@@ -27,11 +30,13 @@ const PLATFORM_CONFIG = {
       url: `https://github.com/AlexxIT/go2rtc/releases/download/v${GO2RTC_VERSION}/go2rtc_mac_amd64.zip`,
       archivePath: 'go2rtc',
       targetFile: 'go2rtc',
+      sha256: null,
     },
     arm64: {
       url: `https://github.com/AlexxIT/go2rtc/releases/download/v${GO2RTC_VERSION}/go2rtc_mac_arm64.zip`,
       archivePath: 'go2rtc',
       targetFile: 'go2rtc',
+      sha256: null,
     },
   },
   linux: {
@@ -39,11 +44,13 @@ const PLATFORM_CONFIG = {
       url: `https://github.com/AlexxIT/go2rtc/releases/download/v${GO2RTC_VERSION}/go2rtc_linux_amd64`,
       archivePath: null,
       targetFile: 'go2rtc',
+      sha256: null,
     },
     arm64: {
       url: `https://github.com/AlexxIT/go2rtc/releases/download/v${GO2RTC_VERSION}/go2rtc_linux_arm64`,
       archivePath: null,
       targetFile: 'go2rtc',
+      sha256: null,
     },
   },
 }
@@ -183,6 +190,12 @@ async function installGo2RTC() {
   try {
     if (archConfig.archivePath === null) {
       await downloadFile(archConfig.url, targetFile)
+
+      if (!verifySha256(targetFile, archConfig.sha256)) {
+        fs.unlinkSync(targetFile)
+        throw new Error('Downloaded file failed integrity check. Aborting to prevent potential supply chain attack.')
+      }
+
       if (process.platform !== 'win32') {
         fs.chmodSync(targetFile, '755')
       }
@@ -191,6 +204,12 @@ async function installGo2RTC() {
       const ext = archConfig.url.includes('.zip') ? 'zip' : 'tar.xz'
       const archiveFile = path.join(targetDir, `go2rtc-${platform}-${arch}.${ext}`)
       await downloadFile(archConfig.url, archiveFile)
+
+      if (!verifySha256(archiveFile, archConfig.sha256)) {
+        fs.unlinkSync(archiveFile)
+        throw new Error('Downloaded file failed integrity check. Aborting to prevent potential supply chain attack.')
+      }
+
       await extractAndMove(archiveFile, archConfig, targetDir)
     }
   } catch (error) {

@@ -8,6 +8,8 @@ const path = require('path')
 const os = require('os')
 const { execSync } = require('child_process')
 
+const { verifySha256 } = require('./verify-sha256')
+
 /**
  * Download FFmpeg 7.1 binary for the current platform
  */
@@ -15,29 +17,35 @@ const { execSync } = require('child_process')
 const FFMPEG_VERSION = '7.1'
 
 // Platform-specific download URLs and file info
+// macOS uses evermeet.cx (recommended by ffmpeg.org). Only Intel builds are available;
+// they run natively on Apple Silicon via Rosetta 2 with no performance penalty.
 const PLATFORM_CONFIG = {
   win32: {
     x64: {
       url: 'https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2025-02-28-13-02/ffmpeg-n7.1-214-g71889a8437-win64-gpl-7.1.zip',
       archivePath: 'ffmpeg-n7.1-214-g71889a8437-win64-gpl-7.1/bin/ffmpeg.exe',
       targetFile: 'ffmpeg.exe',
+      sha256: null,
     },
     arm64: {
       url: 'https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2025-02-28-13-02/ffmpeg-n7.1-214-g71889a8437-winarm64-gpl-7.1.zip',
       archivePath: 'ffmpeg-n7.1-214-g71889a8437-winarm64-gpl-7.1/bin/ffmpeg.exe',
       targetFile: 'ffmpeg.exe',
+      sha256: null,
     },
   },
   darwin: {
     x64: {
-      url: 'https://www.osxexperts.net/ffmpeg71intel.zip',
+      url: 'https://evermeet.cx/ffmpeg/ffmpeg-7.1.zip',
       archivePath: 'ffmpeg',
       targetFile: 'ffmpeg',
+      sha256: null,
     },
     arm64: {
-      url: 'https://www.osxexperts.net/ffmpeg71arm.zip',
+      url: 'https://evermeet.cx/ffmpeg/ffmpeg-7.1.zip',
       archivePath: 'ffmpeg',
       targetFile: 'ffmpeg',
+      sha256: null,
     },
   },
   linux: {
@@ -45,11 +53,13 @@ const PLATFORM_CONFIG = {
       url: 'https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2025-02-28-13-02/ffmpeg-n7.1-214-g71889a8437-linux64-gpl-7.1.tar.xz',
       archivePath: 'ffmpeg-n7.1-214-g71889a8437-linux64-gpl-7.1/bin/ffmpeg',
       targetFile: 'ffmpeg',
+      sha256: null,
     },
     arm64: {
       url: 'https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2025-02-28-13-02/ffmpeg-n7.1-214-g71889a8437-linuxarm64-gpl-7.1.tar.xz',
       archivePath: 'ffmpeg-n7.1-214-g71889a8437-linuxarm64-gpl-7.1/bin/ffmpeg',
       targetFile: 'ffmpeg',
+      sha256: null,
     },
   },
 }
@@ -213,6 +223,12 @@ async function installFFmpeg() {
 
   try {
     await downloadFile(archConfig.url, archiveFile)
+
+    if (!verifySha256(archiveFile, archConfig.sha256)) {
+      fs.unlinkSync(archiveFile)
+      throw new Error('Downloaded file failed integrity check. Aborting to prevent potential supply chain attack.')
+    }
+
     await extractAndMove(archiveFile, archConfig, targetDir)
   } catch (error) {
     console.error('❌ Failed to install FFmpeg:', error.message)
