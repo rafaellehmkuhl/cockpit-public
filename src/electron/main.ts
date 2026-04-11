@@ -1,4 +1,4 @@
-import { app, BrowserWindow, powerSaveBlocker, protocol, screen } from 'electron'
+import { app, BrowserWindow, powerSaveBlocker, protocol, screen, session } from 'electron'
 import { join } from 'path'
 
 import { setupAutoUpdater } from './services/auto-update'
@@ -39,6 +39,7 @@ function createWindow(): void {
       preload: join(ROOT_PATH.dist, 'electron/preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
       backgroundThrottling: false,
       webSecurity: !process.env.VITE_DEV_SERVER_URL, // Disable CORS in dev mode so we don't have to deal with per-system workarounds
     },
@@ -88,8 +89,6 @@ protocol.registerSchemesAsPrivileged([
     privileges: {
       secure: true,
       standard: true,
-      supportFetchAPI: true,
-      allowServiceWorkers: true,
     },
   },
 ])
@@ -108,6 +107,25 @@ setupGo2RTCService()
 app.whenReady().then(async () => {
   console.log('Electron app is ready.')
   console.log(`Cockpit version: ${app.getVersion()}`)
+
+  const cspPolicy = [
+    "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: ws: wss:",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:",
+    "connect-src 'self' https://us.i.posthog.com https://*.ingest.us.sentry.io https://*.github.com ws: wss: http: https:",
+    "img-src 'self' data: blob: https:",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "media-src 'self' blob: mediastream:",
+    "worker-src 'self' blob:",
+  ].join('; ')
+
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [cspPolicy],
+      },
+    })
+  })
 
   console.log('Creating window...')
   createWindow()
