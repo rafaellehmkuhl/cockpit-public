@@ -7,16 +7,9 @@
         class="overflow-y-auto"
         style="scrollbar-gutter: stable"
       >
-        <div
-          v-if="controllerStore.joysticks && !controllerStore.joysticks.size"
-          class="px-6 pb-2 flex-centered flex-column position-relative"
-          :class="interfaceStore.isOnSmallScreen ? 'pt-1' : 'pt-3'"
-        >
-          <p class="text-base text-center font-bold mt-6 mb-4">Connect a joystick and press any key.</p>
-        </div>
-        <div v-else>
+        <div>
           <ExpansiblePanel no-top-divider no-bottom-divider :is-expanded="!interfaceStore.isOnPhoneScreen" compact>
-            <template #title>General settings</template>
+            <template #title>Mapping</template>
             <template #info>
               <div class="flex flex-col items-start px-5 font-medium">
                 <li>
@@ -45,7 +38,7 @@
               </div>
             </template>
             <template #content>
-              <div class="flex flex-col items-center h-[280px] overflow-auto">
+              <div class="flex flex-col items-center">
                 <div class="flex flex-col items-center">
                   <div
                     v-if="
@@ -59,19 +52,6 @@
                       appear.
                     </p>
                   </div>
-
-                  <div v-if="availableModifierKeys" class="flex flex-row items-center mt-2 mb-3">
-                    <v-switch
-                      v-model="controllerStore.holdLastInputWhenWindowHidden"
-                      label="Hold last joystick input when window is hidden (tab changed or window minimized)"
-                      class="scale-[85%] -mb-4"
-                    />
-                  </div>
-                  <div class="flex w-full justify-center mb-2">
-                    <span class="text-lg font-medium" :class="{ 'text-sm': interfaceStore.isOnSmallScreen }">
-                      {{ controllerStore.protocolMapping.name }}
-                    </span>
-                  </div>
                 </div>
                 <div class="flex w-full h-[47px]">
                   <v-tabs
@@ -82,7 +62,6 @@
                     <v-tab value="svg">Visual</v-tab>
                     <v-tab value="table">Table</v-tab>
                     <div class="flex w-full h-[46px] justify-end align-center mr-[5px]">
-                      <div />
                       <div class="flex justify-between mr-5">
                         <div
                           class="flex border-[1px] border-[#FFFFFF22] rounded-md elevation-1"
@@ -142,12 +121,44 @@
               </div>
               <div v-if="currentTabVIew === 'svg'" class="flex flex-col justify-between">
                 <div
-                  v-for="[key, joystick] in controllerStore.joysticks"
+                  v-for="[key, joystick] in displayJoysticks"
                   :key="key"
                   class="w-[95%] h-full flex-centered flex-column position-relative"
                 >
-                  <p class="text-md font-semibold -mt-8">{{ joystick.model }} controller</p>
-                  <div class="flex items-center gap-2 -mb-8">
+                  <div class="flex items-center gap-2 mt-2">
+                    <span
+                      v-tooltip:top="connectionStatusTooltip"
+                      class="inline-block w-[10px] h-[10px] rounded-full"
+                      :class="[
+                        hasConnectedJoystick ? 'bg-[#4ade80]' : 'bg-[#ef4444]',
+                        hasConnectedJoystick ? '' : 'animate-pulse',
+                      ]"
+                    />
+                    <p class="text-md font-semibold">{{ joystick.model }} controller</p>
+                    <v-menu v-if="!hasConnectedJoystick" location="bottom">
+                      <template #activator="{ props }">
+                        <v-btn
+                          v-tooltip:top="'Change preview controller'"
+                          v-bind="props"
+                          icon="mdi-chevron-down"
+                          variant="text"
+                          size="x-small"
+                          density="compact"
+                        />
+                      </template>
+                      <v-list density="compact" theme="dark" :style="interfaceStore.globalGlassMenuStyles">
+                        <v-list-item
+                          v-for="option in previewModelOptions"
+                          :key="option.value"
+                          :active="previewJoystickModel === option.value"
+                          @click="previewJoystickModel = option.value"
+                        >
+                          <v-list-item-title class="text-xs">{{ option.title }}</v-list-item-title>
+                        </v-list-item>
+                      </v-list>
+                    </v-menu>
+                  </div>
+                  <div class="flex items-center gap-2">
                     <v-switch
                       :model-value="!controllerStore.disabledJoysticks.includes(joystick.model)"
                       :label="controllerStore.disabledJoysticks.includes(joystick.model) ? 'Disabled' : 'Enabled'"
@@ -258,11 +269,43 @@
               </div>
               <div v-if="currentTabVIew === 'table'" class="w-full">
                 <div
-                  v-for="[key, joystick] in controllerStore.joysticks"
+                  v-for="[key, joystick] in displayJoysticks"
                   :key="key"
                   class="w-full flex-centered flex-column position-relative"
                 >
-                  <span class="text-md font-semibold w-full text-center -mt-8">{{ joystick.model }} controller</span>
+                  <div class="flex items-center justify-center gap-2 w-full mt-2">
+                    <span
+                      v-tooltip:top="connectionStatusTooltip"
+                      class="inline-block w-[10px] h-[10px] rounded-full"
+                      :class="[
+                        hasConnectedJoystick ? 'bg-[#4ade80]' : 'bg-[#ef4444]',
+                        hasConnectedJoystick ? '' : 'animate-pulse',
+                      ]"
+                    />
+                    <span class="text-md font-semibold">{{ joystick.model }} controller</span>
+                    <v-menu v-if="!hasConnectedJoystick" location="bottom">
+                      <template #activator="{ props }">
+                        <v-btn
+                          v-tooltip:top="'Change preview controller'"
+                          v-bind="props"
+                          icon="mdi-chevron-down"
+                          variant="text"
+                          size="x-small"
+                          density="compact"
+                        />
+                      </template>
+                      <v-list density="compact" theme="dark" :style="interfaceStore.globalGlassMenuStyles">
+                        <v-list-item
+                          v-for="option in previewModelOptions"
+                          :key="option.value"
+                          :active="previewJoystickModel === option.value"
+                          @click="previewJoystickModel = option.value"
+                        >
+                          <v-list-item-title class="text-xs">{{ option.title }}</v-list-item-title>
+                        </v-list-item>
+                      </v-list>
+                    </v-menu>
+                  </div>
                   <div class="flex items-center gap-2">
                     <v-switch
                       :model-value="!controllerStore.disabledJoysticks.includes(joystick.model)"
@@ -274,7 +317,7 @@
                   </div>
                   <p class="text-start text-sm font-bold w-[93%] mb-1">Axes</p>
                   <v-data-table
-                    v-if="controllerStore.joysticks && controllerStore.joysticks.size"
+                    v-if="displayJoysticks.size"
                     :items="tableItems"
                     class="elevation-1 bg-transparent rounded-lg mb-[20px]"
                     theme="dark"
@@ -469,6 +512,19 @@
               </div>
             </template>
           </ExpansiblePanel>
+          <ExpansiblePanel no-top-divider no-bottom-divider :is-expanded="!interfaceStore.isOnPhoneScreen" compact>
+            <template #title>General settings</template>
+            <template #content>
+              <div class="flex justify-start px-6 pt-2 pb-4">
+                <v-switch
+                  v-model="controllerStore.holdLastInputWhenWindowHidden"
+                  label="Hold last joystick input when window is hidden (tab changed or window minimized)"
+                  hide-details
+                  class="scale-[85%] origin-left"
+                />
+              </div>
+            </template>
+          </ExpansiblePanel>
         </div>
       </div>
     </template>
@@ -636,6 +692,7 @@
 </template>
 
 <script setup lang="ts">
+import { useStorage } from '@vueuse/core'
 import semver from 'semver'
 import { type Ref, computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
@@ -670,6 +727,7 @@ import {
   JoystickButtonInput,
   JoystickProtocol,
 } from '@/types/joystick'
+import { availableGamepadToCockpitMaps } from '@/types/joystick-model-defs'
 
 import BaseConfigurationView from './BaseConfigurationView.vue'
 
@@ -680,6 +738,52 @@ const { openSnackbar } = useSnackbar()
 
 const showJoystickWarningMessage = ref(false)
 const searchText = ref('')
+
+const previewJoystickModel = useStorage<JoystickModel>('cockpit-joystick-preview-model', JoystickModel.DualShock4)
+
+const previewModelOptions = Object.values(JoystickModel)
+  .filter((m) => m !== JoystickModel.Unknown)
+  .map((m) => ({ title: m, value: m }))
+  .sort((a, b) => a.title.localeCompare(b.title))
+
+const previewJoystick = computed<Joystick>(() => {
+  const model = previewJoystickModel.value
+  const map = availableGamepadToCockpitMaps[model] ?? availableGamepadToCockpitMaps[JoystickModel.Unknown]
+  const numAxes = map.axes.length
+  const numButtons = map.buttons.length
+  return {
+    model,
+    gamepadToCockpitMap: map,
+    state: {
+      axes: Array(numAxes).fill(0),
+      buttons: Array(numButtons).fill(0),
+    },
+  } as unknown as Joystick
+})
+
+const hasConnectedJoystick = computed(() => controllerStore.joysticks.size > 0)
+
+const displayJoysticks = computed<Map<number, Joystick>>(() => {
+  if (hasConnectedJoystick.value) return controllerStore.joysticks
+  return new Map([[0, previewJoystick.value]])
+})
+
+const connectionStatusTooltip = computed(() => {
+  const models = Array.from(controllerStore.joysticks.values()).map((j) => j.model)
+  if (models.length === 0) return 'No joystick connected — preview mode'
+  if (models.length === 1) return `${models[0]} connected`
+  return `${models.length} joysticks connected`
+})
+
+// Persist the most recently seen real joystick model so preview mode defaults to the user's actual hardware
+watch(
+  () => Array.from(controllerStore.joysticks.values()).map((j) => j.model),
+  (models) => {
+    const firstKnown = models.find((m) => m && m !== JoystickModel.Unknown)
+    if (firstKnown) previewJoystickModel.value = firstKnown
+  },
+  { immediate: true }
+)
 
 onMounted(async () => {
   controllerStore.enableForwarding = false
@@ -943,16 +1047,20 @@ const updateButtonAction = (input: JoystickButtonInput, action: ProtocolAction):
   openSnackbar({ message: `Button ${input.id} remapped to function '${action.name}'.`, variant: 'success' })
 }
 
-// Automatically set the current joystick when it changes for the first time
-watch(controllerStore.joysticks, () => {
-  if (currentJoystick.value === undefined) {
-    if (controllerStore.joysticks.size <= 0) return
-    const firstEntry = controllerStore.joysticks.entries().next().value
-    if (firstEntry) {
-      currentJoystick.value = firstEntry[1]
+// Keep currentJoystick in sync with the displayed joystick (real if connected, otherwise preview)
+watch(
+  displayJoysticks,
+  (joysticks) => {
+    const firstEntry = joysticks.entries().next().value
+    if (!firstEntry) return
+    const [, joystick] = firstEntry
+    // Swap whenever we cross between real ↔ preview, or when the preview model changes
+    if (currentJoystick.value === undefined || currentJoystick.value.model !== joystick.model) {
+      currentJoystick.value = joystick
     }
-  }
-})
+  },
+  { immediate: true }
+)
 
 let lastModTabChange = new Date().getTime()
 const changeModifierKeyTab = (modKeyOption: CockpitModifierKeyOption): void => {

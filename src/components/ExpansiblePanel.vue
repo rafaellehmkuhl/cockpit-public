@@ -75,6 +75,7 @@
         :class="['info-content-expand-collapse', { 'info-expanding': isInfoOpen, 'info-collapsing': !isInfoOpen }]"
       >
         <div
+          v-if="hasInfoSlot"
           class="bg-[#00000033] py-3 px-5 rounded-[6px] text-white elevation-1 mb-2 mt-1"
           :class="interfaceStore.isOnSmallScreen ? 'text-[12px]' : 'text-[14px]'"
         >
@@ -91,6 +92,7 @@
         ]"
       >
         <div
+          v-if="hasWarningSlot"
           class="bg-[#00000033] py-3 px-5 rounded-[6px] text-white elevation-1 mb-2 mt-1"
           :class="interfaceStore.isOnSmallScreen ? 'text-[12px]' : 'text-[14px]'"
         >
