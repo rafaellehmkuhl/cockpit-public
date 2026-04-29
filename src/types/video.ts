@@ -234,6 +234,16 @@ export type WebRTCVideoStats = {
   payloadType: number
   bitrate: number
   packetRate: number
+  /**
+   * Name of the decoder implementation in use (e.g. 'D3D11VideoDecoder', 'FFmpegVideoDecoder').
+   * Browsers without HW decode support, or before the first frame is decoded, may omit this.
+   */
+  decoderImplementation?: string
+  /**
+   * Whether the chosen decoder is considered power-efficient (typically a hint that hardware
+   * decoding is in use).
+   */
+  powerEfficientDecoder?: boolean
 }
 export type WebRTCVideoStat = keyof WebRTCVideoStats
 

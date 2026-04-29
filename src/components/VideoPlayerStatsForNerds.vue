@@ -26,11 +26,11 @@ let rtspStartTime = 0
 const props = defineProps({
   width: {
     type: Number,
-    default: 130,
+    default: 180,
   },
   height: {
     type: Number,
-    default: 200,
+    default: 245,
   },
   updateInterval: {
     type: Number,
@@ -73,6 +73,47 @@ let packetLossPercentage = 0
 let framerate = 0
 let packetLostDelta = 0
 let videoHeight = 0
+let videoCodec = ''
+let videoDecoder = ''
+let videoPowerEfficient: boolean | undefined = undefined
+
+// Heuristic: decoder implementations whose name contains any of these tokens are software-only.
+// Hardware-backed decoders use names like 'D3D11VideoDecoder', 'MediaFoundationVideoDecoder',
+// 'VideoToolbox', 'VAAPIVideoDecoder', 'MediaCodecVideoDecoder', 'ExternalDecoder', etc.
+const softwareDecoderTokens = ['ffmpeg', 'libvpx', 'libgav1', 'dav1d', 'openh264', 'software']
+
+/**
+ * Heuristically classify a WebRTC decoderImplementation string as hardware or software.
+ * @param {string} implementation - Value from RTCInboundRtpStreamStats.decoderImplementation
+ * @returns {'hw' | 'sw' | 'unknown'} 'hw' for hardware-backed, 'sw' for software, 'unknown' if not enough info
+ */
+const classifyDecoder = (implementation: string): 'hw' | 'sw' | 'unknown' => {
+  if (!implementation) return 'unknown'
+  const lower = implementation.toLowerCase()
+  if (softwareDecoderTokens.some((token) => lower.includes(token))) return 'sw'
+  return 'hw'
+}
+
+/**
+ * Strip the trailing 'VideoDecoder' / 'Decoder' suffix from a decoder implementation string so it
+ * fits in the stats overlay. E.g. 'MediaFoundationVideoDecoder' -> 'MediaFoundation'.
+ * @param {string} implementation - Value from RTCInboundRtpStreamStats.decoderImplementation
+ * @returns {string} Shortened display name (or empty string if no implementation reported)
+ */
+const shortenDecoderName = (implementation: string): string => {
+  if (!implementation) return ''
+  return implementation.replace(/VideoDecoder$/, '').replace(/Decoder$/, '')
+}
+
+/**
+ * Strip the 'video/' prefix from a codec mimeType for display.
+ * @param {string} mimeType - Value from RTCCodecStats.mimeType (e.g. 'video/H264')
+ * @returns {string} Codec short name (e.g. 'H264'), or empty string if not provided
+ */
+const shortenCodecName = (mimeType: string): string => {
+  if (!mimeType) return ''
+  return mimeType.replace(/^video\//i, '')
+}
 
 const maxDataPoints = 100
 let maxBitrateReceived = 1000 // max bitrate received, used for scaling the plot
@@ -156,9 +197,15 @@ function draw(): void {
     drawPlot(packetLostData.value, 'rgb(255, 0, 0)', maxPacketLost)
 
     const color = connectionLost ? 'red' : 'white'
+    const decoderClass = classifyDecoder(videoDecoder)
+    const decoderColor = decoderClass === 'hw' ? 'rgb(0, 255, 0)' : decoderClass === 'sw' ? 'rgb(255, 0, 0)' : color
+    const powerEfficientLabel = videoPowerEfficient === undefined ? '...' : videoPowerEfficient ? 'yes' : 'no'
     const stats = [
       { label: 'Stream', value: props.streamName, color: color },
       { label: 'Size', value: videoHeight ? `${videoHeight}p` : 'N/A', color: color },
+      { label: 'Codec', value: videoCodec || '...', color: color },
+      { label: 'Decoder', value: videoDecoder || '...', color: decoderColor },
+      { label: 'Power eff.', value: powerEfficientLabel, color: decoderColor },
       { label: 'Packets Lost', value: `${packetsLost} (${packetLossPercentage.toFixed(0)}%)`, color: color },
       { label: 'Frame drops', value: framedrops, color: color },
       { label: 'Nack', value: nackCount, color: color },
@@ -271,6 +318,9 @@ onMounted(() => {
       framedrops = videoData.framesDropped
       framerate = videoData.framesPerSecond ?? 0
       videoHeight = videoData.frameHeight
+      videoCodec = shortenCodecName(videoData.mimeType ?? '')
+      videoDecoder = shortenDecoderName(videoData.decoderImplementation ?? '')
+      videoPowerEfficient = videoData.powerEfficientDecoder
     } catch (e) {
       console.error(e)
     }
