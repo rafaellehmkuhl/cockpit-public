@@ -59,6 +59,144 @@ export interface BasicSystemInfo {
 }
 
 /**
+ * Status of a single Chromium graphics feature, as reported by `app.getGPUFeatureStatus()`.
+ *
+ * Common values seen on healthy systems:
+ *   - 'enabled' / 'enabled_force' / 'enabled_on'
+ *   - 'enabled_force_on'
+ *   - 'unavailable_software' / 'unavailable_off' / 'unavailable_off_ok'
+ *   - 'disabled_software' / 'disabled_off' / 'disabled_off_ok'
+ *   - 'software_only' / 'gpu_disabled'
+ *
+ * The exact set of keys depends on the Chromium version Electron ships with.
+ */
+export type GpuFeatureStatus = Record<string, string>
+
+/**
+ * Subset of `Electron.GPUFeatureStatus`-style info we surface for diagnostics. We collect the
+ * primary GPU description plus the top-level feature flags so users can see at a glance whether
+ * hardware video decoding/encoding is enabled.
+ */
+export interface DiagnosticGpuInfo {
+  /**
+   * Friendly name of the active GPU as reported by Chromium / OS, e.g. 'AMD Radeon RX 540'
+   */
+  primaryGpuName: string | null
+  /**
+   * GPU vendor string, e.g. 'AMD', 'Intel', 'NVIDIA'
+   */
+  primaryGpuVendor: string | null
+  /**
+   * Driver version string when the OS exposes it
+   */
+  primaryGpuDriverVersion: string | null
+  /**
+   * All GPUs discovered by Chromium (helpful on switchable-graphics laptops)
+   */
+  allGpus: Array<{
+    /**
+     * Friendly name (vendor + model) when available
+     */
+    name: string | null
+    /**
+     * Vendor string
+     */
+    vendor: string | null
+    /**
+     * Driver version
+     */
+    driverVersion: string | null
+    /**
+     * Whether Chromium considers this GPU active
+     */
+    active: boolean
+  }>
+  /**
+   * Feature status map from Chromium: `webgl`, `video_decode`, `video_encode`, `rasterization`, …
+   */
+  featureStatus: GpuFeatureStatus
+}
+
+/**
+ * Free / total bytes for a filesystem path. Used to surface "disk almost full" warnings
+ * for the directory where Cockpit writes its videos.
+ */
+export interface DiskSpaceInfo {
+  /**
+   * Absolute filesystem path the space report is for
+   */
+  path: string
+  /**
+   * Total filesystem capacity in bytes
+   */
+  totalBytes: number
+  /**
+   * Free capacity in bytes
+   */
+  freeBytes: number
+}
+
+/**
+ * Aggregated diagnostic snapshot exposed via `electronAPI.getDiagnosticInfo`. Combines static
+ * hardware identification with live numbers (memory, disk free) so the renderer can render a
+ * single "System info" panel in the Development settings without coordinating multiple IPCs.
+ */
+export interface DiagnosticInfo {
+  /**
+   * Cockpit application version (matches `app.getVersion()`)
+   */
+  cockpitVersion: string
+  /**
+   * Electron runtime version
+   */
+  electronVersion: string
+  /**
+   * Chromium runtime version
+   */
+  chromeVersion: string
+  /**
+   * Node.js runtime version embedded in Electron
+   */
+  nodeVersion: string
+  /**
+   * `os.platform()` value (e.g. 'win32', 'darwin', 'linux')
+   */
+  platform: string
+  /**
+   * `os.release()` value (kernel / OS release identifier)
+   */
+  osRelease: string
+  /**
+   * `os.arch()` value
+   */
+  arch: string
+  /**
+   * CPU model string from `os.cpus()[0].model`
+   */
+  cpuModel: string | null
+  /**
+   * Number of logical CPUs reported by `os.cpus().length`
+   */
+  cpuLogicalCores: number
+  /**
+   * Total physical memory in bytes from `os.totalmem()`
+   */
+  totalMemoryBytes: number
+  /**
+   * Free physical memory in bytes from `os.freemem()`
+   */
+  freeMemoryBytes: number
+  /**
+   * GPU diagnostic information from Chromium APIs
+   */
+  gpu: DiagnosticGpuInfo
+  /**
+   * Disk space report for the Cockpit videos folder
+   */
+  videosFolderDisk: DiskSpaceInfo | null
+}
+
+/**
  * Hardware-oriented fields collected in the Electron main process for usage telemetry (browser build omits this).
  */
 export interface TelemetrySystemHardwareInfo {

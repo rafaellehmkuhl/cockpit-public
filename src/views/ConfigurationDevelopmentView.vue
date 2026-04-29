@@ -66,6 +66,161 @@
         <ExpansiblePanel :is-expanded="!interfaceStore.isOnPhoneScreen" no-bottom-divider>
           <template #title>
             <div class="flex justify-between">
+              <span>System info</span>
+              <div class="flex items-center gap-2">
+                <span v-if="lastRefreshTimestamp" class="text-sm text-gray-300"> Updated {{ secondsAgo }}s ago </span>
+                <v-tooltip text="Refresh">
+                  <template #activator="{ props: tooltipProps }">
+                    <v-icon
+                      v-bind="tooltipProps"
+                      class="cursor-pointer"
+                      :class="{ 'opacity-50': isRefreshing }"
+                      @click.stop="refreshDiagnostic"
+                    >
+                      mdi-refresh
+                    </v-icon>
+                  </template>
+                </v-tooltip>
+                <v-tooltip text="Copy diagnostic report to clipboard">
+                  <template #activator="{ props: tooltipProps }">
+                    <v-icon v-bind="tooltipProps" class="cursor-pointer" @click.stop="copyDiagnosticReport">
+                      mdi-content-copy
+                    </v-icon>
+                  </template>
+                </v-tooltip>
+              </div>
+            </div>
+          </template>
+          <template #content>
+            <div v-if="!diagnosticInfo" class="px-4 py-6 text-center text-sm text-gray-300">
+              <span v-if="!isRunningInElectron">
+                System info is only available in the Cockpit Standalone (Electron) build.
+              </span>
+              <span v-else>Loading system information...</span>
+            </div>
+            <div v-else class="bg-[#FFFFFF11] rounded-lg p-3 text-sm flex flex-col gap-3">
+              <table class="w-full diagnostic-table">
+                <tbody>
+                  <tr>
+                    <th>Cockpit</th>
+                    <td>{{ diagnosticInfo.cockpitVersion }}</td>
+                  </tr>
+                  <tr>
+                    <th>Runtime</th>
+                    <td>
+                      Electron {{ diagnosticInfo.electronVersion }} · Chromium {{ diagnosticInfo.chromeVersion }} · Node
+                      {{ diagnosticInfo.nodeVersion }}
+                    </td>
+                  </tr>
+                  <tr>
+                    <th>OS</th>
+                    <td>{{ diagnosticInfo.platform }} {{ diagnosticInfo.osRelease }} ({{ diagnosticInfo.arch }})</td>
+                  </tr>
+                  <tr>
+                    <th>CPU</th>
+                    <td>
+                      {{ diagnosticInfo.cpuModel ?? 'unknown' }} ({{ diagnosticInfo.cpuLogicalCores }} logical cores)
+                    </td>
+                  </tr>
+                  <tr>
+                    <th>RAM</th>
+                    <td>
+                      total {{ formatBytes(diagnosticInfo.totalMemoryBytes) }} · free
+                      <span :class="lowMemory ? 'text-red-400 font-medium' : ''">
+                        {{ formatBytes(diagnosticInfo.freeMemoryBytes) }}
+                      </span>
+                    </td>
+                  </tr>
+                  <tr v-if="diagnosticInfo.videosFolderDisk">
+                    <th>Videos disk</th>
+                    <td>
+                      <code class="text-xs">{{ diagnosticInfo.videosFolderDisk.path }}</code>
+                      <br />
+                      <span :class="lowDisk ? 'text-red-400 font-medium' : ''">
+                        {{ formatBytes(diagnosticInfo.videosFolderDisk.freeBytes) }} free
+                      </span>
+                      of {{ formatBytes(diagnosticInfo.videosFolderDisk.totalBytes) }} ({{
+                        diskUsedPercent.toFixed(0)
+                      }}% used)
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div v-if="resourceUsage">
+                <h3 class="text-sm font-medium mb-1">Cockpit resource usage</h3>
+                <table class="w-full diagnostic-table">
+                  <tbody>
+                    <tr>
+                      <th>Main process</th>
+                      <td>{{ resourceUsage.mainMemoryMB.toFixed(0) }} MB</td>
+                    </tr>
+                    <tr>
+                      <th>Renderers + utility</th>
+                      <td>{{ resourceUsage.renderersMemoryMB.toFixed(0) }} MB</td>
+                    </tr>
+                    <tr>
+                      <th>GPU process</th>
+                      <td>{{ resourceUsage.gpuMemoryMB.toFixed(0) }} MB</td>
+                    </tr>
+                    <tr>
+                      <th>Total memory</th>
+                      <td>{{ resourceUsage.totalMemoryMB.toFixed(0) }} MB</td>
+                    </tr>
+                    <tr>
+                      <th>Aggregate CPU</th>
+                      <td>{{ resourceUsage.cpuUsagePercent.toFixed(1) }}%</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div>
+                <h3 class="text-sm font-medium mb-1">GPUs ({{ diagnosticInfo.gpu.allGpus.length }})</h3>
+                <table v-if="diagnosticInfo.gpu.allGpus.length > 0" class="w-full diagnostic-table">
+                  <thead>
+                    <tr>
+                      <th class="text-left">#</th>
+                      <th class="text-left">Name</th>
+                      <th class="text-left">Vendor</th>
+                      <th class="text-left">Driver</th>
+                      <th class="text-left">Active</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(gpu, idx) in diagnosticInfo.gpu.allGpus" :key="idx">
+                      <td>{{ idx }}</td>
+                      <td>{{ gpu.name ?? 'unknown' }}</td>
+                      <td>{{ gpu.vendor ?? 'unknown' }}</td>
+                      <td>{{ gpu.driverVersion ?? 'unknown' }}</td>
+                      <td>{{ gpu.active ? 'yes' : 'no' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <span v-else class="text-sm text-gray-400">No GPUs reported by Chromium.</span>
+              </div>
+
+              <div v-if="gpuFeatureKeys.length > 0">
+                <h3 class="text-sm font-medium mb-1">GPU feature status</h3>
+                <table class="w-full diagnostic-table">
+                  <tbody>
+                    <tr v-for="key in gpuFeatureKeys" :key="key">
+                      <th>{{ key }}</th>
+                      <td>
+                        <span :class="featureStatusColor(diagnosticInfo.gpu.featureStatus[key])">
+                          {{ diagnosticInfo.gpu.featureStatus[key] }}
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </template>
+        </ExpansiblePanel>
+        <ExpansiblePanel :is-expanded="!interfaceStore.isOnPhoneScreen" no-bottom-divider>
+          <template #title>
+            <div class="flex justify-between">
               <span>System logs</span>
               <span class="text-sm text-gray-300 cursor-pointer" @click.stop="deleteOldLogs">
                 <v-tooltip text="Delete old logs">
@@ -116,10 +271,12 @@
 
 import { parse } from 'date-fns'
 import { saveAs } from 'file-saver'
-import { onBeforeMount, onBeforeUnmount } from 'vue'
+import { computed, onBeforeMount, onBeforeUnmount } from 'vue'
 import { ref } from 'vue'
 
 import ExpansiblePanel from '@/components/ExpansiblePanel.vue'
+import { useDiagnosticInfo } from '@/composables/diagnosticInfo'
+import { useSnackbar } from '@/composables/snackbar'
 import {
   type SystemLog,
   cockpitSytemLogsDB,
@@ -135,6 +292,72 @@ import { useDevelopmentStore } from '@/stores/development'
 import BaseConfigurationView from './BaseConfigurationView.vue'
 const devStore = useDevelopmentStore()
 const interfaceStore = useAppInterfaceStore()
+const { openSnackbar } = useSnackbar()
+const {
+  diagnosticInfo,
+  resourceUsage,
+  lastRefreshTimestamp,
+  isRefreshing,
+  refresh: refreshDiagnostic,
+  startPolling: startDiagnosticPolling,
+  stopPolling: stopDiagnosticPolling,
+  buildDiagnosticReport,
+} = useDiagnosticInfo()
+
+const nowMs = ref(Date.now())
+let nowTickerInterval: ReturnType<typeof setInterval> | null = null
+
+const secondsAgo = computed(() => {
+  if (!lastRefreshTimestamp.value) return 0
+  return Math.max(0, Math.round((nowMs.value - lastRefreshTimestamp.value) / 1000))
+})
+
+const lowMemory = computed(() => {
+  const free = diagnosticInfo.value?.freeMemoryBytes
+  return free !== undefined && free < 1 * 1024 ** 3
+})
+
+const lowDisk = computed(() => {
+  const free = diagnosticInfo.value?.videosFolderDisk?.freeBytes
+  return free !== undefined && free < 10 * 1024 ** 3
+})
+
+const diskUsedPercent = computed(() => {
+  const disk = diagnosticInfo.value?.videosFolderDisk
+  if (!disk || disk.totalBytes <= 0) return 0
+  return (1 - disk.freeBytes / disk.totalBytes) * 100
+})
+
+const gpuFeatureKeys = computed(() => {
+  if (!diagnosticInfo.value) return []
+  return Object.keys(diagnosticInfo.value.gpu.featureStatus).sort()
+})
+
+// Heuristic color for the GPU feature status string, since the exact set of values changes between
+// Chromium versions but always uses 'enabled' / 'disabled' / 'unavailable' / 'software' tokens.
+const featureStatusColor = (status: string): string => {
+  if (!status) return ''
+  const lower = status.toLowerCase()
+  if (lower.includes('software_only') || lower.includes('software only')) return 'text-yellow-400'
+  if (lower.includes('disabled') || lower.includes('unavailable')) return 'text-red-400'
+  if (lower.includes('enabled')) return 'text-green-400'
+  return ''
+}
+
+const copyDiagnosticReport = async (): Promise<void> => {
+  const report = buildDiagnosticReport()
+  try {
+    await navigator.clipboard.writeText(report)
+    openSnackbar({ message: 'Diagnostic report copied to clipboard.', variant: 'success', duration: 3000 })
+  } catch (error) {
+    console.error('Failed to copy diagnostic report:', error)
+    openSnackbar({
+      message: 'Failed to copy diagnostic report. See console for details.',
+      variant: 'error',
+      duration: 4000,
+    })
+  }
+}
 
 /* eslint-disable jsdoc/require-jsdoc */
 interface SystemLogsData {
@@ -213,12 +436,24 @@ onBeforeMount(async () => {
 
   // Start updating the current session log size every second
   updateInterval = setInterval(updateCurrentSessionLogSize, 1000)
+
+  // Start polling system diagnostic info while this view is mounted, and a 1 Hz "now" ticker
+  // so the "Updated Ns ago" label keeps updating between refreshes.
+  startDiagnosticPolling(5000)
+  nowTickerInterval = setInterval(() => {
+    nowMs.value = Date.now()
+  }, 1000)
 })
 
 onBeforeUnmount(() => {
   if (updateInterval) {
     clearInterval(updateInterval)
     updateInterval = null
+  }
+  stopDiagnosticPolling()
+  if (nowTickerInterval) {
+    clearInterval(nowTickerInterval)
+    nowTickerInterval = null
   }
 })
 
@@ -371,6 +606,26 @@ const deleteOldLogsFromDB = async (): Promise<void> => {
   border-radius: 50%;
   background-color: #ef4444;
   animation: blink 1.5s infinite;
+}
+
+.diagnostic-table th {
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.75);
+  padding: 2px 8px 2px 0;
+  vertical-align: top;
+  white-space: nowrap;
+}
+.diagnostic-table td {
+  padding: 2px 0;
+  vertical-align: top;
+  word-break: break-word;
+}
+.diagnostic-table thead th {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
 }
 
 @keyframes blink {

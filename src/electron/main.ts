@@ -3,6 +3,7 @@ import { join } from 'path'
 
 import { setupAutoUpdater } from './services/auto-update'
 import store from './services/config-store'
+import { setupDiagnosticInfoService } from './services/diagnostic-info'
 import { setupElectronLogService } from './services/electron-log'
 import { setupGo2RTCService } from './services/go2rtc'
 import { setupHardwareTelemetryService } from './services/hardware-telemetry'
@@ -100,6 +101,7 @@ setupNetworkService()
 setupResourceMonitoringService()
 setupSystemInfoService()
 setupHardwareTelemetryService()
+setupDiagnosticInfoService()
 setupUserAgentService()
 setupWorkspaceService()
 setupJoystickMonitoring()
