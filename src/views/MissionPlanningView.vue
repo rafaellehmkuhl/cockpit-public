@@ -856,7 +856,7 @@ const { mapReady } = mapContext
 const mapCenter = ref<WaypointCoordinates>(missionStore.userLastMapCenter ?? missionStore.defaultMapCenter)
 const home = ref<WaypointCoordinates | undefined>(undefined)
 const zoom = ref(missionStore.userLastMapZoom ?? missionStore.defaultMapZoom)
-const followerTarget = ref<WhoToFollow | undefined>(undefined)
+const followerTarget = ref<string | undefined>(undefined)
 const currentWaypointAltitude = ref(0)
 const currentWaypointAltitudeRefType = ref<AltitudeReferenceType>(AltitudeReferenceType.RELATIVE_TO_HOME)
 const availableFrames = Object.values(AltitudeReferenceType).map((value: AltitudeReferenceType) => ({
@@ -1930,7 +1930,7 @@ const toggleSurvey = (): void => {
 }
 
 const targetFollower = new TargetFollower(
-  (newTarget: WhoToFollow | undefined) => (followerTarget.value = newTarget),
+  (newTarget: string | undefined) => (followerTarget.value = newTarget),
   (newCenter: WaypointCoordinates) => (mapCenter.value = newCenter)
 )
 targetFollower.setTrackableTarget(WhoToFollow.VEHICLE, () => vehiclePosition.value)
