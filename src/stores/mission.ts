@@ -14,8 +14,6 @@ import {
   MapTileProvider,
   MapTileProviderPreference,
   MissionCommand,
-  PointOfInterest,
-  PointOfInterestCoordinates,
   Survey,
   Waypoint,
   WaypointCoordinates,
@@ -88,8 +86,6 @@ export const useMissionStore = defineStore('mission', () => {
   const { showDialog } = useInteractionDialog()
 
   const mainVehicleStore = useMainVehicleStore()
-
-  const pointsOfInterest = useBlueOsStorage<PointOfInterest[]>('cockpit-points-of-interest', [])
 
   watch(missionName, () => (lastMissionName.value = missionName.value))
 
@@ -231,32 +227,6 @@ export const useMissionStore = defineStore('mission', () => {
       currentPlanningWaypoints,
       currentPlanningWaypoints.map((w) => (w.id === id ? { ...w, ...newWaypoint } : w))
     )
-  }
-
-  const addPointOfInterest = (poi: PointOfInterest): void => {
-    pointsOfInterest.value.push(poi)
-  }
-
-  const updatePointOfInterest = (id: string, poiUpdate: Partial<PointOfInterest>): void => {
-    const index = pointsOfInterest.value.findIndex((p) => p.id === id)
-    if (index !== -1) {
-      pointsOfInterest.value[index] = { ...pointsOfInterest.value[index], ...poiUpdate, timestamp: Date.now() }
-    }
-  }
-
-  const removePointOfInterest = (id: string): void => {
-    const index = pointsOfInterest.value.findIndex((p) => p.id === id)
-    if (index !== -1) {
-      pointsOfInterest.value.splice(index, 1)
-    }
-  }
-
-  const movePointOfInterest = (id: string, newCoordinates: PointOfInterestCoordinates): void => {
-    const poi = pointsOfInterest.value.find((p) => p.id === id)
-    if (poi === undefined) {
-      throw Error(`Could not move Point of Interest. No POI with id ${id} was found.`)
-    }
-    updatePointOfInterest(id, { coordinates: newCoordinates })
   }
 
   const clearMission = (): void => {
@@ -630,11 +600,6 @@ export const useMissionStore = defineStore('mission', () => {
     saveLastMapPosition,
     setDefaultMapPosition,
     getWaypointNumber,
-    pointsOfInterest,
-    addPointOfInterest,
-    updatePointOfInterest,
-    removePointOfInterest,
-    movePointOfInterest,
     persistDraft,
     clearDraft,
     bumpVehicleMissionRevision,
