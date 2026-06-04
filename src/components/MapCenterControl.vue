@@ -67,22 +67,59 @@
         />
       </template>
     </v-tooltip>
+
+    <v-menu location="start" :close-on-content-click="false">
+      <template #activator="{ props: menuProps }">
+        <v-tooltip location="left" :text="centerPoiButtonTooltipText">
+          <template #activator="{ props: tooltipProps }">
+            <v-btn
+              key="pois"
+              v-bind="{ ...menuProps, ...tooltipProps }"
+              :class="[targetButtonClass, pois.length === 0 ? 'active-events-on-disabled' : '']"
+              :style="[interfaceStore.globalGlassMenuStyles, pois.length === 0 ? { color: disabledButtonColor } : {}]"
+              :color="isTrackingAnyPoi ? 'red' : ''"
+              elevation="2"
+              icon="mdi-map-marker-radius"
+              size="x-small"
+              :disabled="pois.length === 0"
+            />
+          </template>
+        </v-tooltip>
+      </template>
+      <v-list
+        density="compact"
+        class="rounded-lg mr-2"
+        :style="[interfaceStore.globalGlassMenuStyles, { maxHeight: '300px', overflowY: 'auto' }]"
+      >
+        <template v-for="(poi, index) in pois" :key="poi.id">
+          <v-list-item
+            :title="poi.name"
+            :active="isTrackingPoi(poi)"
+            class="poi-name-item"
+            @click="goToPoi(poi)"
+            @dblclick="trackPoi(poi)"
+          />
+          <v-divider v-if="index < pois.length - 1" />
+        </template>
+      </v-list>
+    </v-menu>
   </v-speed-dial>
 </template>
 
 <script setup lang="ts">
 import { type StyleValue, computed, defineModel } from 'vue'
 
+import { usePointsOfInterest } from '@/composables/usePointsOfInterest'
 import { TargetFollower, WhoToFollow } from '@/libs/map/utils-map'
 import { useAppInterfaceStore } from '@/stores/appInterface'
-import type { WaypointCoordinates } from '@/types/mission'
+import type { ResolvedPointOfInterest, WaypointCoordinates } from '@/types/mission'
 
 const props = withDefaults(
   defineProps<{
     /** Target follower controlling home/vehicle tracking */
     targetFollower: TargetFollower
-    /** Currently tracked target, if any */
-    followerTarget?: WhoToFollow
+    /** Currently tracked target id, if any (a WhoToFollow value or a POI target key) */
+    followerTarget?: string
     /** Home coordinates, when available */
     home?: WaypointCoordinates
     /** Vehicle coordinates, when available */
@@ -108,6 +145,30 @@ const emit = defineEmits<{
 }>()
 
 const interfaceStore = useAppInterfaceStore()
+const { resolvedPointsOfInterest: pois } = usePointsOfInterest()
+
+const poiTargetKey = (poiId: string): string => `poi:${poiId}`
+
+const ensurePoiTrackable = (poi: ResolvedPointOfInterest): void => {
+  props.targetFollower.setTrackableTarget(
+    poiTargetKey(poi.id),
+    () => pois.value.find((candidate) => candidate.id === poi.id)?.coordinates
+  )
+}
+
+const isTrackingPoi = (poi: ResolvedPointOfInterest): boolean => props.followerTarget === poiTargetKey(poi.id)
+
+const isTrackingAnyPoi = computed(() => props.followerTarget?.startsWith('poi:') ?? false)
+
+const goToPoi = (poi: ResolvedPointOfInterest): void => {
+  ensurePoiTrackable(poi)
+  props.targetFollower.goToTarget(poiTargetKey(poi.id), true)
+}
+
+const trackPoi = (poi: ResolvedPointOfInterest): void => {
+  ensurePoiTrackable(poi)
+  props.targetFollower.follow(poiTargetKey(poi.id))
+}
 
 // Two-way bound open state, so parents can react to the dial opening/closing.
 const speedDialOpen = defineModel<boolean>('open', { default: false })
@@ -138,10 +199,32 @@ const centerVehicleButtonTooltipText = computed(() => {
   if (props.followerTarget === WhoToFollow.VEHICLE) return 'Tracking vehicle position. Click to stop tracking.'
   return 'Click once to center on vehicle or twice to track it.'
 })
+
+const centerPoiButtonTooltipText = computed(() => {
+  if (pois.value.length === 0) return 'No points of interest to center on.'
+  return 'Center on a point of interest.'
+})
 </script>
 
 <style scoped>
 .active-events-on-disabled {
   pointer-events: all;
+}
+
+.poi-name-item :deep(.v-list-item-title) {
+  font-weight: 600;
+  user-select: none;
+}
+
+.poi-name-item.v-list-item--active {
+  background-color: #f44336;
+}
+
+.poi-name-item.v-list-item--active :deep(.v-list-item__overlay) {
+  opacity: 0;
+}
+
+.poi-name-item.v-list-item--active :deep(.v-list-item-title) {
+  color: #ffffff;
 }
 </style>
