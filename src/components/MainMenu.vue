@@ -236,6 +236,7 @@ import ConfigurationMissionView from '@/views/ConfigurationMissionView.vue'
 import ConfigurationUIView from '@/views/ConfigurationUIView.vue'
 import ConfigurationVideoView from '@/views/ConfigurationVideoView.vue'
 import ToolsDataLakeView from '@/views/ToolsDataLakeView.vue'
+import ToolsMapView from '@/views/ToolsMapView.vue'
 import ToolsMAVLinkView from '@/views/ToolsMAVLinkView.vue'
 
 const route = useRoute()
@@ -434,6 +435,12 @@ const toolsMenu = computed(() => {
       title: 'Data-lake',
       componentName: SubMenuComponentName.ToolsDataLake,
       component: markRaw(ToolsDataLakeView) as SubMenuComponent,
+    },
+    {
+      icon: 'mdi-map-marker-radius',
+      title: 'Map',
+      componentName: SubMenuComponentName.ToolsMap,
+      component: markRaw(ToolsMapView) as SubMenuComponent,
     },
   ]
 
