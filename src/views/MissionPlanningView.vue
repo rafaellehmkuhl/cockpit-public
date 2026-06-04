@@ -688,6 +688,7 @@ import {
   setSurveyAreaSquareMeters,
   useMissionEstimates,
 } from '@/composables/useMissionEstimates'
+import { usePointsOfInterest } from '@/composables/usePointsOfInterest'
 import { MavType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import { MavCmd } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import type { NoiseTileOptions } from '@/libs/map/map-tile-fallback'
@@ -696,6 +697,7 @@ import { createGridOverlay, fitMapToWaypoints, TargetFollower, WhoToFollow } fro
 import { generateSurveyPath } from '@/libs/map/utils-map'
 import { centroidLatLng, polygonAreaSquareMeters } from '@/libs/mission/general-estimates'
 import { degrees } from '@/libs/utils'
+import { getPoiIconSignature, getPoiMarkerColor, getPoiMarkerOpacity, getPoiTooltipHtml } from '@/libs/utils-poi'
 import router from '@/router'
 import { SubMenuComponentName, SubMenuName, useAppInterfaceStore } from '@/stores/appInterface'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
@@ -715,7 +717,7 @@ import {
   MarkerSizes,
   MissionCommand,
   MissionCommandType,
-  PointOfInterest,
+  ResolvedPointOfInterest,
   Survey,
   SurveyPath,
 } from '@/types/mission'
@@ -726,6 +728,8 @@ const vehicleStore = useMainVehicleStore()
 const interfaceStore = useAppInterfaceStore()
 const widgetStore = useWidgetManagerStore()
 const missionEstimates = useMissionEstimates()
+
+const { resolvedPointsOfInterest, movePointOfInterest } = usePointsOfInterest()
 const { height: windowHeight } = useWindowSize()
 
 const { showDialog, closeDialog } = useInteractionDialog()
@@ -1248,6 +1252,8 @@ const handleOpenMissionSettings = (): void => {
 
 const poiManagerRef = ref<InstanceType<typeof PoiManager> | null>(null)
 const planningPoiMarkers = shallowRef<{ [id: string]: L.Marker }>({})
+// Last rendered icon signature per POI, to avoid rebuilding the icon (and its DOM) on every update.
+const planningPoiIconSignatures: Record<string, string> = {}
 
 const clearCurrentMission = (): void => {
   missionStore.clearMission()
@@ -4340,10 +4346,12 @@ const openPoiDialog = (): void => {
 }
 
 // POI Marker Management Functions for MissionPlanningView
-const poiIconConfig = (poi: PointOfInterest): L.DivIconOptions => {
+const poiIconConfig = (poi: ResolvedPointOfInterest): L.DivIconOptions => {
+  const markerColor = getPoiMarkerColor(poi)
+
   const poiIconHtml = `
     <div class="poi-marker-container">
-      <div class="poi-marker-background" style="background-color: ${poi.color}80;"></div>
+      <div class="poi-marker-background" style="background-color: ${markerColor}80;"></div>
       <i class="v-icon notranslate mdi ${poi.icon}" style="color: rgba(255, 255, 255, 0.7); position: relative; z-index: 2;"></i>
     </div>
   `
@@ -4352,41 +4360,37 @@ const poiIconConfig = (poi: PointOfInterest): L.DivIconOptions => {
     html: poiIconHtml,
     className: 'poi-marker-icon',
     iconSize: [32, 32], // Match the actual container size
-    iconAnchor: [16, 32], // Center horizontally, bottom vertically (like a pin)
+    iconAnchor: [16, 16], // Center the circular marker on the coordinate
   }
 }
 
-// POI Marker Management Functions for MissionPlanningView
-const addPoiMarkerToPlanningMap = (poi: PointOfInterest): void => {
+const addPoiMarkerToPlanningMap = (poi: ResolvedPointOfInterest): void => {
   if (!planningMap.value || !planningMap.value.getContainer()) return
 
   const poiMarkerIcon = L.divIcon(poiIconConfig(poi))
 
-  const marker = L.marker(poi.coordinates as LatLngTuple, { icon: poiMarkerIcon, draggable: true }).addTo(
-    planningMap.value
-  )
+  // Live-tracked POIs are positioned by the data lake, so they are not draggable.
+  const marker = L.marker(poi.coordinates as LatLngTuple, {
+    icon: poiMarkerIcon,
+    draggable: !poi.isLiveTracked,
+    opacity: getPoiMarkerOpacity(poi),
+  }).addTo(planningMap.value)
 
-  const tooltipContent = `
-    <strong>${poi.name}</strong><br>
-    ${poi.description ? poi.description + '<br>' : ''}
-    Lat: ${poi.coordinates[0].toFixed(8)}, Lng: ${poi.coordinates[1].toFixed(8)}
-  `
-  const tooltipConfig = { permanent: false, direction: 'top', offset: [0, -40], className: 'poi-tooltip' }
-  marker.bindTooltip(tooltipContent, tooltipConfig)
+  marker.bindTooltip(getPoiTooltipHtml(poi, poi.coordinates), {
+    permanent: false,
+    direction: 'top',
+    offset: [0, -20],
+    className: 'poi-tooltip',
+  })
 
   marker.on('drag', (event) => {
     const newCoords = event.target.getLatLng()
-    const updatedTooltipContent = `
-      <strong>${poi.name}</strong><br>
-      ${poi.description ? poi.description + '<br>' : ''}
-      Lat: ${newCoords.lat.toFixed(8)}, Lng: ${newCoords.lng.toFixed(8)}
-    `
-    marker.getTooltip()?.setContent(updatedTooltipContent)
+    marker.getTooltip()?.setContent(getPoiTooltipHtml(poi, [newCoords.lat, newCoords.lng]))
   })
 
   marker.on('dragend', (event) => {
     const newCoords = event.target.getLatLng()
-    missionStore.movePointOfInterest(poi.id, [newCoords.lat, newCoords.lng])
+    movePointOfInterest(poi.id, [newCoords.lat, newCoords.lng])
   })
 
   marker.on('click', (event) => {
@@ -4397,22 +4401,25 @@ const addPoiMarkerToPlanningMap = (poi: PointOfInterest): void => {
   })
 
   planningPoiMarkers.value[poi.id] = marker
+  planningPoiIconSignatures[poi.id] = getPoiIconSignature(poi)
 }
 
-const updatePoiMarkerOnPlanningMap = (poi: PointOfInterest): void => {
+const updatePoiMarkerOnPlanningMap = (poi: ResolvedPointOfInterest): void => {
   if (!planningMap.value || !planningMap.value.getContainer() || !planningPoiMarkers.value[poi.id]) return
 
   const marker = planningPoiMarkers.value[poi.id]
   marker.setLatLng(poi.coordinates as LatLngTuple)
 
-  marker.setIcon(L.divIcon(poiIconConfig(poi)))
+  // Only rebuild the icon when its appearance changes. Rebuilding recreates the marker's DOM
+  // element, which would cancel in-progress clicks on frequently-updated live-tracked POIs.
+  const iconSignature = getPoiIconSignature(poi)
+  if (planningPoiIconSignatures[poi.id] !== iconSignature) {
+    marker.setIcon(L.divIcon(poiIconConfig(poi)))
+    planningPoiIconSignatures[poi.id] = iconSignature
+  }
 
-  const updatedTooltipContent = `
-    <strong>${poi.name}</strong><br>
-    ${poi.description ? poi.description + '<br>' : ''}
-    Lat: ${poi.coordinates[0].toFixed(8)}, Lng: ${poi.coordinates[1].toFixed(8)}
-  `
-  marker.getTooltip()?.setContent(updatedTooltipContent)
+  marker.setOpacity(getPoiMarkerOpacity(poi))
+  marker.getTooltip()?.setContent(getPoiTooltipHtml(poi, poi.coordinates))
 }
 
 const removePoiMarkerFromPlanningMap = (poiId: string): void => {
@@ -4420,11 +4427,29 @@ const removePoiMarkerFromPlanningMap = (poiId: string): void => {
 
   planningPoiMarkers.value[poiId].remove()
   delete planningPoiMarkers.value[poiId]
+  delete planningPoiIconSignatures[poiId]
 }
 
-// Watch for changes in POIs from the store and update markers
+const syncPoiMarkersOnPlanningMap = (pois: ResolvedPointOfInterest[]): void => {
+  if (!planningMap.value || !planningMap.value.getContainer()) return
+
+  const poiIds = new Set(pois.map((p) => p.id))
+  Object.keys(planningPoiMarkers.value).forEach((poiId) => {
+    if (!poiIds.has(poiId)) removePoiMarkerFromPlanningMap(poiId)
+  })
+
+  pois.forEach((poi) => {
+    if (planningPoiMarkers.value[poi.id]) {
+      updatePoiMarkerOnPlanningMap(poi)
+    } else {
+      addPoiMarkerToPlanningMap(poi)
+    }
+  })
+}
+
+// Watch for changes in POIs and update markers
 watch(
-  () => missionStore.pointsOfInterest,
+  resolvedPointsOfInterest,
   async (newPois) => {
     if (!planningMap.value || !planningMap.value.getContainer()) {
       // Defer if map not ready, try again on next tick or when map becomes available
@@ -4434,24 +4459,7 @@ watch(
         return
       }
     }
-
-    const newPoiIds = new Set(newPois.map((p) => p.id))
-
-    // Remove markers for POIs that no longer exist
-    Object.keys(planningPoiMarkers.value).forEach((poiId) => {
-      if (!newPoiIds.has(poiId)) {
-        removePoiMarkerFromPlanningMap(poiId)
-      }
-    })
-
-    // Add or update markers
-    newPois.forEach((poi) => {
-      if (planningPoiMarkers.value[poi.id]) {
-        updatePoiMarkerOnPlanningMap(poi)
-      } else {
-        addPoiMarkerToPlanningMap(poi)
-      }
-    })
+    syncPoiMarkersOnPlanningMap(newPois)
   },
   { deep: true, immediate: true }
 )
@@ -4459,23 +4467,13 @@ watch(
 // Ensure POIs are drawn when the map becomes available, if not already handled by immediate watcher
 watch(
   planningMap,
-  (currentMap) => {
-    if (currentMap && currentMap.getContainer()) {
-      // Map is ready, ensure all POIs from the store are drawn
-      // This helps if POIs loaded from store before mapInstance was fully initialized
-      // or if the immediate watcher for pointsOfInterest ran too early.
-      missionStore.pointsOfInterest.forEach((poi) => {
-        if (!planningPoiMarkers.value[poi.id]) {
-          addPoiMarkerToPlanningMap(poi)
-        } else {
-          // Potentially update if details changed while map was not ready
-          updatePoiMarkerOnPlanningMap(poi)
-        }
-      })
+  (currentMapInstance) => {
+    if (currentMapInstance && currentMapInstance.getContainer()) {
+      syncPoiMarkersOnPlanningMap(resolvedPointsOfInterest.value)
     }
   },
   { immediate: true }
-) // Immediate to catch initial map state
+)
 </script>
 
 <style>

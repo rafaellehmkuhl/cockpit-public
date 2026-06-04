@@ -134,19 +134,19 @@ import { colord } from 'colord'
 import gsap from 'gsap'
 import { computed, onBeforeMount, onBeforeUnmount, onMounted, reactive, ref, toRefs, watch } from 'vue'
 
+import { usePointsOfInterest } from '@/composables/usePointsOfInterest'
 import { calculateHaversineDistance } from '@/libs/mission/general-estimates'
 import { datalogger, DatalogVariable } from '@/libs/sensors-logging'
 import { degrees, radians, resetCanvas } from '@/libs/utils'
 import { useAppInterfaceStore } from '@/stores/appInterface'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
-import { useMissionStore } from '@/stores/mission'
 import { useWidgetManagerStore } from '@/stores/widgetManager'
 import type { HighlightedPoiMarker, HighlightedPoiMarkerDisplay, PoiMarker, ReachedPoiMarker } from '@/types/mission'
 import type { Widget } from '@/types/widgets'
 
 const widgetStore = useWidgetManagerStore()
 const interfaceStore = useAppInterfaceStore()
-const missionStore = useMissionStore()
+const { resolvedPointsOfInterest } = usePointsOfInterest()
 
 datalogger.registerUsage(DatalogVariable.heading)
 const store = useMainVehicleStore()
@@ -273,7 +273,7 @@ const calculateBearing = (vehicleLat: number, vehicleLng: number, poiLat: number
 const poiData = computed(() => {
   if (!store.coordinates.latitude || !store.coordinates.longitude) return []
 
-  return missionStore.pointsOfInterest.map((poi) => {
+  return resolvedPointsOfInterest.value.map((poi) => {
     const distance = calculateHaversineDistance(
       [store.coordinates.latitude!, store.coordinates.longitude!],
       poi.coordinates
@@ -545,7 +545,7 @@ const updatePoiMarkers = (): void => {
         }
         lastCardShownAt = now
       } else {
-        const poi = missionStore.pointsOfInterest.find((p) => p.id === selectedId)
+        const poi = resolvedPointsOfInterest.value.find((p) => p.id === selectedId)
         if (poi && store.coordinates.latitude && store.coordinates.longitude) {
           const distance = calculateHaversineDistance(
             [store.coordinates.latitude, store.coordinates.longitude],
