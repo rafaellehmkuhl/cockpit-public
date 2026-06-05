@@ -138,6 +138,7 @@ const handleContextMenu = {
   open: (event: MouseEvent | TouchEvent) => {
     event.preventDefault()
     event.stopPropagation()
+    console.info(`[UserAction] Opened context menu for widget '${widget.value.name}'`)
     contextMenuRef.value.openAt(event)
     contextMenuVisible.value = true
   },
@@ -302,10 +303,20 @@ const handleResize = (event: MouseEvent): void => {
 const handleEnd = (): void => {
   if (!outerWidgetRef.value) return
   if (draggingWidget.value) {
+    console.info(
+      `[UserAction] Moved widget '${widget.value.name}' to x:${position.value.x.toFixed(
+        3
+      )}, y:${position.value.y.toFixed(3)}`
+    )
     draggingWidget.value = false
     outerWidgetRef.value.style.cursor = 'grab'
     document.documentElement.classList.remove('widget-dragging')
   } else if (isResizing.value) {
+    console.info(
+      `[UserAction] Resized widget '${widget.value.name}' to width:${size.value.width.toFixed(
+        3
+      )}, height:${size.value.height.toFixed(3)}`
+    )
     isResizing.value = false
     resizeHandle.value = null
   }
