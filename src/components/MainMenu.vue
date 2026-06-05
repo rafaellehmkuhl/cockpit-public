@@ -30,12 +30,7 @@
                 variant="uncontained"
                 :tooltip="simplifiedMainMenu ? 'Edit Mode' : undefined"
                 :width="buttonSize"
-                @click="
-                  () => {
-                    widgetStore.editingMode = !widgetStore.editingMode
-                    handleCloseMainMenu()
-                  }
-                "
+                @click="toggleEditMode"
                 ><img v-if="!simplifiedMainMenu" :src="EditModeIcon" alt="Edit Mode Icon" />
               </GlassButton>
               <GlassButton
@@ -48,12 +43,7 @@
                 :tooltip="simplifiedMainMenu ? 'Flight' : undefined"
                 :width="buttonSize"
                 :selected="$route.name === 'Flight'"
-                @click="
-                  () => {
-                    $router.push('/')
-                    handleCloseMainMenu()
-                  }
-                "
+                @click="goToFlightView"
                 ><img v-if="!simplifiedMainMenu" :src="FlightIcon" alt="Flight Icon" />
               </GlassButton>
               <GlassButton
@@ -66,12 +56,7 @@
                 :tooltip="simplifiedMainMenu ? 'Mission Planning' : undefined"
                 :width="buttonSize"
                 :selected="$route.name === 'Mission planning'"
-                @click="
-                  () => {
-                    $router.push('/mission-planning')
-                    handleCloseMainMenu()
-                  }
-                "
+                @click="goToMissionPlanning"
                 ><img v-if="!simplifiedMainMenu" :src="MissionPlanningIcon" alt="MissionPlanning Icon" />
               </GlassButton>
               <GlassButton
@@ -116,12 +101,7 @@
                 :button-class="simplifiedMainMenu ? '-mb-2' : ''"
                 :width="buttonSize"
                 :selected="false"
-                @click="
-                  () => {
-                    toggleFullscreen()
-                    handleCloseMainMenu()
-                  }
-                "
+                @click="toggleFullscreenAndCloseMenu"
                 ><img
                   v-if="!simplifiedMainMenu"
                   :src="isFullscreen ? ExitFullScreenIcon : FullScreenIcon"
@@ -181,12 +161,7 @@
                 variant="round"
                 :width="buttonSize / 2.4"
                 :selected="false"
-                @click="
-                  () => {
-                    interfaceStore.mainMenuCurrentStep = 1
-                    currentSubMenuComponentRef = null
-                  }
-                "
+                @click="closeSubMenu"
               />
             </div>
           </div>
@@ -206,7 +181,7 @@
 <script setup lang="ts">
 import { onClickOutside, useDebounceFn, useFullscreen, useResizeObserver, useWindowSize } from '@vueuse/core'
 import { computed, markRaw, nextTick, onBeforeUnmount, onMounted, ref, watch, watchEffect } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import EditModeIcon from '@/assets/icons/edit-mode.svg'
 import ExitFullScreenIcon from '@/assets/icons/exit-full-screen.svg'
@@ -239,6 +214,7 @@ import ToolsDataLakeView from '@/views/ToolsDataLakeView.vue'
 import ToolsMAVLinkView from '@/views/ToolsMAVLinkView.vue'
 
 const route = useRoute()
+const router = useRouter()
 const interfaceStore = useAppInterfaceStore()
 const widgetStore = useWidgetManagerStore()
 const { width: windowWidth, height: windowHeight } = useWindowSize()
@@ -445,21 +421,32 @@ const toolsMenu = computed(() => {
 })
 
 const selectSubMenu = (subMenuName: SubMenuName): void => {
+  console.info(`[UserAction] Opened '${subMenuName}' submenu`)
   interfaceStore.currentSubMenuName = subMenuName
   interfaceStore.mainMenuCurrentStep = 2
 }
 
+const closeSubMenu = (): void => {
+  console.info(`[UserAction] Closed '${interfaceStore.currentSubMenuName ?? ''}' submenu`)
+  interfaceStore.mainMenuCurrentStep = 1
+  currentSubMenuComponentRef.value = null
+}
+
 const toggleSubMenuComponent = (component: SubMenuComponent): void => {
+  const componentTitle = currentSubMenu.value.find((menuitem) => menuitem.component === component)?.title ?? 'unknown'
   if (currentSubMenuComponentRef.value === null) {
+    console.info(`[UserAction] Opened '${componentTitle}' panel`)
     currentSubMenuComponentRef.value = component
     interfaceStore.configModalVisibility = true
     return
   }
   if (currentSubMenuComponentRef.value === component) {
+    console.info(`[UserAction] Closed '${componentTitle}' panel`)
     currentSubMenuComponentRef.value = null
     interfaceStore.configModalVisibility = false
     return
   }
+  console.info(`[UserAction] Opened '${componentTitle}' panel`)
   currentSubMenuComponentRef.value = component
   interfaceStore.configModalVisibility = true
 }
@@ -548,8 +535,33 @@ const handleCloseMainMenu = (): void => {
 }
 
 const openAboutDialog = (): void => {
+  console.info('[UserAction] Opened About dialog')
   emit('closeMainMenu')
   emit('openAboutDialog')
+}
+
+const toggleEditMode = (): void => {
+  console.info(`[UserAction] ${!widgetStore.editingMode ? 'Entered' : 'Exited'} interface edit mode`)
+  widgetStore.editingMode = !widgetStore.editingMode
+  handleCloseMainMenu()
+}
+
+const goToFlightView = (): void => {
+  console.info('[UserAction] Navigated to Flight view')
+  router.push('/')
+  handleCloseMainMenu()
+}
+
+const goToMissionPlanning = (): void => {
+  console.info('[UserAction] Navigated to Mission Planning view')
+  router.push('/mission-planning')
+  handleCloseMainMenu()
+}
+
+const toggleFullscreenAndCloseMenu = (): void => {
+  console.info(`[UserAction] ${isFullscreen.value ? 'Exited' : 'Entered'} fullscreen`)
+  toggleFullscreen()
+  handleCloseMainMenu()
 }
 
 const debouncedToggleFullScreen = useDebounceFn(() => toggleFullscreen(), 10)
