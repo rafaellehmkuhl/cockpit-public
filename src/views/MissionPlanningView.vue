@@ -281,7 +281,7 @@
               :disabled="surveyPolygonVertexesMarkers.length < 1"
               variant="text"
               class="h-auto my-1 font-medium text-xs rounded-md transition-colors duration-200"
-              @click="clearSurveyPath"
+              @click="clearSurveyPathByUser"
             >
               Clear Path
             </v-btn>
@@ -452,7 +452,7 @@
           :style="interfaceStore.globalGlassMenuStyles"
           hide-details
           size="small"
-          @click.stop="router.push('/')"
+          @click.stop="goToFlightView"
         />
       </template>
     </v-tooltip>
@@ -570,7 +570,7 @@
     :enable-undo="enableUndoForCurrentSurvey"
     :selected-waypoint="selectedWaypoint"
     :menu-type="contextMenuType"
-    @set-home-position="setHomePosition"
+    @set-home-position="setHomePositionFromContextMenu"
     @close="hideContextMenu"
     @delete-selected-survey="deleteSelectedSurvey"
     @swap-survey-entry-exit="swapSurveyEntryExit"
@@ -732,6 +732,7 @@ const { showDialog, closeDialog } = useInteractionDialog()
 const { openSnackbar } = useSnackbar()
 
 const clearMissionOnVehicle = (): void => {
+  console.info('[UserAction] Cleared mission on vehicle')
   vehicleStore.clearMissions()
 }
 
@@ -770,6 +771,7 @@ const uploadMissionToVehicle = async (): Promise<void> => {
     return
   }
 
+  console.info('[UserAction] Uploading mission to vehicle')
   uploadingMission.value = true
   missionUploadProgress.value = 0
   const missionItemsToUpload: Waypoint[] = JSON.parse(JSON.stringify(missionStore.currentPlanningWaypoints))
@@ -866,6 +868,7 @@ const uploadMissionToVehicle = async (): Promise<void> => {
 
 // Allow fetching missions
 const downloadMissionFromVehicle = async (): Promise<void> => {
+  console.info('[UserAction] Downloading mission from vehicle')
   missionStore.pushUndoSnapshot()
   clearCurrentMission()
   loading.value = true
@@ -1124,10 +1127,12 @@ const handleMapMouseMove = (e: L.LeafletMouseEvent): void => {
 }
 
 const saveEsri = (): void => {
+  console.info('[UserAction] Saved visible Esri map tiles')
   esriSaveBtn?.click()
   downloadMenuOpen.value = false
 }
 const saveOSM = (): void => {
+  console.info('[UserAction] Saved visible OSM map tiles')
   osmSaveBtn?.click()
   downloadMenuOpen.value = false
 }
@@ -1220,6 +1225,7 @@ watch(showMissionCreationTips, (newVal) => {
 })
 
 const handleDoNotShowTipsAgain = (): void => {
+  console.info('[UserAction] Dismissed mission creation tips permanently')
   countdownToHideTips.value = undefined
   missionStore.showMissionCreationTips = false
   openSnackbar({
@@ -1231,6 +1237,7 @@ const handleDoNotShowTipsAgain = (): void => {
 
 const handleAddHomeWaypointByClick = (): void => {
   if (home.value !== undefined) return
+  console.info('[UserAction] Started setting mission home waypoint')
   isSettingHomeWaypoint.value = true
   openSnackbar({
     variant: 'info',
@@ -1239,7 +1246,13 @@ const handleAddHomeWaypointByClick = (): void => {
   })
 }
 
+const goToFlightView = (): void => {
+  console.info('[UserAction] Navigated to Flight view')
+  router.push('/')
+}
+
 const handleOpenMissionSettings = (): void => {
+  console.info('[UserAction] Opened mission settings')
   interfaceStore.isMainMenuVisible = true
   interfaceStore.mainMenuCurrentStep = 2
   interfaceStore.currentSubMenuName = SubMenuName.settings
@@ -1274,6 +1287,7 @@ const clearCurrentMission = (): void => {
 }
 
 const openCLearMissionDialog = (): void => {
+  console.info('[UserAction] Opened clear-mission dialog')
   showDialog({
     message: 'Clear current mission?',
     maxWidth: '400px',
@@ -1634,6 +1648,7 @@ let radialMenuSegmentIndex: number | null = null
 
 const showSegmentRadialMenu = (): void => {
   if (!mapActionsKnobEl) return
+  console.info('[UserAction] Opened mission segment radial menu')
   radialMenuSegmentIndex = mapActionsKnobSegmentIndex
   segmentRadialMenuPosition.value = {
     x: parseInt(mapActionsKnobEl.style.left),
@@ -1650,6 +1665,7 @@ const dismissSegmentRadialMenu = (): void => {
 }
 
 const onSegmentRadialMenuSelect = (index: number): void => {
+  console.info(`[UserAction] Selected mission segment radial menu option ${index}`)
   if (index === 0) {
     if (radialMenuSegmentIndex !== null) insertWaypointAtSegmentMidpoint(radialMenuSegmentIndex)
   } else if (index === 1) {
@@ -1930,8 +1946,14 @@ const hideContextMenu = (): void => {
 }
 
 const clearVehiclePathHistory = (): void => {
+  console.info('[UserAction] Cleared vehicle path history')
   missionStore.clearVehicleHistory()
   openSnackbar({ message: 'Vehicle path history cleared', variant: 'success' })
+}
+
+const setHomePositionFromContextMenu = async (): Promise<void> => {
+  console.info('[UserAction] Set mission home position from context menu')
+  await setHomePosition()
 }
 
 const setHomePosition = async (): Promise<void> => {
@@ -1954,9 +1976,11 @@ const setHomePosition = async (): Promise<void> => {
 
 const toggleSimplePath = (): void => {
   if (isCreatingSimplePath.value) {
+    console.info('[UserAction] Disabled mission simple-path tool')
     isCreatingSimplePath.value = false
     return
   }
+  console.info('[UserAction] Enabled mission simple-path tool')
   isCreatingSimplePath.value = true
 }
 
@@ -1965,11 +1989,13 @@ const toggleSurvey = (): void => {
     isCreatingSimplePath.value = false
   }
   if (isCreatingSurvey.value) {
+    console.info('[UserAction] Disabled mission survey tool')
     isCreatingSurvey.value = false
     isDrawingSurveyPolygon.value = false
     segmentSurveyInsertIndex.value = null
     return
   }
+  console.info('[UserAction] Enabled mission survey tool')
   isCreatingSurvey.value = true
   isDrawingSurveyPolygon.value = true
   interfaceStore.configPanelVisible = true
@@ -2152,6 +2178,7 @@ const performSurveyPolygonRedo = (): boolean => {
 }
 
 const performUndo = (): void => {
+  console.info('[UserAction] Triggered mission edit undo')
   const snapshot = missionStore.popUndoSnapshot()
   if (!snapshot) {
     if (!undoLimitShown) {
@@ -2240,6 +2267,7 @@ const performUndo = (): void => {
 }
 
 const performRedo = (): void => {
+  console.info('[UserAction] Triggered mission edit redo')
   const snapshot = missionStore.popRedoSnapshot()
   if (!snapshot) {
     if (!redoLimitShown) {
@@ -2323,6 +2351,7 @@ const handleKeyDown = (event: KeyboardEvent): void => {
 }
 
 const clearSurveyCreation = (): void => {
+  console.info('[UserAction] Cancelled survey creation')
   clearSurveyPath()
   isCreatingSurvey.value = false
   isDrawingSurveyPolygon.value = false
@@ -2344,6 +2373,7 @@ const deleteSelectedSurvey = (): void => {
     return
   }
 
+  console.info('[UserAction] Deleted selected survey')
   missionStore.pushUndoSnapshot()
 
   const polygonLayer = surveyPolygonLayers.value[surveyId]
@@ -2395,6 +2425,7 @@ const swapSurveyEntryExit = (): void => {
   const survey = surveys.value.find((s) => s.id === surveyId)
   if (!survey || survey.waypoints.length < 2) return
 
+  console.info('[UserAction] Swapped survey entry/exit points')
   missionStore.pushUndoSnapshot()
 
   const firstWpId = survey.waypoints[0].id
@@ -2524,6 +2555,7 @@ const addWaypoint = (
     commands: cloneCommands(commands),
   }
 
+  console.info(`[UserAction] Added mission waypoint at ${coordinates[0].toFixed(6)}, ${coordinates[1].toFixed(6)}`)
   missionStore.currentPlanningWaypoints.push(waypoint)
 
   const newMarker = L.marker(coordinates, { draggable: true })
@@ -2577,6 +2609,7 @@ const removeSelectedWaypoint = (): void => {
   const waypoint = selectedWaypoint.value
   if (!waypoint) return
 
+  console.info(`[UserAction] Removed mission waypoint ${waypoint.id}`)
   missionStore.pushUndoSnapshot()
 
   const index = missionStore.currentPlanningWaypoints.findIndex((wp) => wp.id === waypoint.id)
@@ -2616,6 +2649,7 @@ const handleShouldUpdateWaypoints = (): void => {
 }
 
 const saveMissionToFile = async (): Promise<void> => {
+  console.info('[UserAction] Saved mission to file')
   // Commit the local cruise speed back to the store so the chosen value persists across sessions.
   missionStore.defaultCruiseSpeed = localCruiseSpeed.value
 
@@ -2654,6 +2688,7 @@ const drawMissionOnTheMap = (waypoints: Waypoint[]): void => {
 }
 
 const loadMissionFromFile = (): void => {
+  console.info('[UserAction] Loading mission from file')
   const input = document.createElement('input')
   input.type = 'file'
   input.accept = '.cmp,application/json'
@@ -2731,6 +2766,11 @@ const onSurveyLinesAngleChange = (angle: number): void => {
 const surveyPathLayer = shallowRef<L.Polyline | null>(null)
 const surveyTurnaroundLayers = shallowRef<L.Polyline[]>([])
 const surveyPolygonLayer = shallowRef<L.Polygon | null>(null)
+
+const clearSurveyPathByUser = (): void => {
+  console.info('[UserAction] Cleared survey path')
+  clearSurveyPath()
+}
 
 const clearSurveyPath = (): void => {
   if (surveyPathLayer.value) {
@@ -3044,6 +3084,8 @@ const generateWaypointsFromSurvey = (): void => {
     return
   }
 
+  console.info('[UserAction] Generated waypoints from survey')
+
   missionStore.pushUndoSnapshot()
 
   const newSurveyId = uuid()
@@ -3199,6 +3241,8 @@ const regenerateSurveyWaypoints = (angle?: number): void => {
     return
   }
 
+  console.info('[UserAction] Regenerated survey waypoints')
+
   if (selectedSurvey.value) {
     selectedSurvey.value?.waypoints.forEach((waypoint) => {
       const marker = waypointMarkers.value[waypoint.id]
@@ -3328,6 +3372,7 @@ const createSurveyVertexMarker = (
 
 const undoGenerateWaypoints = (): void => {
   if (undoIsInProgress.value) return
+  console.info('[UserAction] Undid generated survey waypoints')
   contextMenuVisible.value = false
   undoIsInProgress.value = true
 
@@ -4328,6 +4373,7 @@ const centerOnMission = (): void => {
 
 const openPoiDialog = (): void => {
   if (cursorCoordinates.value && poiManagerRef.value) {
+    console.info('[UserAction] Opened point of interest dialog')
     poiManagerRef.value.openDialog(cursorCoordinates.value)
   } else if (!cursorCoordinates.value) {
     showDialog({ variant: 'error', title: 'Error', message: 'Cannot place Point of Interest without map coordinates.' })
