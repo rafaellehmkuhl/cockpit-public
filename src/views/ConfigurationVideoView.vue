@@ -382,7 +382,7 @@
     variant="text-only"
     :persistent="true"
     :actions="[
-      { text: 'Cancel', size: 'small', action: cancelEditDialog },
+      { text: 'Cancel', size: 'small', action: onCancelStreamRename },
       { text: 'Save', size: 'small', disabled: !newStreamName.trim(), action: saveStreamNameFromDialog },
     ]"
   >
@@ -500,6 +500,7 @@ const streamsToShow = computed(() => {
 })
 
 const openEditDialog = (item: VideoStreamCorrespondency): void => {
+  console.info(`[UserAction] Opened rename dialog for video stream '${item.name}'`)
   editingStream.value = item
   newStreamName.value = item.name
   editDialogError.value = ''
@@ -510,6 +511,7 @@ const saveStreamNameFromDialog = (): void => {
   if (editingStream.value && newStreamName.value.trim()) {
     try {
       editDialogError.value = ''
+      console.info(`[UserAction] Renamed video stream '${editingStream.value.name}' to '${newStreamName.value.trim()}'`)
       videoStore.renameStreamInternalNameById(editingStream.value.externalId, newStreamName.value.trim())
       cancelEditDialog()
     } catch (error) {
@@ -525,6 +527,11 @@ const cancelEditDialog = (): void => {
   editDialogError.value = ''
 }
 
+const onCancelStreamRename = (): void => {
+  console.info('[UserAction] Cancelled video stream rename')
+  cancelEditDialog()
+}
+
 const addRtspStream = (): void => {
   try {
     rtspInputError.value = ''
@@ -532,6 +539,7 @@ const addRtspStream = (): void => {
       rtspInputError.value = 'Please provide an RTSP URL.'
       return
     }
+    console.info(`[UserAction] Added RTSP stream '${rtspUrlInput.value.trim()}'`)
     videoStore.addRtspStreamCorrespondency(rtspUrlInput.value.trim())
     rtspUrlInput.value = ''
   } catch (error) {
@@ -540,6 +548,7 @@ const addRtspStream = (): void => {
 }
 
 const deleteStream = (item: VideoStreamCorrespondency): void => {
+  console.info(`[UserAction] Removed video stream '${item.name}'`)
   videoStore.deleteStreamCorrespondency(item.externalId)
 }
 
@@ -549,6 +558,7 @@ const restoreIgnoredStream = (externalId: string): void => {
 
   // If the stream is available, restore normally, otherwise ask the user to confirm they want to delete it permanently
   if (isStreamAvailable) {
+    console.info(`[UserAction] Restored video stream '${externalId}'`)
     videoStore.restoreIgnoredStream(externalId)
   } else {
     // Stream is not available, show confirmation dialog
@@ -563,6 +573,7 @@ const closeUnavailableStreamDialog = (): void => {
 }
 
 const deleteStreamPermanently = (): void => {
+  console.info(`[UserAction] Permanently deleted unavailable video stream '${unavailableStreamId.value}'`)
   videoStore.restoreIgnoredStream(unavailableStreamId.value)
   closeUnavailableStreamDialog()
 }
@@ -610,6 +621,7 @@ onMounted(async () => {
 })
 
 const openVideoLibrary = (): void => {
+  console.info('[UserAction] Opened Video Library')
   interfaceStore.videoLibraryVisibility = true
 }
 
