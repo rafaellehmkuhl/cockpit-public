@@ -133,6 +133,7 @@ const originalActions = [
   {
     text: 'Close',
     action: () => {
+      console.info('[UserAction] Closed Vehicle Discovery dialog')
       isOpen.value = false
     },
   },
@@ -159,6 +160,7 @@ watch(isOpen, (value) => {
 })
 
 const searchVehicles = async (): Promise<void> => {
+  console.info('[UserAction] Started vehicle discovery scan')
   searching.value = true
   searched.value = false
   userStopped.value = false
@@ -193,6 +195,7 @@ const searchVehicles = async (): Promise<void> => {
 
 const stopSearch = (): void => {
   if (!searchController.value) return
+  console.info('[UserAction] Stopped vehicle discovery scan')
   userStopped.value = true
   searchController.value.abort()
   progress.value = null
@@ -201,6 +204,7 @@ const stopSearch = (): void => {
 }
 
 const selectVehicle = async (address: string): Promise<void> => {
+  console.info(`[UserAction] Selected discovered vehicle at ${address}`)
   mainVehicleStore.globalAddress = address
   isOpen.value = false
   await reloadCockpitAndWarnUser()
@@ -208,6 +212,7 @@ const selectVehicle = async (address: string): Promise<void> => {
 }
 
 const preventFutureAutoSearchs = (): void => {
+  console.info('[UserAction] Disabled automatic vehicle discovery on startup')
   preventAutoSearch.value = true
   disableButtons()
   setTimeout(() => {

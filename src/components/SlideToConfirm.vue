@@ -80,6 +80,7 @@ const notConfirmedClasses = computed(() => {
 })
 
 const onSlideConfirmed = (): void => {
+  console.info(`[UserAction] Confirmed slide-to-confirm action '${sliderText.value}'`)
   // Call action with confirmed
   onAction.value?.(true)
   slideUniqueId.value = ''
@@ -91,6 +92,7 @@ const onSlideConfirmed = (): void => {
 }
 
 const cancelAction = (): void => {
+  console.info(`[UserAction] Cancelled slide-to-confirm action '${sliderText.value}'`)
   // Call action with confirmed
   onAction.value?.(false)
   slideUniqueId.value = ''
