@@ -48,8 +48,10 @@ const handleClick = (): void => {
     return
   }
   if (vehicleStore.isArmed) {
+    console.info('[UserAction] Requested vehicle disarm via Armer button')
     disarm()
   } else {
+    console.info('[UserAction] Requested vehicle arm via Armer button')
     arm()
   }
 }

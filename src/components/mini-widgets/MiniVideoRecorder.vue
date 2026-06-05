@@ -175,6 +175,7 @@ const selectedExternalId = ref<string | undefined>()
 const externalStreamId = computed(() => selectedExternalId.value)
 
 const openVideoLibraryModal = (): void => {
+  console.info('[UserAction] Opened Video Library')
   interfaceStore.videoLibraryMode = 'videos'
   interfaceStore.videoLibraryVisibility = true
 }
@@ -323,6 +324,7 @@ function assertStreamIsSelectedAndAvailable(
 const toggleRecording = async (): Promise<void> => {
   if (isRecording.value) {
     if (selectedExternalId.value) {
+      console.info(`[UserAction] Stopped video recording of stream '${nameSelectedStream.value}'`)
       videoStore.stopRecording(selectedExternalId.value)
     }
     return
@@ -348,6 +350,7 @@ const startRecording = (): void => {
   }
 
   assertStreamIsSelectedAndAvailable(nameSelectedStream.value)
+  console.info(`[UserAction] Started video recording of stream '${nameSelectedStream.value}'`)
   videoStore.startRecording(selectedExternalId.value)
   widgetStore.miniWidgetManagerVars(miniWidget.value.hash).configMenuOpen = false
 }
@@ -370,6 +373,7 @@ const timePassedString = computed(() => {
 })
 
 const updateCurrentStream = async (internalStreamName: string | undefined): Promise<void> => {
+  console.info(`[UserAction] Selected recording stream '${internalStreamName}'`)
   assertStreamIsSelectedAndAvailable(internalStreamName)
 
   mediaStream.value = undefined

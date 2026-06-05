@@ -482,6 +482,7 @@ const variableNamesToShow = computed(() => {
 })
 
 const chooseVariable = (variable: string): void => {
+  console.info(`[UserAction] Selected indicator variable '${variable}'`)
   miniWidget.value.options.variableName = variable
   variableNameSearchString.value = ''
   showVariableChooseModal.value = false
@@ -490,6 +491,7 @@ const chooseVariable = (variable: string): void => {
 }
 
 const chooseIcon = (iconName: string): void => {
+  console.info(`[UserAction] Selected indicator icon '${iconName}'`)
   miniWidget.value.options.iconName = iconName
   iconSearchString.value = ''
   showIconChooseModal.value = false
@@ -510,6 +512,7 @@ watch(showVariableChooseModal, async (newValue) => {
 const currentTab = ref(widgetIsConfigured.value ? 'custom' : 'presets')
 
 const setIndicatorFromTemplate = (template: VeryGenericIndicatorPreset): void => {
+  console.info(`[UserAction] Applied indicator preset '${template.displayName}'`)
   miniWidget.value.options.displayName = template.displayName
   miniWidget.value.options.variableName = template.variableName
   miniWidget.value.options.iconName = template.iconName

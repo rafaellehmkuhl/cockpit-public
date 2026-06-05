@@ -20,6 +20,7 @@ const fullScreenToggleIcon = computed(() => (isFullscreen.value ? 'fa-solid fa-c
 const isFullScreen = computed(() => isFullscreen.value)
 
 const toggleFullScreen = (): void => {
+  console.info(`[UserAction] ${isFullscreen.value ? 'Exited' : 'Entered'} fullscreen via mini-widget`)
   toggleFullscreen()
 }
 </script>
