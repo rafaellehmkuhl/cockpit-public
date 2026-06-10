@@ -137,7 +137,7 @@ const editMode = computed(() => !!props.idVariableBeingEdited)
 const valueOnlyEditMode = computed(() => {
   if (!editMode.value || !props.idVariableBeingEdited) return false
   const variableInfo = getDataLakeVariableInfo(props.idVariableBeingEdited)
-  return variableInfo?.allowUserToChangeValue === true && variableInfo?.persistent == null
+  return variableInfo?.allowUserToChangeValue === true && variableInfo?.persistent !== true
 })
 const isManualIdEnabled = ref(false)
 const modelValue = toRef(props, 'modelValue')

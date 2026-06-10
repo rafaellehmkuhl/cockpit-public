@@ -394,7 +394,7 @@ const isCompoundVariable = (id: string): boolean => {
 }
 
 const isUserDefinedVariable = (id: string): boolean => {
-  return availableDataLakeVariables.value.find((v) => v.id === id)?.persistent != null
+  return availableDataLakeVariables.value.find((v) => v.id === id)?.persistent === true
 }
 
 const isUserEditableVariable = (id: string): boolean => {
