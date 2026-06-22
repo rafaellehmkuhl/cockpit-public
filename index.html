@@ -57,7 +57,7 @@
             to { transform: rotate(360deg); }
         }
     </style>
-  <script type="module" crossorigin src="./assets/index-CGk9JIWT.js"></script>
+  <script type="module" crossorigin src="./assets/index-CFpaS_g5.js"></script>
   <link rel="stylesheet" crossorigin href="./assets/index-CykwH-oU.css">
 <link rel="manifest" href="./manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
 
@@ -106,7 +106,7 @@
 
     <script>
         // Start console capture
-        const __indexUtils = import('./assets/index-utils-DiKuS14r.js');
+        const __indexUtils = import('./assets/index-utils-DfdQswX2.js');
 
         let __appLoaded = false;
         const __fallbackTimeout = setTimeout(function() {
@@ -144,7 +144,6 @@
                 document.getElementById('import-settings-btn').addEventListener('click', function() {
                     utils.importSettings().then(function(r) {
                         if (!r.success && !r.message.includes('cancelled')) utils.showFallbackAlert(r.message);
-                        location.reload();
                     });
                 });
                 document.getElementById('download-logs-btn').addEventListener('click', function() {
