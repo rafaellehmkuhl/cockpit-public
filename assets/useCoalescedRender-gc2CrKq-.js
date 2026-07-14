@@ -1,0 +1,1 @@
+import{p as r}from"./index-CeoobQ9x.js";const t=n=>{let e=null;const l=()=>{e===null&&(e=requestAnimationFrame(()=>{e=null,n()}))};return r(()=>{e!==null&&(cancelAnimationFrame(e),e=null)}),l};export{t as u};
