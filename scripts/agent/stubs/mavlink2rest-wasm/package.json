@@ -1,0 +1,12 @@
+{
+  "name": "mavlink2rest-wasm",
+  "version": "0.0.0-stub",
+  "description": "Local stub for patrickelectric/mavlink2rest-wasm, used only in sandboxed agent environments where GitHub-hosted dependencies cannot be fetched. The real package is only exercised by the Electron (standalone) connection path, which is unavailable in browser dev mode anyway.",
+  "type": "module",
+  "main": "mavlink2rest_wasm.js",
+  "module": "mavlink2rest_wasm.js",
+  "files": [
+    "mavlink2rest_wasm.js",
+    "mavlink2rest_wasm_bg.wasm"
+  ]
+}

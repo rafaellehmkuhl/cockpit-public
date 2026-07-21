@@ -1,0 +1,6 @@
+{
+  "name": "@kmamal/sdl",
+  "version": "0.0.0-stub",
+  "description": "Local stub for the GitHub-hosted @kmamal/sdl fork, used only in sandboxed agent environments. The real package is only required by the Electron main process (joystick service), which does not run in browser dev mode.",
+  "main": "index.js"
+}
