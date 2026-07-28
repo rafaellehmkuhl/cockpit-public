@@ -928,8 +928,6 @@ const downloadMissionFromVehicle = async (): Promise<void> => {
     missionItemsInVehicle.forEach((wp: Waypoint, index) => {
       if (index === 0) {
         home.value = wp.coordinates
-        currentCursorGeoCoordinates.value = wp.coordinates
-        setHomePosition()
       }
       if (index > 0) {
         missionStore.currentPlanningWaypoints.push(wp)
@@ -2099,27 +2097,20 @@ const clearVehiclePathHistory = (): void => {
   openSnackbar({ message: 'Vehicle path history cleared', variant: 'success' })
 }
 
-const setHomePositionFromContextMenu = async (): Promise<void> => {
+const setHomePositionFromContextMenu = (): void => {
   logUserAction('Set mission home position from context menu')
-  await setHomePosition()
+  setHomePosition()
 }
 
-const setHomePosition = async (): Promise<void> => {
+// Planning never commands the vehicle, unlike the map widget. Home reaches it as the mission's first item on upload.
+const setHomePosition = (): void => {
   if (!currentCursorGeoCoordinates.value) return
   const newHome: [number, number] = [currentCursorGeoCoordinates.value[0], currentCursorGeoCoordinates.value[1]]
-  try {
-    home.value = newHome
-    await vehicleStore.setHomeWaypoint(newHome, 0)
-    openSnackbar({
-      variant: 'success',
-      message: `Home position set to ${newHome[0].toFixed(2)}, ${newHome[1].toFixed(2)}`,
-    })
-  } catch (error) {
-    openSnackbar({
-      variant: 'error',
-      message: `Failed to set home position: ${error}`,
-    })
-  }
+  home.value = newHome
+  openSnackbar({
+    variant: 'success',
+    message: `Home position set to ${newHome[0].toFixed(2)}, ${newHome[1].toFixed(2)}`,
+  })
 }
 
 const toggleSimplePath = (): void => {
