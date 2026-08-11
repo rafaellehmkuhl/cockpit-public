@@ -295,6 +295,7 @@
       <v-card-actions>
         <div class="flex justify-between items-center p-2 w-full h-full text-[rgba(255,255,255,0.5)]">
           <v-btn @click="resetAllCockpitSettings">Reset to defaults</v-btn>
+          <SettingsSnapshotExporter />
           <v-btn class="text-white" @click="closeConfigDialog">Close</v-btn>
         </div>
       </v-card-actions>
@@ -305,6 +306,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 
+import SettingsSnapshotExporter from '@/components/configuration/SettingsSnapshotExporter.vue'
 import { useInteractionDialog } from '@/composables/interactionDialog'
 import { useSnackbar } from '@/composables/snackbar'
 import { settingsManager } from '@/libs/settings-management'
