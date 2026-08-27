@@ -24,6 +24,11 @@ export interface UseMapPoiMarkersOptions {
    */
   draggable?: boolean
   /**
+   * Whether hovering a marker opens its details tooltip. Defaults to true. A rotating map has to turn it
+   * along with the map, which leaves the text unreadable, so those surfaces opt out.
+   */
+  tooltip?: boolean
+  /**
    * Called when a marker is left-clicked, with the up-to-date PoI and the originating event.
    */
   onClick?: (poi: ResolvedPointOfInterest, event: MouseEvent) => void
@@ -75,6 +80,7 @@ export const useMapPoiMarkers = (
   const markers = shallowRef<Record<string, Marker>>({})
   const gotoTargetId = ref<string | null>(null)
   const draggable = options.draggable ?? true
+  const tooltip = options.tooltip ?? true
 
   // Snapshot of the rendering inputs each marker was last drawn with, keyed by PoI id. Lets syncMarkers skip
   // markers whose data hasn't changed, instead of rebuilding every marker's icon (and Leaflet Draggable
@@ -132,12 +138,14 @@ export const useMapPoiMarkers = (
       opacity: getPoiMarkerOpacity(poi),
     }).addTo(map.value)
 
-    marker.bindTooltip(getPoiTooltipHtml(poi, poi.coordinates), {
-      permanent: false,
-      direction: 'top',
-      offset: [0, -20],
-      className: options.tooltipClassName,
-    })
+    if (tooltip) {
+      marker.bindTooltip(getPoiTooltipHtml(poi, poi.coordinates), {
+        permanent: false,
+        direction: 'top',
+        offset: [0, -20],
+        className: options.tooltipClassName,
+      })
+    }
 
     marker.on('drag', (event: LeafletEvent) => {
       const coords = event.target.getLatLng()

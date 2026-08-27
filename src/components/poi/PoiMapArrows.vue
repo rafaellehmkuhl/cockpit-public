@@ -64,7 +64,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 import { useMapContext } from '@/composables/map/useMapContext'
 import { usePointsOfInterest } from '@/composables/usePointsOfInterest'
-import { clampPointToCircle, isInsideCircle } from '@/libs/map/minimap-geometry'
+import { clampPointToCircle, isInsideCircle, rotatePointAroundCenter } from '@/libs/map/minimap-geometry'
 import { TargetFollower, WhoToFollow } from '@/libs/map/utils-map'
 import { calculateHaversineDistance, formatMetersShort } from '@/libs/mission/general-estimates'
 import { useWidgetManagerStore } from '@/stores/widgetManager'
@@ -126,6 +126,11 @@ interface Props {
    * clamps to the largest circle inscribed in the container, for round/faded maps.
    */
   boundary?: 'rectangle' | 'circle'
+  /**
+   * Rotation applied to the map container, in degrees (positive clockwise). Only the rotating minimap sets
+   * it; the arrows sit outside the container, so they have to follow its spin themselves.
+   */
+  bearing?: number
 }
 
 const props = defineProps<Props>()
@@ -278,8 +283,9 @@ const circleInset = 24
 const computeCircularArrow = (targetPoint: L.Point, width: number, height: number): CircleArrow | null => {
   const center = { x: width / 2, y: height / 2 }
   const radius = Math.min(width, height) / 2 - circleInset
-  if (radius <= 0 || isInsideCircle(center, targetPoint, radius)) return null
-  const clamped = clampPointToCircle(center, targetPoint, radius)
+  const onScreenPoint = rotatePointAroundCenter(center, targetPoint, props.bearing ?? 0)
+  if (radius <= 0 || isInsideCircle(center, onScreenPoint, radius)) return null
+  const clamped = clampPointToCircle(center, onScreenPoint, radius)
   return {
     style: { left: `${clamped.x}px`, top: `${clamped.y}px`, transform: 'translate(-50%, -50%)' },
     angleDeg: clamped.angleDeg,
@@ -630,6 +636,16 @@ watch(
   }
 )
 
+// A rotating map moves the pins around its edge without moving the view, so no map event announces it.
+watch(
+  () => props.bearing,
+  () => {
+    if (props.mapReady && map.value && map.value instanceof L.Map) {
+      throttledUpdateArrows()
+    }
+  }
+)
+
 // Watch for vehicle and home position changes
 watch(
   [() => props.vehiclePosition, () => props.home, () => props.mapCenter, () => props.zoom],
@@ -649,7 +665,6 @@ watch(
   ([mapInstance, ready]) => {
     if (moveHandler && map.value) {
       map.value.off('move', moveHandler)
-      map.value.off('rotate', moveHandler)
       moveHandler = null
     }
 
@@ -659,9 +674,6 @@ watch(
         throttledUpdateVehicleAndHomeArrows()
       }
       mapInstance.on('move', moveHandler)
-      // leaflet-rotate fires 'rotate' (not 'move') on bearing changes, so a heading-up map needs this to
-      // keep the edge pins positioned around the spinning map.
-      mapInstance.on('rotate', moveHandler)
     }
   },
   { immediate: true }
@@ -671,7 +683,6 @@ watch(
 onBeforeUnmount(() => {
   if (moveHandler && map.value) {
     map.value.off('move', moveHandler)
-    map.value.off('rotate', moveHandler)
   }
 })
 </script>

@@ -12,23 +12,6 @@ import type { MapTileProvider, WaypointCoordinates } from '@/types/mission'
 // high-zoom null-island tiles.
 const offlineOverviewZoom = 5
 
-// leaflet-rotate augments `L.Map` but reads a free `L` global instead of importing Leaflet, and the app
-// never sets one. Expose the Leaflet module on the global scope and load the plugin lazily so the global
-// is in place before the plugin body evaluates, regardless of how imports get ordered.
-let rotatePluginPromise: Promise<void> | undefined
-const ensureRotatePlugin = (): Promise<void> => {
-  if (!rotatePluginPromise) {
-    ;(
-      globalThis as typeof globalThis & {
-        /** Leaflet global the leaflet-rotate plugin reads instead of importing it. */
-        L?: typeof L
-      }
-    ).L = L
-    rotatePluginPromise = import('leaflet-rotate').then(() => undefined)
-  }
-  return rotatePluginPromise
-}
-
 /**
  * Reactive inputs driving the minimap. Getters (not plain values) so the composable can watch them.
  */
@@ -59,12 +42,14 @@ export interface UseMiniMapReturn {
   mapReady: Ref<boolean>
   /** Current map zoom level, kept in sync with user zooming. */
   zoom: Ref<number>
+  /** Rotation currently applied to the map, in degrees (positive clockwise); 0 when north-up. */
+  bearing: Ref<number>
   /**
    * Creates the rotating map on the given element and starts following the vehicle.
    * @param {HTMLElement} element - The container element to mount the map on.
-   * @returns {Promise<void>} Resolves once the map is created.
+   * @returns {void}
    */
-  init: (element: HTMLElement) => Promise<void>
+  init: (element: HTMLElement) => void
   /**
    * Destroys the map and releases every listener/observer the composable created.
    * @returns {void}
@@ -82,6 +67,7 @@ export interface UseMiniMapReturn {
 export const useMiniMap = (options: UseMiniMapOptions): UseMiniMapReturn => {
   const { map, mapReady } = provideMapContext()
   const zoom = ref(options.defaultZoom())
+  const bearing = ref(0)
   const tileLayers = useMapTileLayers()
   let currentBaseLayer: L.TileLayer | undefined
   let resizeObserver: ResizeObserver | undefined
@@ -130,10 +116,16 @@ export const useMiniMap = (options: UseMiniMapOptions): UseMiniMapReturn => {
   let bearingRaf: number | undefined
   let animatingBearing = false
 
-  const applyBearing = (): void => {
-    if (!map.value) return
-    map.value.setBearing(targetBearing())
+  // The map spins as a whole: the CSS variable drives one `rotate()` on the Leaflet container, so tiles,
+  // vector layers and markers all turn together and their positions stay consistent without Leaflet needing
+  // to know the map is rotated. The circular mask is what makes that free of geometry work — a rotated
+  // rectangle keeps its inradius, so the circle the mask cuts stays fully covered at every angle.
+  const setBearing = (theta: number): void => {
+    bearing.value = theta
+    map.value?.getContainer().style.setProperty('--minimap-bearing', `${theta}deg`)
   }
+
+  const applyBearing = (): void => setBearing(targetBearing())
 
   const easeInOutQuad = (t: number): number => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2)
 
@@ -143,7 +135,7 @@ export const useMiniMap = (options: UseMiniMapOptions): UseMiniMapReturn => {
     if (!map.value) return
     if (bearingRaf) cancelAnimationFrame(bearingRaf)
 
-    const from = map.value.getBearing()
+    const from = bearing.value
     const delta = ((to - from + 540) % 360) - 180
     if (Math.abs(delta) < 0.5) {
       applyBearing()
@@ -154,7 +146,7 @@ export const useMiniMap = (options: UseMiniMapOptions): UseMiniMapReturn => {
     animatingBearing = true
     const step = (now: number): void => {
       const progress = Math.min((now - start) / duration, 1)
-      map.value?.setBearing(from + delta * easeInOutQuad(progress))
+      setBearing(from + delta * easeInOutQuad(progress))
       if (progress < 1) {
         bearingRaf = requestAnimationFrame(step)
       } else {
@@ -176,22 +168,19 @@ export const useMiniMap = (options: UseMiniMapOptions): UseMiniMapReturn => {
   const throttledRecenter = useThrottleFn(recenter, 16)
   const throttledFollow = useThrottleFn(followBearing, 16)
 
-  const init = async (element: HTMLElement): Promise<void> => {
+  const init = (element: HTMLElement): void => {
     if (map.value || disposed) return
-    await ensureRotatePlugin()
-    if (disposed) return
 
     const initialCenter = options.vehiclePosition() ?? ([0, 0] as WaypointCoordinates)
     const instance = L.map(element, {
       center: initialCenter as LatLngTuple,
       zoom: options.defaultZoom(),
-      rotate: true,
-      rotateControl: false,
-      touchRotate: false,
-      shiftKeyRotate: false,
       zoomControl: false,
       attributionControl: false,
       dragging: false,
+      // Leaflet reads wheel coordinates off the unrotated container, so zooming to the pointer would drift
+      // once the map is turned. Zooming to the center is also what an always-centered map wants anyway.
+      scrollWheelZoom: 'center',
       ...singleStepZoomMapOptions,
     })
 
@@ -255,5 +244,5 @@ export const useMiniMap = (options: UseMiniMapOptions): UseMiniMapReturn => {
 
   onBeforeUnmount(destroy)
 
-  return { map, mapReady, zoom, init, destroy }
+  return { map, mapReady, zoom, bearing, init, destroy }
 }

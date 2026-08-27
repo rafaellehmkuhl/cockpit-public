@@ -9,5 +9,5 @@ README, with the project each one's source comes from.
 
 In particular, the Cockpit Custom License grants no rights over the bundled copyleft components. A
 recipient choosing that arm receives Cockpit's own code under it, and each copyleft component under that
-component's own license. Note that the current build always includes the GPL-3.0 components listed in the
-README; there is no build configuration that omits them.
+component's own license. Note that the Standalone build always includes the GPL-3.0 components listed in
+the README; there is no build configuration that omits them.

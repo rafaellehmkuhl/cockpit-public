@@ -344,7 +344,6 @@ Cockpit distributions bundle the following components under the GNU General Publ
 
 | Component | License | Bundled in |
 | --- | --- | --- |
-| [leaflet-rotate](https://github.com/Raruto/leaflet-rotate) | GPL-3.0 | Standalone and Lite |
 | [FFmpeg](https://github.com/BtbN/FFmpeg-Builds) | GPL-3.0 | Standalone |
 | [Piper](https://github.com/OHF-Voice/piper1-gpl) | GPL-3.0 | Standalone |
 

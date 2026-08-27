@@ -33,6 +33,7 @@
       :map-center="mapCenter"
       :zoom="zoom"
       boundary="circle"
+      :bearing="bearing"
     />
     <button
       v-if="widget.options.showNorthIndicator"
@@ -279,7 +280,7 @@ const northRotation = computed(() => (effectiveHeadingUp.value ? -trackedHeading
 const vehicleImageUrl = computed(() => vehicleMarkerImageUrl(vehicleStore.vehicleType))
 
 const mapEl = ref<HTMLElement>()
-const { mapReady, zoom, map, init } = useMiniMap({
+const { mapReady, zoom, bearing, map, init } = useMiniMap({
   vehiclePosition: () => trackedPosition.value,
   vehicleHeading: () => trackedHeading.value,
   headingUp: () => effectiveHeadingUp.value,
@@ -293,6 +294,7 @@ useMapPoiMarkers(map, {
   iconClassName: 'minimap-poi-marker-icon',
   tooltipClassName: 'minimap-poi-tooltip',
   draggable: false,
+  tooltip: false,
   show: () => widget.value.options.showPois,
 })
 
@@ -314,7 +316,7 @@ useMapVehiclePathLayer(map, {
 })
 
 onMounted(() => {
-  if (mapEl.value) init(mapEl.value).catch((error) => console.error('Failed to initialize MiniMap:', error))
+  if (mapEl.value) init(mapEl.value)
 })
 
 // The minimap has no leaflet dragging, so this handle temporarily flags the widget as movable, letting the
@@ -451,6 +453,14 @@ const onTrackedPoiSelected = (value: string | null): void => {
   position: absolute;
   inset: 0;
   z-index: 0;
+  /* Rotating about the exact center is what keeps the masked circle covered at every bearing. */
+  transform: rotate(var(--minimap-bearing, 0deg));
+  transform-origin: 50% 50%;
+}
+
+/* PoI markers ride the container's rotation, so their content spins back to stay upright. */
+.minimap-canvas :deep(.poi-marker-container) {
+  transform: rotate(calc(-1 * var(--minimap-bearing, 0deg)));
 }
 
 .minimap-root--offline > *:not(.minimap-offline-overlay) {
