@@ -1,0 +1,1 @@
+import{c,b2 as m,w as u,i as h}from"./index-D5u-to2C.js";const f=(o=()=>!0)=>{const e=c(),s=m();let t=!1;return u([()=>e.isVehicleOnline,()=>e.isArmed,o],async([n,r],i)=>{if(!n){t=!1;return}if(!o())return;const a=r===!0&&(i==null?void 0:i[1])!==!0;t&&!a||(t=!0,await e.fetchHomeWaypoint().catch(()=>{}))},{immediate:!0}),h(()=>s.homeMarkerPosition)};export{f as u};
