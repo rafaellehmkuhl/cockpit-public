@@ -111,6 +111,7 @@ export enum WidgetType {
   URLVideoPlayer = 'URLVideoPlayer',
   VideoPlayer = 'VideoPlayer',
   VirtualHorizon = 'VirtualHorizon',
+  BareMinimumMap = 'BareMinimumMap',
 }
 
 /**
@@ -879,6 +880,7 @@ export const isWidgetConfigurable: Record<WidgetType, boolean> = {
   [WidgetType.VideoPlayer]: true,
   [WidgetType.VirtualHorizon]: false,
   [WidgetType.MissionControlPanel]: false,
+  [WidgetType.BareMinimumMap]: true,
 }
 
 export const isMiniWidgetConfigurable: Record<MiniWidgetType, boolean> = {
@@ -921,6 +923,7 @@ export const widgetHasOwnContextMenu: Record<WidgetType, boolean> = {
   [WidgetType.VideoPlayer]: false,
   [WidgetType.VirtualHorizon]: false,
   [WidgetType.MissionControlPanel]: false,
+  [WidgetType.BareMinimumMap]: false,
 }
 
 /**
@@ -941,6 +944,7 @@ export const widgetDefaultSizes: Partial<Record<WidgetType, SizeRect2D>> = {
   [WidgetType.URLVideoPlayer]: { width: 0.5, height: 0.4 },
   [WidgetType.VideoPlayer]: { width: 1, height: 1 },
   [WidgetType.VirtualHorizon]: { width: 0.062, height: 0.118 },
+  [WidgetType.BareMinimumMap]: { width: 1, height: 1 },
 }
 
 export const validateWidget = (maybeWidget: Widget): maybeWidget is Widget => {

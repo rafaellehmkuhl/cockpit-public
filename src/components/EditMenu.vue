@@ -712,7 +712,7 @@ const availableInternalWidgets = computed(() =>
   Object.values(WidgetType).map((widgetType) => {
     return {
       component: widgetType,
-      name: widgetType,
+      name: widgetType === WidgetType.BareMinimumMap ? 'Bare Minimum Map' : widgetType,
       icon: widgetImages[widgetType] as string,
       options: {},
       defaultSize: widgetDefaultSizes[widgetType],
@@ -780,6 +780,7 @@ const widgetImages = {
   URLVideoPlayer: URLVideoPlayerImg,
   VideoPlayer: VideoPlayerImg,
   VirtualHorizon: VirtualHorizonImg,
+  BareMinimumMap: MapImg,
 }
 
 const widgetAddMenuGroupOptions = {
