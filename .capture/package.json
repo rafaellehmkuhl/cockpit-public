@@ -1,0 +1,8 @@
+{
+  "name": "capture",
+  "private": true,
+  "dependencies": {
+    "playwright": "^1.63.0",
+    "ws": "^8.21.3"
+  }
+}

@@ -1,0 +1,1495 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cockpit — Build On It · ArduPilot Dev Conference 2026</title>
+<style>
+  :root{
+    --bg:#0a1416;
+    --bg2:#0f1f22;
+    --ink:#e9f2ef;
+    --muted:#8fa7a2;
+    --dim:#6a827e;
+    --kelp:#4fa483;
+    --kelp-dim:#2c614c;
+    --blue:#3B78A8;
+    --amber:#d8a657;
+    --red:#d2686a;
+    --line:rgba(255,255,255,.10);
+    --glass:rgba(255,255,255,.045);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, sans-serif;
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--sans);
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------------------------------------------------------------- stage */
+  #stage{
+    position:fixed; inset:0;
+    display:grid; place-items:center;
+  }
+  #deck{
+    width:1280px; height:720px;
+    position:relative;
+    transform-origin:center center;
+  }
+  .slide{
+    position:absolute; inset:0;
+    padding:64px 76px;
+    display:none;
+    flex-direction:column;
+    background:
+      radial-gradient(1100px 620px at 78% -12%, rgba(79,164,131,.14), transparent 62%),
+      radial-gradient(820px 520px at 4% 108%, rgba(59,120,168,.14), transparent 60%),
+      linear-gradient(160deg, var(--bg2), var(--bg));
+    overflow:hidden;
+  }
+  .slide.on{display:flex;}
+
+  /* ---------------------------------------------------------------- type */
+  h1{font-size:62px; line-height:1.04; font-weight:680; letter-spacing:-1.6px;}
+  h2{font-size:40px; line-height:1.12; font-weight:660; letter-spacing:-.9px; margin-bottom:24px;}
+  h3{font-size:23px; font-weight:640; letter-spacing:-.3px; color:var(--kelp); margin-bottom:10px;}
+  p{font-size:21px; line-height:1.52; color:#d6e3e0; max-width:62ch;}
+  .lead{font-size:26px; line-height:1.45;}
+  .muted{color:var(--muted);}
+  .dim{color:var(--dim);}
+  strong{color:#fff; font-weight:650;}
+  em{font-style:normal; color:var(--kelp);}
+  .kicker{
+    font-size:13px; letter-spacing:2.6px; text-transform:uppercase;
+    color:var(--kelp); font-weight:680; margin-bottom:18px;
+  }
+  .after{margin-top:22px;}
+
+  ul{list-style:none; display:flex; flex-direction:column; gap:13px; margin-top:6px;}
+  li{
+    font-size:20px; line-height:1.45; color:#d6e3e0;
+    padding-left:26px; position:relative; max-width:64ch;
+  }
+  li::before{
+    content:""; position:absolute; left:2px; top:.62em;
+    width:8px; height:8px; border-radius:2px; background:var(--kelp); opacity:.85;
+  }
+  li.no::before{background:var(--red);}
+  li.warn::before{background:var(--amber);}
+  li small{display:block; font-size:16px; color:var(--muted); margin-top:3px; line-height:1.4;}
+
+  code{font-family:var(--mono); font-size:.92em; color:#bfe6d5;
+       background:rgba(79,164,131,.12); padding:1px 6px; border-radius:4px;}
+  /* Inside a block, `code` is just the text container — the pill styling belongs to inline code only. */
+  pre code{background:none; padding:0; border-radius:0; color:inherit; font-size:inherit;}
+
+  /* ---------------------------------------------------------------- layout */
+  .grow{flex:1; min-height:0;}
+  .cols{display:grid; grid-template-columns:1fr 1fr; gap:40px; flex:1; min-height:0; align-items:start;}
+  .cols.wide-left{grid-template-columns:1.25fr 1fr;}
+  .cols.wide-right{grid-template-columns:1fr 1.35fr;}
+  .center{align-items:center; justify-content:center; text-align:center;}
+  .center p, .center ul{margin-left:auto; margin-right:auto;}
+  .center li{text-align:left;}
+
+  .panel{
+    background:var(--glass); border:1px solid var(--line);
+    border-radius:14px; padding:22px 24px;
+  }
+  .panel h3{margin-bottom:8px;}
+
+  /* ---------------------------------------------------------------- title slide */
+  .title-slide{justify-content:center;}
+  .title-slide h1{font-size:78px; max-width:20ch;}
+  .title-rule{width:96px; height:4px; background:var(--kelp); border-radius:2px; margin:30px 0 26px;}
+  .byline{font-size:22px; color:var(--muted); line-height:1.6;}
+  .byline b{color:var(--ink); font-weight:600;}
+  .venue{
+    position:absolute; right:76px; bottom:60px; text-align:right;
+    font-size:15px; color:var(--dim); line-height:1.7;
+  }
+
+  /* ---------------------------------------------------------------- section divider */
+  .divider{justify-content:center;}
+  .divider .num{
+    font-size:150px; font-weight:720; letter-spacing:-8px;
+    color:transparent; -webkit-text-stroke:2px var(--kelp-dim); line-height:.9;
+  }
+  .divider h1{font-size:66px; margin-top:8px;}
+  .divider p{font-size:24px; color:var(--muted); margin-top:18px;}
+
+  /* ---------------------------------------------------------------- stats */
+  .stats{display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin-top:10px;}
+  .stat{
+    background:var(--glass); border:1px solid var(--line);
+    border-radius:14px; padding:22px 18px; text-align:center;
+  }
+  .stat .n{font-size:44px; font-weight:700; letter-spacing:-1.6px; color:var(--kelp); line-height:1;}
+  .stat .l{font-size:14px; color:var(--muted); margin-top:9px; line-height:1.35;}
+
+  /* ---------------------------------------------------------------- doors */
+  .doors{display:flex; flex-direction:column; gap:11px; margin-top:4px;}
+  .door{
+    display:grid; grid-template-columns:52px 1fr auto; align-items:center; gap:20px;
+    background:var(--glass); border:1px solid var(--line);
+    border-left:3px solid var(--kelp-dim);
+    border-radius:11px; padding:14px 20px;
+    transition:border-color .2s, background .2s;
+  }
+  .door .d{font-size:26px; font-weight:700; color:var(--kelp-dim);}
+  .door .t{font-size:20px; font-weight:600;}
+  .door .t small{display:block; font-size:15px; color:var(--muted); font-weight:400; margin-top:3px;}
+  .door .e{font-size:13px; color:var(--dim); text-align:right; letter-spacing:.4px; white-space:nowrap;}
+  .door.hot{border-left-color:var(--kelp); background:rgba(79,164,131,.10);}
+  .door.hot .d{color:var(--kelp);}
+
+  /* ---------------------------------------------------------------- code */
+  pre{
+    background:#071012; border:1px solid var(--line); border-radius:12px;
+    padding:20px 22px; overflow:hidden;
+    font-family:var(--mono); font-size:16.5px; line-height:1.62;
+    color:#cfe3de; white-space:pre; tab-size:2;
+  }
+  pre.sm{font-size:14.5px; line-height:1.56;}
+  pre.xs{font-size:13px; line-height:1.5;}
+  .filename{
+    font-family:var(--mono); font-size:13px; color:var(--dim);
+    margin-bottom:7px; letter-spacing:.3px;
+  }
+  .tok-com{color:#5f7b76; font-style:italic;}
+  .tok-str{color:#9fd8b4;}
+  .tok-num{color:#e0b884;}
+  .tok-kw{color:#7fb2d8;}
+  .tok-fn{color:#d9c98a;}
+  .tok-key{color:#8fc7e8;}
+
+  /* ---------------------------------------------------------------- media */
+  figure{display:flex; flex-direction:column; height:100%; min-height:0;}
+  figure img, figure video{
+    width:100%; height:100%; object-fit:contain; object-position:center;
+    border-radius:12px; border:1px solid var(--line); background:#000;
+    min-height:0;
+  }
+  figcaption{font-size:15px; color:var(--dim); margin-top:11px; text-align:center;}
+  .media-slide{padding:52px 60px 46px;}
+  .media-slide h2{font-size:33px; margin-bottom:18px;}
+  .bleed{margin:0 -16px;}
+
+  /* ---------------------------------------------------------------- table */
+  table{width:100%; border-collapse:collapse; font-size:17px;}
+  th,td{text-align:left; padding:11px 14px; border-bottom:1px solid var(--line); vertical-align:top;}
+  th{font-size:13px; letter-spacing:1.4px; text-transform:uppercase; color:var(--kelp); font-weight:650;}
+  td code{font-size:15px;}
+  td.n{color:var(--muted);}
+
+  /* ---------------------------------------------------------------- demo slide */
+  .demo{justify-content:center; align-items:center; text-align:center;
+        background:linear-gradient(155deg,#123027,#0a1416 70%);}
+  .demo .badge{
+    display:inline-block; font-size:14px; letter-spacing:3px; text-transform:uppercase;
+    color:#07120f; background:var(--kelp); padding:8px 20px; border-radius:999px; font-weight:750;
+  }
+  .demo h1{font-size:64px; margin:26px 0 16px;}
+  .demo .steps{
+    margin-top:26px; text-align:left; display:inline-flex; flex-direction:column; gap:11px;
+    background:rgba(0,0,0,.28); border:1px solid var(--line); border-radius:14px; padding:24px 30px;
+  }
+  .demo .steps div{font-size:19px; color:#d6e3e0;}
+  .demo .steps b{color:var(--kelp); font-family:var(--mono); font-size:16px; margin-right:10px;}
+  .demo .fallback{margin-top:22px; font-size:15px; color:var(--dim);}
+
+  /* ---------------------------------------------------------------- quote / callout */
+  .callout{
+    border-left:3px solid var(--amber); background:rgba(216,166,87,.09);
+    padding:18px 24px; border-radius:0 12px 12px 0; margin-top:20px;
+  }
+  .callout p{font-size:19px; color:#e6d7b8; max-width:none;}
+  .callout.good{border-left-color:var(--kelp); background:rgba(79,164,131,.10);}
+  .callout.good p{color:#c8e6d8;}
+
+  .pill{
+    display:inline-block; font-family:var(--mono); font-size:14px;
+    border:1px solid var(--line); border-radius:999px; padding:5px 14px;
+    color:var(--muted); margin:0 8px 8px 0; background:var(--glass);
+  }
+  .pill.on{border-color:var(--kelp); color:#bfe6d5; background:rgba(79,164,131,.12);}
+
+  .flow{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-top:8px;}
+  .flow .step{
+    background:var(--glass); border:1px solid var(--line); border-radius:10px;
+    padding:13px 17px; font-family:var(--mono); font-size:15px; color:#cfe3de;
+  }
+  .flow .arw{color:var(--kelp); font-size:22px;}
+
+  /* ---------------------------------------------------------------- HUD */
+  #hud{
+    position:fixed; left:0; right:0; bottom:0; height:4px;
+    background:rgba(255,255,255,.07); z-index:50;
+  }
+  #bar{height:100%; width:0; background:var(--kelp); transition:width .25s ease;}
+  #meta{
+    position:fixed; right:16px; bottom:14px; z-index:51;
+    font-family:var(--mono); font-size:12px; color:var(--dim);
+    display:flex; gap:14px; align-items:center;
+    background:rgba(0,0,0,.42); padding:6px 12px; border-radius:8px;
+    backdrop-filter:blur(6px);
+  }
+  #clock.run{color:var(--kelp);}
+  #clock.over{color:var(--amber);}
+  #clock.late{color:var(--red);}
+  #pace.ahead{color:var(--blue);}
+  #pace.behind{color:var(--amber);}
+
+  /* ---------------------------------------------------------------- notes */
+  #notes{
+    position:fixed; right:0; top:0; bottom:0; width:390px; z-index:60;
+    background:rgba(4,10,11,.97); border-left:1px solid var(--line);
+    padding:26px 26px 40px; overflow-y:auto; display:none;
+    font-size:15px; line-height:1.62; color:#c3d4d0;
+    backdrop-filter:blur(10px);
+  }
+  #notes.on{display:block;}
+  #notes h4{font-size:12px; letter-spacing:2.2px; text-transform:uppercase;
+            color:var(--kelp); margin-bottom:14px;}
+  #notes .nb{white-space:pre-wrap;}
+
+  /* ---------------------------------------------------------------- overview */
+  #overview{
+    position:fixed; inset:0; z-index:70; background:rgba(4,9,10,.975);
+    display:none; overflow-y:auto; padding:36px;
+  }
+  #overview.on{display:block;}
+  #ovgrid{display:grid; grid-template-columns:repeat(5,1fr); gap:14px;}
+  .ov{
+    border:1px solid var(--line); border-radius:9px; padding:13px 14px; cursor:pointer;
+    background:var(--glass); min-height:78px;
+  }
+  .ov:hover{border-color:var(--kelp);}
+  .ov.cur{border-color:var(--kelp); background:rgba(79,164,131,.14);}
+  .ov .i{font-family:var(--mono); font-size:11px; color:var(--dim);}
+  .ov .t{font-size:13.5px; margin-top:5px; line-height:1.35; color:#d6e3e0;}
+
+  /* ---------------------------------------------------------------- help */
+  #help{
+    position:fixed; inset:0; z-index:80; background:rgba(4,9,10,.96);
+    display:none; place-items:center;
+  }
+  #help.on{display:grid;}
+  #help div{font-family:var(--mono); font-size:16px; line-height:2.1; color:#c3d4d0;}
+  #help b{color:var(--kelp); display:inline-block; width:130px;}
+</style>
+</head>
+<body>
+
+<div id="stage"><div id="deck">
+
+<!-- ============================================================ 1 · TITLE -->
+<section class="slide title-slide" data-notes="Open cold. Do NOT re-introduce Cockpit.
+
+'Two years ago in Kaga I stood up and explained what Cockpit is. I'm not doing that again today — the recording is online.
+
+Today is one question: how do you plug YOUR thing into it.'
+
+Target: off this slide by 0:45.">
+  <div class="kicker">ArduPilot Developer Conference · Ottawa 2026</div>
+  <h1>Cockpit:<br>build on it</h1>
+  <div class="title-rule"></div>
+  <div class="byline">
+    <b>Rafael Lehmkuhl</b> · Blue Robotics<br>
+    <span class="dim">Five ways to put your own hardware, service or extension inside the ground station</span>
+  </div>
+  <div class="venue">Brookstreet Hotel · 23–25 October 2026<br>github.com/bluerobotics/cockpit</div>
+</section>
+
+<!-- ============================================================ 2 · KAGA -->
+<section class="slide" data-notes="Reference the old talk quickly and honestly. Read the chapter list off the slide — it gets a laugh from anyone who was there.
+
+Key line: 'Everything in that talk was about what Cockpit IS. Today is about what you can do TO it.'
+
+30 seconds. Don't linger.">
+  <div class="kicker">Where we left off</div>
+  <h2>Kaga, October 2024</h2>
+  <div class="cols">
+    <div>
+      <p class="muted">The talk I gave, chapter by chapter:</p>
+      <ul class="after">
+        <li>What is Cockpit?</li>
+        <li>Web-based stack</li>
+        <li>Widget-based UI</li>
+        <li>Data output and commands</li>
+        <li>Flexible data input</li>
+        <li>Current status &amp; future plans</li>
+      </ul>
+    </div>
+    <div>
+      <div class="panel">
+        <h3>You asked four questions</h3>
+        <ul style="gap:9px">
+          <li>Handling lost connections</li>
+          <li>3D maps and visualisation</li>
+          <li>Remote vehicle access</li>
+          <li>Which map library</li>
+        </ul>
+      </div>
+      <div class="callout"><p>I'll answer all four before the end — including the one I still haven't built.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 3 · NUMBERS -->
+<section class="slide" data-notes="Numbers are real, measured from the repo this month.
+
+v1.3.2 was the version live during the Kaga talk. v1.18.3 is current stable, v1.19 in beta.
+
+Don't read every number. Say: 'the short version is that the thing you saw in 2024 is not the thing running today.'
+
+~45 seconds.">
+  <div class="kicker">What happened since</div>
+  <h2>v1.3.2 &nbsp;&rarr;&nbsp; v1.19</h2>
+  <div class="stats">
+    <div class="stat"><div class="n">1,444</div><div class="l">commits since<br>November 2024</div></div>
+    <div class="stat"><div class="n">27</div><div class="l">stable releases<br>v1.4.0 → v1.18.3</div></div>
+    <div class="stat"><div class="n">70k</div><div class="l">lines added<br>across 354 files</div></div>
+    <div class="stat"><div class="n">167→371</div><div class="l">source files<br>in <code>src/</code></div></div>
+  </div>
+  <p class="after muted">Nine people wrote it. Most of the volume is two of us — but the parts you are most likely
+     to care about today came from outside Blue Robotics.</p>
+  <div class="callout good"><p><strong>Native TCP/UDP MAVLink</strong> — the feature that makes Cockpit useful to this
+     room — was contributed by <em>@amir-hossein-zarei</em> in PR #2084. Not by us.</p></div>
+</section>
+
+<!-- ============================================================ 4 · THE OBJECTION -->
+<section class="slide center" data-notes="This is the pivot of the whole framing. Say it plainly and let it sit.
+
+'In 2024 a lot of you looked at Cockpit and thought: nice, but that's the Blue Robotics ROV thing. And honestly? You were right.'
+
+Beat. Then next slide.">
+  <div class="kicker">The part I got wrong in 2024</div>
+  <h1 style="font-size:52px; max-width:24ch">You needed BlueOS,<br>and probably one of our vehicles.</h1>
+  <p class="lead muted after">So most of you filed Cockpit under "nice, but not for me" — and you were right to.</p>
+</section>
+
+<!-- ============================================================ 5 · NOT ANYMORE -->
+<section class="slide" data-notes="Four bullets, four releases. This buys you permission for the rest of the talk.
+
+State the caveat OUT LOUD — raw sockets and serial are desktop-only because browsers can't open them outside a secure context. Someone in the livestream chat WILL catch this otherwise.
+
+~75 seconds.">
+  <div class="kicker">Not anymore</div>
+  <h2>Cockpit talks to a plain ArduPilot vehicle</h2>
+  <div class="cols wide-left">
+    <ul>
+      <li><strong>Serial / USB</strong> — direct to the autopilot
+        <small>v1.16 · PR #1930</small></li>
+      <li><strong>MAVLink over TCP and UDP</strong>, client or server
+        <small>v1.17 · PR #2084 — community contribution</small></li>
+      <li><strong>RTSP video, straight from the camera</strong>
+        <small>v1.18 · PR #2417 — no companion computer in the path</small></li>
+      <li><strong>Modes named the way ArduPilot names them</strong>
+        <small>v1.19 · PR #2963 — and you can rename them</small></li>
+    </ul>
+    <div>
+      <div class="panel">
+        <h3>No BlueOS. No BlueROV.</h3>
+        <p style="font-size:18px">A Pixhawk, a telemetry link, and Cockpit.</p>
+      </div>
+      <div class="callout">
+        <p><strong>Caveat, said out loud:</strong> raw sockets, serial and USB GNSS are <em>Standalone</em> (desktop)
+           only. Browsers can't open those outside a secure context. The browser build still does WebSocket and WebRTC.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 6 · THE INTERFACE -->
+<section class="slide media-slide" data-notes="One breath of context for anyone who never saw Cockpit. Ten seconds, no more.
+
+'Widgets on a canvas, views you switch between, everything configurable. That's the surface. Under it is the part I actually want to talk about.'">
+  <h2>The surface: widgets on a canvas</h2>
+  <figure class="grow">
+    <img src="media/shots/01-main-interface.webp" alt="Cockpit main interface">
+    <figcaption>Cockpit v1.19 · map view, mission control panel, mini-widget bars — all user-arranged</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ 7 · FIVE DOORS -->
+<section class="slide" data-notes="THE ROADMAP SLIDE. Come back to it between sections.
+
+'Five doors. They go from zero code to a full extension. Pick the lowest one that solves your problem — that's the whole advice of this talk.'
+
+Point out the effort column. ~60 seconds.">
+  <div class="kicker">What this talk is</div>
+  <h2>Five doors into Cockpit</h2>
+  <div class="doors">
+    <div class="door hot"><div class="d">1</div><div class="t">Generic WebSocket<small>Send <code>name=value</code>. No code inside Cockpit at all.</small></div><div class="e">~5 minutes</div></div>
+    <div class="door"><div class="d">2</div><div class="t">Actions<small>HTTP, MAVLink or JavaScript — triggered by buttons, data or time</small></div><div class="e">~15 minutes</div></div>
+    <div class="door"><div class="d">3</div><div class="t">DIY widget<small>Your HTML/CSS/JS, typed into the app</small></div><div class="e">~30 minutes</div></div>
+    <div class="door"><div class="d">4</div><div class="t">iframe widget + CockpitAPI<small>Your own web app, hosted anywhere</small></div><div class="e">~1 hour</div></div>
+    <div class="door"><div class="d">5</div><div class="t">BlueOS extension manifest<small>Ship widgets, actions <em>and</em> joystick mappings together</small></div><div class="e">~half a day</div></div>
+  </div>
+  <p class="after muted">All five reach the same place. Let me show you that place first.</p>
+</section>
+
+<!-- ============================================================ 8 · DIVIDER: DATA LAKE -->
+<section class="slide divider" data-notes="Section 1 of 7. Budget check: you should be at ~4:30 here.">
+  <div class="num">00</div>
+  <h1>The data lake</h1>
+  <p>One bus. Everything on it. Every door leads here.</p>
+</section>
+
+<!-- ============================================================ 9 · WHAT IT IS -->
+<section class="slide" data-notes="In 2024 this existed but was called CockpitActionVariable and was basically plumbing for joystick actions. It got renamed to the data lake in November 2024 — literally the week of the last conference.
+
+Now it's the spine of the application.
+
+Key sentence: 'If a value is in the data lake, every part of Cockpit can already use it. You never write widget code to display something.'">
+  <div class="kicker">The bus</div>
+  <h2>Every value in Cockpit lives in one place</h2>
+  <div class="cols wide-left">
+    <div>
+      <p>A flat, observable key–value store. Telemetry, internal state, your data — no distinction.</p>
+      <p class="after">Once a value is in there, <strong>every consumer already works</strong>: plotters, indicators,
+         gauges, telemetry overlays, CSV logs, joystick bindings, action triggers.</p>
+      <div class="callout good"><p>You do not write display code. You put a number in the lake and bind a widget to it.</p></div>
+    </div>
+    <div class="panel">
+      <h3>Fed by</h3>
+      <ul style="gap:8px">
+        <li>MAVLink messages (auto-flattened)</li>
+        <li>Generic WebSocket connections</li>
+        <li>Joystick axes and buttons</li>
+        <li>USB / serial GNSS receivers</li>
+        <li>Points of interest on the map</li>
+        <li>Your JavaScript, via <code>window.cockpit</code></li>
+        <li>Other data-lake variables, transformed</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 10 · DATA LAKE SHOT -->
+<section class="slide media-slide" data-notes="530 variables and there is NO VEHICLE CONNECTED in this screenshot. That's the joke — say it.
+
+With a vehicle it's well over a thousand.
+
+Point out the Record column on the right: any variable can be logged to CSV/JSON. That shipped in 1.19.">
+  <h2>530 variables — with nothing connected</h2>
+  <figure class="grow">
+    <img src="media/shots/04-data-lake.webp" alt="Cockpit data lake variable monitor">
+    <figcaption>Tools → Data-lake · live values, editable, and each one can be recorded</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ 11 · IDS -->
+<section class="slide" data-notes="Important practical detail for integrators: ids are free-form strings. There is NO enforced schema. The /mavlink/ prefix is a convention the MAVLink layer follows, not a rule.
+
+Your data lands under external/ automatically if it comes through the WebSocket door.">
+  <div class="kicker">Addressing</div>
+  <h2>Variable ids are just strings</h2>
+  <table>
+    <tr><th>Source</th><th>Id format</th></tr>
+    <tr><td class="n">MAVLink field</td><td><code>/mavlink/{sys}/{comp}/ATTITUDE/roll</code></td></tr>
+    <tr><td class="n">Named value</td><td><code>/mavlink/{sys}/{comp}/NAMED_VALUE_FLOAT/{name}</code></td></tr>
+    <tr><td class="n">Generic WebSocket</td><td><code>external/{machinized-name}</code></td></tr>
+    <tr><td class="n">USB GNSS</td><td><code>external/positioning/gnss/{device}/{field}</code></td></tr>
+    <tr><td class="n">Point of interest</td><td><code>cockpit/pois/{id}/latitude</code></td></tr>
+    <tr><td class="n">Joystick axis</td><td><code>inputs/mavlink/axis-x</code></td></tr>
+    <tr><td class="n">Built-in</td><td><code>vehicle-address</code></td></tr>
+  </table>
+  <div class="callout"><p>There is <strong>no enforced namespace</strong>. To expose a new MAVLink field, extend the
+     flattener in <code>src/libs/vehicle/common/data-flattener.ts</code> — never special-case a widget.</p></div>
+</section>
+
+<!-- ============================================================ 12 · WINDOW.COCKPIT -->
+<section class="slide" data-notes="This is the API that doors 3 and 4 are built on. It's global, no import, available to any JS running in the page.
+
+Mention: it's assigned in src/libs/cosmos.ts.
+
+Don't read the list. Point at the two halves: read/write data, and fire actions.">
+  <div class="kicker">The public API</div>
+  <h2><code style="font-size:.8em">window.cockpit</code></h2>
+  <div class="cols">
+    <div>
+      <div class="filename">data</div>
+      <pre class="sm"><code data-lang="js">window.cockpit.getDataLakeVariableData(id)
+window.cockpit.setDataLakeVariableData(id, value)
+window.cockpit.listenDataLakeVariable(id, cb)
+window.cockpit.unlistenDataLakeVariable(id, lid)
+window.cockpit.createDataLakeVariable({ id, name, type })
+window.cockpit.getAllDataLakeVariablesInfo()</code></pre>
+    </div>
+    <div>
+      <div class="filename">actions</div>
+      <pre class="sm"><code data-lang="js">window.cockpit.availableCockpitActions
+window.cockpit.registerNewAction(action)
+window.cockpit.registerActionCallback(a, cb)
+window.cockpit.executeActionCallback(id)
+window.cockpit.deleteAction(id)</code></pre>
+      <p class="after muted" style="font-size:17px">Global, no import. Defined in <code>src/libs/cosmos.ts</code>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 13 · TRANSFORMS -->
+<section class="slide" data-notes="Compound variables. This is how you avoid writing code for 80% of derived values.
+
+Expression is plain JS with {{ }} substitution. It creates a real data-lake variable, so everything downstream just works.
+
+Good example to say out loud: 'water density from temperature and salinity, without writing a widget.'">
+  <div class="kicker">Derived values</div>
+  <h2>Compound variables: JavaScript over the lake</h2>
+  <div class="cols wide-left">
+    <div>
+      <div class="filename">expression</div>
+      <pre><code data-lang="js">// depth from pressure, live
+({{ external/pressure }} - 101325)
+  / (1025 * 9.80665)</code></pre>
+      <p class="after">The result becomes a <strong>real data-lake variable</strong> — plottable, recordable,
+         bindable to a joystick, usable as an action trigger.</p>
+    </div>
+    <div class="panel">
+      <h3>Also persistent</h3>
+      <p style="font-size:18px">User-created variables can survive reboots — the definition, the value, or both.</p>
+      <p class="after muted" style="font-size:17px"><code>persistent</code> keeps the variable;
+         <code>persistValue</code> keeps its last value.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 14 · DIVIDER: DOOR 1 -->
+<section class="slide divider" data-notes="Section 2. You should be at roughly 9:00.
+
+This is the crowd-pleaser. Slow down and enjoy it.">
+  <div class="num">01</div>
+  <h1>The WebSocket door</h1>
+  <p>Zero code inside Cockpit. Four lines outside it.</p>
+</section>
+
+<!-- ============================================================ 15 · WIRE FORMAT -->
+<section class="slide" data-notes="Deliberately, almost insultingly simple. That's the design point — say that.
+
+The rules matter though, walk each one:
+- one variable per message
+- type is guessed from the FIRST value and then LOCKED
+- quote it to force a string
+- name gets machinized and prefixed with external/">
+  <div class="kicker">Door 1 · the protocol</div>
+  <h2>The entire wire format</h2>
+  <pre style="font-size:30px; text-align:center; padding:34px"><code data-lang="txt">variableName=value</code></pre>
+  <div class="cols after">
+    <ul>
+      <li><strong>One variable per message.</strong> Not JSON. Not batched.</li>
+      <li><strong>Type is guessed once</strong>, from the first value, then locked forever.</li>
+    </ul>
+    <ul>
+      <li><strong>Quote it to force a string:</strong> <code>Status="12"</code></li>
+      <li><strong>Lands at</strong> <code>external/</code> + a machinized name.</li>
+    </ul>
+  </div>
+  <div class="callout"><p><code>WaterTemp=23.5</code> &nbsp;→&nbsp; <code>external/watertemp</code>, typed <em>number</em>.</p></div>
+</section>
+
+<!-- ============================================================ 16 · THE SERVER -->
+<section class="slide" data-notes="This is the actual server used to produce the screenshots in this deck. Not a mock-up.
+
+'That's the integration. That's all of it.'
+
+If someone asks about auth/TLS: wss:// works, Cockpit just opens a WebSocket.">
+  <div class="kicker">Door 1 · the other side</div>
+  <h2>The entire server</h2>
+  <div class="cols">
+    <div>
+      <div class="filename">feed.py</div>
+      <pre class="sm"><code data-lang="py">import asyncio, websockets
+
+async def handler(ws):
+    while True:
+        await ws.send("WaterTemp=23.5")
+        await asyncio.sleep(1)
+
+async def main():
+    async with websockets.serve(handler, "0.0.0.0", 8765):
+        await asyncio.Future()
+
+asyncio.run(main())</code></pre>
+    </div>
+    <div>
+      <div class="panel">
+        <h3>Then, in Cockpit</h3>
+        <p style="font-size:18px">Settings → General → Generic WebSocket connections → paste
+           <code>ws://localhost:8765</code></p>
+      </div>
+      <div class="callout good">
+        <p>The URL accepts data-lake variables, so
+           <code>ws://{{ vehicle-address }}:8765</code> follows the vehicle you're connected to.</p>
+      </div>
+      <p class="after muted" style="font-size:17px">Auto-reconnects every 2 s. Survives restarts on both ends.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 17 · CONNECTED -->
+<section class="slide media-slide" data-notes="Real screenshot, real connection, taken while building this deck.
+
+Point at the green dot and the word 'connected'.">
+  <h2>One field. One button.</h2>
+  <figure class="grow">
+    <img src="media/shots/03-websocket-connected.webp" alt="Generic WebSocket connection established in Cockpit settings">
+    <figcaption>Settings → General · the connection is live and will re-establish itself on its own</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ 18 · VIDEO -->
+<section class="slide media-slide" data-notes="VIDEO — it autoplays and loops. ~26 seconds.
+
+Talk over it: 'paste the URL, add the connection, jump to the data lake, filter to external — and there's the payload, live, typed, with no code written inside Cockpit.'
+
+Press K to pause/resume the video if you want to hold on a frame.">
+  <h2>Start to finish, no code in Cockpit</h2>
+  <figure class="grow">
+    <video src="media/clips/websocket-door.mp4" muted loop playsinline></video>
+    <figcaption>Recorded against Cockpit v1.19 · a real WebSocket server feeding five variables</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ 19 · ARRIVED -->
+<section class="slide media-slide" data-notes="The payoff frame. Five variables, four numbers and one string.
+
+Point at PayloadStatus — it's a string because the server quoted it. That's the type-forcing rule in action.
+
+These are now recordable, plottable, and can trigger actions. Which is door 2.">
+  <h2>Arrived: typed, live, and yours</h2>
+  <figure class="grow">
+    <img src="media/shots/04b-data-lake-external.webp" alt="External variables live in the Cockpit data lake">
+    <figcaption>Four numbers and one string — <code>PayloadStatus</code> is text because the sender quoted it</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ 20 · DEMO 1 -->
+<section class="slide demo" data-notes="LIVE DEMO — the most important two minutes of the talk.
+
+Have ready BEFORE you start:
+  · terminal with feed.py open, NOT running
+  · Cockpit already open on Settings → General
+  · font size in the terminal cranked up
+
+Do NOT improvise. Run the script exactly.
+
+If it fails: the video on the previous slide is the same flow. Say 'here's one I made earlier' and move on within 10 seconds. Do not debug on stage.">
+  <div class="badge">Live demo</div>
+  <h1>Four lines, on stage</h1>
+  <div class="steps">
+    <div><b>1</b> Run <code>feed.py</code> — 4 lines, visible on screen</div>
+    <div><b>2</b> Paste <code>ws://localhost:8765</code> into Cockpit</div>
+    <div><b>3</b> Data lake → filter <code>external</code> → values ticking</div>
+    <div><b>4</b> Drop a Plotter on it. Done.</div>
+  </div>
+  <div class="fallback">Fallback: the previous slide is this exact flow, pre-recorded. Ten seconds, then move on.</div>
+</section>
+
+<!-- ============================================================ 21 · DIVIDER: DOOR 2 -->
+<section class="slide divider" data-notes="Section 3. Target ~15:00.
+
+Getting data IN is half. Now getting Cockpit to DO something.">
+  <div class="num">02</div>
+  <h1>Actions</h1>
+  <p>Getting data in is half of it. Now make something happen.</p>
+</section>
+
+<!-- ============================================================ 22 · THREE TYPES -->
+<section class="slide media-slide" data-notes="Three types, and that's the whole taxonomy. All three are configured in the UI, all three are shareable as JSON, all three can be shipped by an extension (door 5).
+
+Say: 'none of these require a Cockpit build.'">
+  <h2>Three kinds of action. That's all of them.</h2>
+  <figure class="grow">
+    <img src="media/shots/05b-action-types.webp" alt="Cockpit action type selector">
+    <figcaption>Settings → Actions · HTTP request, MAVLink message, JavaScript</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ 23 · INTERPOLATION -->
+<section class="slide" data-notes="The {{ }} substitution is what makes actions dynamic without code.
+
+CALL OUT THE HEADERS GOTCHA HERE — url, params and body get interpolated. Headers do NOT. This bites people. It's on the rough-edges slide too.">
+  <div class="kicker">Door 2 · composing</div>
+  <h2>Any action can read the lake</h2>
+  <div class="cols wide-left">
+    <div>
+      <div class="filename">HTTP request action · body</div>
+      <pre class="sm"><code data-lang="json">{
+  "vehicle": "{{ vehicle-address }}",
+  "temp_c":  {{ external/watertemp }},
+  "alt_m":   {{ external/sonaraltitude }},
+  "depth":   {{ /mavlink/1/1/VFR_HUD/alt }}
+}</code></pre>
+      <p class="after muted" style="font-size:18px">Same <code>{{ }}</code> syntax in the URL, in query
+         parameters, and in MAVLink message fields.</p>
+    </div>
+    <div>
+      <div class="callout"><p><strong>Gotcha:</strong> the URL, query params and body are interpolated.
+         <em>Headers are not.</em> If you need a dynamic token in a header today, you need a JavaScript action.</p></div>
+      <div class="panel after">
+        <h3>MAVLink message action</h3>
+        <p style="font-size:18px">Compose any MAVLink message, fill fields from the lake, send it. No firmware
+           knowledge of Cockpit required.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 24 · TRIGGERS -->
+<section class="slide" data-notes="This is the slide that turns actions from 'buttons' into 'automation'. Four triggers.
+
+Action links are the interesting one: fire when a variable changes, rate-limited by minInterval. That's a closed control loop with zero compiled code.
+
+Give the worked example verbally: temperature crosses a threshold -> HTTP call to your winch service.">
+  <div class="kicker">Door 2 · firing</div>
+  <h2>Four ways to pull the trigger</h2>
+  <div class="cols">
+    <ul>
+      <li><strong>A joystick button</strong>
+        <small>Any button, with a shift modifier</small></li>
+      <li><strong>An on-screen element</strong>
+        <small>Button, switch, slider, dial, dropdown</small></li>
+    </ul>
+    <ul>
+      <li><strong>A data-lake change</strong> — <em>action links</em>
+        <small>Fires when a variable moves, rate-limited by <code>minInterval</code></small></li>
+      <li><strong>Time</strong> — <em>auto-run</em>
+        <small>Once at startup, or on an interval</small></li>
+    </ul>
+  </div>
+  <div class="callout good after">
+    <p><strong>Worked example.</strong> <code>external/watertemp</code> crosses a threshold → a compound variable goes
+       true → an action link fires an HTTP request to your service → your winch pays out. Nothing compiled, nothing
+       forked, and it survives a Cockpit update.</p>
+  </div>
+</section>
+
+<!-- ============================================================ 25 · ACTIONS SHOT -->
+<section class="slide media-slide" data-notes="Note the two camera actions in the list — those ship with Cockpit and are built with exactly the same mechanism you'd use. Nothing privileged about first-party actions.
+
+Also: actions export and import as JSON. That matters for door 5.">
+  <h2>First-party actions use the same mechanism</h2>
+  <figure class="grow">
+    <img src="media/shots/05-actions.webp" alt="Cockpit actions configuration">
+    <figcaption>Camera zoom and focus ship with Cockpit — and are ordinary MAVLink message actions</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ 26 · DIVIDER: DOOR 3 -->
+<section class="slide divider" data-notes="Section 4. Target ~21:00. Pick up the pace slightly from here.">
+  <div class="num">03</div>
+  <h1>The DIY widget</h1>
+  <p>When you need pixels, not just values.</p>
+</section>
+
+<!-- ============================================================ 27 · DIY -->
+<section class="slide" data-notes="An editor inside the app. Monaco, with autocomplete over data-lake ids and LIVE VALUES in the hover tooltips — that detail lands well, mention it.
+
+Be honest about the sandbox: the JS is appended as a script tag to Cockpit's own document. It is not isolated. That's a deliberate trade for power, and it's on the rough-edges slide.">
+  <div class="kicker">Door 3</div>
+  <h2>Write a widget without leaving the app</h2>
+  <div class="cols wide-left">
+    <div>
+      <div class="filename">DIY widget · js</div>
+      <pre class="sm"><code data-lang="js">const el = document.getElementById('temp')
+
+window.cockpit.listenDataLakeVariable(
+  'external/watertemp',
+  (v) => { el.textContent = v.toFixed(1) + ' °C' }
+)</code></pre>
+      <p class="after muted" style="font-size:18px">Three panes — HTML, CSS, JS — in a Monaco editor, with
+         autocomplete over variable ids and <strong>live values in the hover tooltips</strong>.</p>
+    </div>
+    <div>
+      <div class="panel">
+        <h3>Inherits the interface</h3>
+        <p style="font-size:18px">One toggle and your widget picks up Cockpit's glass styling, so it doesn't look
+           bolted on.</p>
+      </div>
+      <div class="callout">
+        <p><strong>Not sandboxed.</strong> Your JavaScript is appended to Cockpit's own document and runs with the
+           same privileges as the app. Powerful, and a real trade-off — treat shared DIY widgets like you'd treat
+           any script you paste into a console.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 27b · EDIT MODE -->
+<section class="slide media-slide" data-notes="Where doors 3 and 4 actually live: edit mode.
+
+Left panel is the view tree — every widget in every view, reorderable. Bottom strip is the palette; DIY and iframe are both in there next to the first-party widgets.
+
+Point out that there's no distinction in the palette between Cockpit's widgets and yours. Ten seconds.">
+  <h2>Same palette as every built-in widget</h2>
+  <figure class="grow">
+    <img src="media/shots/11-edit-mode.webp" alt="Cockpit edit mode with widget palette">
+    <figcaption>Edit mode · DIY and iframe sit in the palette alongside the first-party widgets</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ 28 · DIVIDER: DOOR 4 -->
+<section class="slide divider" data-notes="Section 5. Target ~24:30.">
+  <div class="num">04</div>
+  <h1>iframe + CockpitAPI</h1>
+  <p>You already have a web app. Bring it.</p>
+</section>
+
+<!-- ============================================================ 29 · IFRAME -->
+<section class="slide" data-notes="For teams who already built a payload UI. Don't rewrite it — embed it.
+
+useVehicleAddressAsBase is the killer option: your widget URL resolves against whatever vehicle the operator is connected to. No hardcoded IPs.
+
+The bridge is postMessage, so it works cross-origin.">
+  <div class="kicker">Door 4</div>
+  <h2>Your existing UI, as a widget</h2>
+  <div class="cols">
+    <div>
+      <div class="filename">in your page</div>
+      <pre class="sm"><code data-lang="js">CockpitAPI.listenToDatalakeVariable(
+  'external/watertemp',
+  (value) =&gt; render(value),
+  10 // max Hz
+)</code></pre>
+      <p class="after muted" style="font-size:17px">Ships as a browser bundle:
+         <code>yarn build:lib</code> → <code>cockpit-external-api.browser.js</code></p>
+    </div>
+    <div>
+      <div class="filename">under the hood · postMessage</div>
+      <pre class="xs"><code data-lang="js">// child → Cockpit
+{ type: 'cockpit:listenToDatalakeVariables',
+  variable: 'external/watertemp', maxRateHz: 10 }
+
+// Cockpit → child
+{ type: 'cockpit:datalakeVariable',
+  variable: 'external/watertemp', value: 23.5 }</code></pre>
+    </div>
+  </div>
+  <div class="callout"><p><strong>Honest limitation:</strong> the bridge is <em>listen-only</em>. A child page can
+     read telemetry but has no documented way to write back into the lake. If you need to write, use door 1 or door 3.</p></div>
+</section>
+
+<!-- ============================================================ 30 · IFRAME OPTS -->
+<section class="slide" data-notes="Quick slide, 30 seconds. The options that matter for integrators.
+
+useVehicleAddressAsBase is the one to emphasise again.">
+  <div class="kicker">Door 4 · options worth knowing</div>
+  <h2>Small things that save you hours</h2>
+  <ul>
+    <li><code>useVehicleAddressAsBase</code> — your URL resolves against the connected vehicle
+      <small>No hardcoded IPs, and it follows the operator when they switch vehicles</small></li>
+    <li><code>contentZoom</code> and <code>scaleContentWithWidget</code>
+      <small>Your page stays legible when the operator resizes the widget</small></li>
+    <li><code>collapsibleContainerName</code> and <code>startCollapsed</code>
+      <small>Dock the widget into a collapsible drawer instead of eating canvas</small></li>
+  </ul>
+</section>
+
+<!-- ============================================================ 31 · DIVIDER: DOOR 5 -->
+<section class="slide divider" data-notes="Section 6. Target ~28:00. This is the richest door — give it time.">
+  <div class="num">05</div>
+  <h1>The extension manifest</h1>
+  <p>Ship the whole experience, not just a page.</p>
+</section>
+
+<!-- ============================================================ 32 · DISCOVERY -->
+<section class="slide" data-notes="Walk the discovery chain left to right. Key point: there is NO fixed path. Your extension declares the relative path in its own BlueOS metadata under extras.cockpit.
+
+This is the bit that isn't documented anywhere outside the Zod types. Which is on the rough-edges slide.">
+  <div class="kicker">Door 5 · discovery</div>
+  <h2>How Cockpit finds you</h2>
+  <div class="flow">
+    <div class="step">GET /helper/v1.0/web_services</div>
+    <div class="arw">→</div>
+    <div class="step">metadata.extras.cockpit</div>
+    <div class="arw">→</div>
+    <div class="step">fetch that path</div>
+    <div class="arw">→</div>
+    <div class="step">ExtrasJson</div>
+  </div>
+  <p class="after">Cockpit asks BlueOS what services are running. Any service that declares
+     <code>extras.cockpit</code> in its metadata gets fetched at <strong>whatever relative path it names</strong>.</p>
+  <div class="callout"><p>There is <strong>no fixed endpoint</strong> like <code>/cockpit-widgets</code>.
+     You choose the path; Cockpit follows it.</p></div>
+</section>
+
+<!-- ============================================================ 33 · MANIFEST -->
+<section class="slide" data-notes="The whole contract on one slide. Three arrays.
+
+Read the shape, don't read every field. Say: 'widgets, actions, and joystick suggestions — in one file that you serve yourself.'">
+  <div class="kicker">Door 5 · the contract</div>
+  <h2>One file, three arrays</h2>
+  <pre class="sm"><code data-lang="json">{
+  "targetSystem": "cockpit",
+  "targetCockpitApiVersion": "1.0.0",
+
+  "widgets": [
+    { "name": "Sonar Payload",
+      "iframeUrl": "/ui/panel.html",
+      "iconUrl": "/ui/icon.svg",
+      "useExtensionPathAsBaseUrl": true,
+      "collapsibleContainerName": "Payload" }
+  ],
+
+  "actions": [
+    { "id": "payload-ping", "name": "Ping payload", "type": "http-request",
+      "config": { "url": "http://{{ vehicle-address }}:9000/ping", "method": "POST" } }
+  ],
+
+  "joystickSuggestions": [ /* ... */ ]
+}</code></pre>
+</section>
+
+<!-- ============================================================ 34 · JOYSTICK -->
+<section class="slide" data-notes="THE SURPRISE. Land this one properly — pause before it.
+
+'Your extension can propose joystick button mappings. I have not seen another ground station do this.'
+
+Then immediately reassure: it's a SUGGESTION. The operator reviews and accepts. You cannot silently rebind someone's controller mid-dive.">
+  <div class="kicker">Door 5 · the one nobody expects</div>
+  <h2>Your extension can propose button mappings</h2>
+  <div class="cols wide-left">
+    <div>
+      <pre class="sm"><code data-lang="json">{
+  "id": "sonar-payload-map",
+  "name": "Sonar payload controls",
+  "targetVehicleTypes": ["sub", "rover"],
+  "buttonMappingSuggestions": [
+    { "actionProtocol": "cockpit-action",
+      "actionId": "payload-ping",
+      "actionName": "Ping payload",
+      "button": 3,
+      "modifierKey": "shift" }
+  ]
+}</code></pre>
+    </div>
+    <div>
+      <p>Ship a payload, and ship <strong>the controls for it</strong> — so the operator doesn't have to read your
+         manual to find out that shift+Y pings the sonar.</p>
+      <div class="callout good"><p>It's a <em>suggestion</em>. The operator sees a review dialog and accepts or
+         ignores it. You cannot silently rebind someone's controller.</p></div>
+      <p class="after muted" style="font-size:17px">Keys may be snake_case — the schema normalises them.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 35 · CONSENT -->
+<section class="slide" data-notes="Design principle worth stating explicitly to a developer audience, because it constrains what they can do — and it's why operators will trust installing their extension.
+
+Nothing from an extension applies itself.">
+  <div class="kicker">Door 5 · the rule that makes it safe</div>
+  <h2>Nothing applies itself</h2>
+  <div class="cols">
+    <div>
+      <p>Every suggested widget, action and mapping goes through a review dialog. The operator accepts, ignores,
+         or restores it later.</p>
+      <p class="after">This is why an operator can install your extension the morning of a dive without reading
+         the source.</p>
+    </div>
+    <div class="panel">
+      <h3>Which also means</h3>
+      <ul style="gap:9px">
+        <li>Your integration is <strong>discoverable</strong>, not imposed</li>
+        <li>Uninstalling your extension doesn't wreck their layout</li>
+        <li>An operator can run three payload extensions at once</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 36 · CHOOSING -->
+<section class="slide" data-notes="The practical summary. If someone remembers one slide, make it this one.
+
+Say the advice out loud: 'pick the lowest row that solves your problem.' Most people over-build — they reach for door 5 when door 1 would do.">
+  <div class="kicker">Recap</div>
+  <h2>Pick the lowest door that works</h2>
+  <table>
+    <tr><th>Door</th><th>Use it when</th><th>Cost</th></tr>
+    <tr><td><strong>1 · WebSocket</strong></td><td>You have values and want them seen, plotted, logged</td><td class="n">minutes</td></tr>
+    <tr><td><strong>2 · Actions</strong></td><td>You need Cockpit to call you, or the vehicle to react</td><td class="n">an afternoon</td></tr>
+    <tr><td><strong>3 · DIY widget</strong></td><td>You need a custom display and don't want to host anything</td><td class="n">an afternoon</td></tr>
+    <tr><td><strong>4 · iframe</strong></td><td>You already have a web UI worth keeping</td><td class="n">an hour, plus your app</td></tr>
+    <tr><td><strong>5 · Manifest</strong></td><td>You ship a product and want it to configure itself</td><td class="n">half a day</td></tr>
+  </table>
+  <div class="callout"><p>Most people reach for door 5 when door 1 would have done. Don't.</p></div>
+</section>
+
+<!-- ============================================================ 37 · DIVIDER: ROUGH EDGES -->
+<section class="slide divider" data-notes="Section 7. Target ~33:00.
+
+This section is why the room will trust you. Do not soften it.">
+  <div class="num">06</div>
+  <h1>Rough edges</h1>
+  <p>The things I'd rather you heard from me than found at 2am.</p>
+</section>
+
+<!-- ============================================================ 38 · ROUGH EDGES -->
+<section class="slide" data-notes="Read these honestly, one by one, no excuses. Every one is real and current as of v1.19.
+
+Then the punchline: 'every one of these is a small, well-scoped contribution. That's my ask.'
+
+This slide earns more credibility than any feature slide in the deck.">
+  <div class="kicker">Known, current, in v1.19</div>
+  <h2>What's still wrong</h2>
+  <div class="cols">
+    <ul>
+      <li class="no">WebSocket ingestion is <strong>plain text, one variable per message</strong>
+        <small>No JSON. Type locks on the first value it ever sees.</small></li>
+      <li class="no">DIY widget JavaScript is <strong>not sandboxed</strong>
+        <small>It runs in Cockpit's own page, with Cockpit's privileges</small></li>
+      <li class="no">The iframe bridge is <strong>listen-only</strong>
+        <small>No documented write path from the child page</small></li>
+    </ul>
+    <ul>
+      <li class="no">HTTP action <strong>headers aren't interpolated</strong>
+        <small>Only URL, query params and body</small></li>
+      <li class="no"><code>targetCockpitApiVersion</code> <strong>isn't enforced</strong>
+        <small>It's parsed, then nothing gates on it</small></li>
+      <li class="no">The manifest schema <strong>isn't documented</strong>
+        <small>The Zod types in the repo are the only spec — this slide is closer to docs than anything we ship</small></li>
+    </ul>
+  </div>
+  <div class="callout good"><p>Every one of these is small, well-scoped, and genuinely useful. If you want a way in,
+     this is the list.</p></div>
+</section>
+
+<!-- ============================================================ 39 · AERIAL -->
+<section class="slide" data-notes="THE ASK. This is the most important slide for THIS audience. Say it plainly, no hedging.
+
+Quote our own README out loud — it's more credible coming from you than from a critic.
+
+'We test ArduSub and ArduRover every day because we sell those vehicles. We do not regularly test copter or plane. I'm standing in the one room on earth that can fix that.'
+
+Then: pause. Actually ask. Look at people.">
+  <div class="kicker">The honest bit</div>
+  <h2>I'm the wrong person to test your copter</h2>
+  <div class="cols wide-left">
+    <div>
+      <p>Blue Robotics builds submarines and boats. We test <strong>ArduSub</strong> and <strong>ArduRover</strong>
+         every single day, against real hardware.</p>
+      <div class="callout">
+        <p>Straight from our own README: aerial support is <em>initial</em>. ArduCopter has been physically tested,
+           but the core team doesn't fly regularly — <em>"use it at your own risk."</em></p>
+      </div>
+      <p class="after">That is not false modesty. It's a gap, and it's the gap that matters most to this room.</p>
+    </div>
+    <div class="panel">
+      <h3>What I'm asking for</h3>
+      <ul style="gap:10px">
+        <li>Copter and plane <strong>testers</strong></li>
+        <li>Someone to own <strong>aerial defaults</strong>
+          <small>Widgets, joystick profiles, mission behaviour</small></li>
+        <li>Bug reports from <strong>vehicles I'll never own</strong></li>
+      </ul>
+      <p class="after muted" style="font-size:17px">PRs from outside this team already shipped TCP/UDP, bitfields
+         and the EKF widget. It works.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 40 · 2024 QUESTIONS -->
+<section class="slide" data-notes="Close the loop on Kaga. This is a credibility move — you remembered their questions two years later.
+
+Be straight about 3D: still not there, still want it, not promising a date. Saying 'no' to one of four is what makes the other three believable.">
+  <div class="kicker">Kaga, answered</div>
+  <h2>Your four questions from 2024</h2>
+  <table>
+    <tr><th>You asked</th><th>Today</th></tr>
+    <tr><td>Handling lost connections</td>
+        <td>Hardened reconnection, persistent disconnect warnings, a recording health monitor, and vehicle
+            discovery that scans VPN/SD-WAN interfaces</td></tr>
+    <tr><td>Remote vehicle access</td>
+        <td>Works over any routable link, plus BlueOS Cloud login in v1.19</td></tr>
+    <tr><td>Which map library</td>
+        <td>Still Leaflet — but now behind composables, with offline tiles, custom providers and GeoTiff overlays</td></tr>
+    <tr><td>3D maps and visualisation</td>
+        <td class="n"><strong style="color:var(--red)">Still not built.</strong> Still want it. Not promising a date.</td></tr>
+  </table>
+</section>
+
+<!-- ============================================================ 41 · WHAT'S NEXT -->
+<section class="slide" data-notes="Short forward look, 45 seconds. Ties back to the data lake, which is where the talk started.
+
+The 1.18 release notes promised the data lake would become the de-facto pipeline. 1.19 shipped raw CSV/JSON logs and a MAVLink dumper with a live plotter. Record and replay is the direction.">
+  <div class="kicker">Where this goes</div>
+  <h2>The lake becomes the recording</h2>
+  <div class="cols wide-left">
+    <div>
+      <ul>
+        <li><strong>Raw data logs</strong> — any variable to CSV or JSON
+          <small>Shipped in v1.19</small></li>
+        <li><strong>MAVLink dumper and live plotter</strong>
+          <small>Shipped in v1.19 — think readable tlogs</small></li>
+        <li><strong>Record and replay</strong> of a whole session
+          <small>The direction: if it's in the lake, it can be replayed</small></li>
+      </ul>
+      <p class="after muted">Which means the same five doors that feed live telemetry also feed the recording.
+         Your payload data replays alongside the vehicle's.</p>
+    </div>
+    <figure>
+      <img src="media/shots/06-data-logs.webp" alt="Cockpit data logs">
+    </figure>
+  </div>
+</section>
+
+<!-- ============================================================ 42 · GET INVOLVED -->
+<section class="slide" data-notes="Practical landing slide. Leave it up during questions.
+
+Mention the monthly developer calls on Discord — that's the lowest-friction way in for anyone in this room.">
+  <div class="kicker">Get involved</div>
+  <h2>Where to go next</h2>
+  <div class="cols">
+    <div>
+      <ul>
+        <li><strong>github.com/bluerobotics/cockpit</strong>
+          <small>AGPLv3 · issues, discussions, PRs</small></li>
+        <li><strong>blueos.cloud/cockpit/docs</strong>
+          <small>Data lake, actions, DIY and iframe widgets</small></li>
+        <li><strong>discuss.bluerobotics.com</strong>
+          <small>Where operators actually talk</small></li>
+      </ul>
+    </div>
+    <div>
+      <div class="panel">
+        <h3>Monthly developer calls</h3>
+        <p style="font-size:18px">On Discord. Open. If you want to own aerial support, that's the fastest way to
+           start — turn up and say so.</p>
+      </div>
+      <div class="callout good after"><p>Try it with nothing installed: there's a browser demo with no vehicle
+         attached, and the five doors all work against it.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 43 · CLOSE -->
+<section class="slide center" data-notes="Land it and stop talking. Q&A is a separate slot, so don't invite questions here — just stop.
+
+'Five doors. Pick the lowest one. And if you fly, please come find me.'">
+  <h1 style="font-size:58px; max-width:22ch">Five doors.<br>Pick the lowest one that works.</h1>
+  <p class="lead muted after">And if you fly copters or planes — please come and find me.</p>
+  <div style="margin-top:34px">
+    <span class="pill on">ws://</span>
+    <span class="pill on">actions</span>
+    <span class="pill on">DIY</span>
+    <span class="pill on">iframe</span>
+    <span class="pill on">manifest</span>
+  </div>
+  <p class="after dim" style="font-size:17px">Rafael Lehmkuhl · Blue Robotics · github.com/bluerobotics/cockpit</p>
+</section>
+
+<!-- ============================================================ 44 · BACKUP -->
+<section class="slide" data-notes="BACKUP SLIDES START HERE. Don't present these — jump to them if a question needs them.
+
+Press O for the overview grid to find the right one fast.">
+  <div class="kicker">Backup</div>
+  <h2>Backup slides</h2>
+  <p class="muted">Not part of the 40 minutes. Jump here from the overview (press <code>O</code>) if a question needs it.</p>
+  <ul class="after">
+    <li>Joystick configuration and SDL</li>
+    <li>Mission planning and command waypoints</li>
+    <li>Video pipeline and RTSP</li>
+    <li>MAVLink inspector</li>
+    <li>Settings sync architecture</li>
+  </ul>
+</section>
+
+<!-- ============================================================ 45 · BACKUP joystick -->
+<section class="slide media-slide" data-notes="BACKUP · joystick.
+
+Moved to SDL in Electron (v1.16) so the controller keeps working when the window is unfocused. Deadband calibration and exponential scaling. Multiple joysticks. Auto-disables when another GCS is in control. Steam Deck profiles ship by default.">
+  <h2>Backup · joystick configuration</h2>
+  <figure class="grow">
+    <img src="media/shots/07-joystick.webp" alt="Cockpit joystick configuration">
+    <figcaption>SDL-backed in Standalone since v1.16 — works with the window unfocused</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ 46 · BACKUP mission -->
+<section class="slide media-slide" data-notes="BACKUP · mission planning.
+
+v1.17 brought MAVLink command waypoints — loiters, loops, servo commands, DO_ items. v1.18 added the mission control panel, survey height and turnaround distance. v1.19 added a mission library, crosshatch re-fly for photogrammetry, and touchscreen gestures.">
+  <h2>Backup · mission planning</h2>
+  <figure class="grow">
+    <img src="media/shots/10-mission-planning.webp" alt="Cockpit mission planning view">
+    <figcaption>Command waypoints, surveys with turnaround distance, offline tiles, GeoTiff overlays</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ 47 · BACKUP video -->
+<section class="slide media-slide" data-notes="BACKUP · video.
+
+v1.17 rewrote the pipeline on ffmpeg — recording is processed in real time, so length is no longer bounded by memory. Tested past three hours. v1.18 added direct RTSP so the stream can come straight from the camera.">
+  <h2>Backup · video pipeline</h2>
+  <figure class="grow">
+    <img src="media/shots/08-video.webp" alt="Cockpit video configuration">
+    <figcaption>ffmpeg-backed since v1.17 · direct RTSP since v1.18</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ 48 · BACKUP mavlink -->
+<section class="slide media-slide" data-notes="BACKUP · MAVLink inspector.
+
+Shows incoming and outgoing messages with timestamps. v1.19 added a message dumper and live plotter — effectively readable JSON tlogs for debugging.">
+  <h2>Backup · MAVLink inspector</h2>
+  <figure class="grow">
+    <img src="media/shots/09-mavlink-inspector.webp" alt="Cockpit MAVLink inspector">
+    <figcaption>Per-message inspection, timestamps, and a live plotter for debugging</figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ 49 · BACKUP settings -->
+<section class="slide" data-notes="BACKUP · settings sync.
+
+The old behaviour: a modal on every startup asking which version of each changed setting to keep. Universally hated.
+
+v1.18 refactored it: every write carries a timestamp, newest wins, sync is automatic, scoped per user AND per vehicle. The modal is gone.
+
+Good answer if someone asks 'what was the hardest thing you fixed'.">
+  <div class="kicker">Backup</div>
+  <h2>Settings sync, before and after</h2>
+  <div class="cols">
+    <div class="panel">
+      <h3 style="color:var(--red)">Before</h3>
+      <p style="font-size:18px">A modal on every startup, asking which copy of every changed setting to keep.
+         The most-hated feature we shipped.</p>
+    </div>
+    <div class="panel">
+      <h3>After · v1.18</h3>
+      <p style="font-size:18px">Every write carries a timestamp. Newest wins. Automatic, scoped per user and per
+         vehicle. No modal.</p>
+    </div>
+  </div>
+  <div class="callout good"><p>Settings follow the operator between topside machines — which is what the feature was
+     always for, minus the interrogation.</p></div>
+</section>
+
+</div></div>
+
+<div id="hud"><div id="bar"></div></div>
+<div id="meta">
+  <span id="pace"></span>
+  <span id="clock">00:00 / 40:00</span>
+  <span id="count">1 / 1</span>
+  <span class="dim">? help</span>
+</div>
+
+<div id="notes"><h4>Speaker notes</h4><div class="nb"></div></div>
+<div id="overview"><div id="ovgrid"></div></div>
+<div id="help"><div>
+  <b>→ space</b> next slide<br>
+  <b>←</b> previous slide<br>
+  <b>home / end</b> first / last<br>
+  <b>o</b> overview grid<br>
+  <b>n</b> speaker notes<br>
+  <b>t</b> start / pause timer<br>
+  <b>r</b> reset timer<br>
+  <b>k</b> play / pause video<br>
+  <b>f</b> fullscreen<br>
+  <b>? esc</b> close overlays
+</div></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var deck    = document.getElementById('deck');
+  var slides  = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var bar     = document.getElementById('bar');
+  var clockEl = document.getElementById('clock');
+  var paceEl  = document.getElementById('pace');
+  var countEl = document.getElementById('count');
+  var notesEl = document.getElementById('notes');
+  var notesBody = notesEl.querySelector('.nb');
+  var overview  = document.getElementById('overview');
+  var ovgrid    = document.getElementById('ovgrid');
+  var help      = document.getElementById('help');
+
+  var TALK_SECONDS = 40 * 60;
+  // Backup slides sit outside the timed run, so pacing is measured against the real talk only.
+  var LAST_TALK_SLIDE = slides.findIndex(function (s) { return /Backup slides/.test(s.textContent); });
+  if (LAST_TALK_SLIDE < 0) LAST_TALK_SLIDE = slides.length - 1;
+
+  var cur = 0;
+
+  /* ---------------------------------------------------------- scaling */
+  function fit() {
+    var pad = 0;
+    var sx = (window.innerWidth  - pad) / 1280;
+    var sy = (window.innerHeight - pad) / 720;
+    var s  = Math.min(sx, sy);
+    deck.style.transform = 'scale(' + s + ')';
+  }
+  window.addEventListener('resize', fit);
+
+  /* ---------------------------------------------------------- syntax highlight */
+  var TOKENS = new RegExp([
+    '(?<com>\\/\\/[^\\n]*|#[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/)',
+    '(?<str>"(?:[^"\\\\]|\\\\.)*"|\'(?:[^\'\\\\]|\\\\.)*\'|`(?:[^`\\\\]|\\\\.)*`)',
+    '(?<kw>\\b(?:const|let|var|function|return|if|else|await|async|new|import|from|export|default|class|for|while|of|in|true|false|null|None|def|lambda|with|as|try|except|yield)\\b)',
+    '(?<num>\\b\\d+(?:\\.\\d+)?\\b)',
+    '(?<fn>\\b[A-Za-z_$][\\w$]*(?=\\())'
+  ].join('|'), 'g');
+
+  function esc(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function highlight(el) {
+    var src = el.textContent;
+    var out = '';
+    var last = 0;
+    src.replace(TOKENS, function (m) {
+      // With named groups the callback ends in (…, offset, string, groups).
+      var groups = arguments[arguments.length - 1];
+      var off = arguments[arguments.length - 3];
+      out += esc(src.slice(last, off));
+      var cls = 'com';
+      for (var k in groups) { if (groups[k] !== undefined) { cls = k; break; } }
+      out += '<span class="tok-' + cls + '">' + esc(m) + '</span>';
+      last = off + m.length;
+      return m;
+    });
+    out += esc(src.slice(last));
+    // Data-lake interpolation reads as a first-class token in every language shown here.
+    out = out.replace(/\{\{([^}]*)\}\}/g, '<span class="tok-key">{{$1}}</span>');
+    el.innerHTML = out;
+  }
+
+  document.querySelectorAll('pre code').forEach(function (c) {
+    try { highlight(c); } catch (e) { /* highlighting is cosmetic; never break the deck over it */ }
+  });
+
+  /* ---------------------------------------------------------- navigation */
+  function titleOf(s) {
+    var h = s.querySelector('h1, h2');
+    return h ? h.textContent.replace(/\s+/g, ' ').trim() : '—';
+  }
+
+  function show(i) {
+    i = Math.max(0, Math.min(slides.length - 1, i));
+    slides[cur].classList.remove('on');
+    var oldVid = slides[cur].querySelector('video');
+    if (oldVid) oldVid.pause();
+
+    cur = i;
+    slides[cur].classList.add('on');
+
+    var vid = slides[cur].querySelector('video');
+    if (vid) { vid.currentTime = 0; vid.play().catch(function () {}); }
+
+    bar.style.width = ((cur) / (slides.length - 1) * 100) + '%';
+    countEl.textContent = (cur + 1) + ' / ' + slides.length;
+    notesBody.textContent = slides[cur].dataset.notes || 'No notes for this slide.';
+    if (history.replaceState) history.replaceState(null, '', '#' + (cur + 1));
+    Array.prototype.forEach.call(ovgrid.children, function (c, n) {
+      c.classList.toggle('cur', n === cur);
+    });
+    updateClock();
+  }
+
+  /* ---------------------------------------------------------- timer */
+  var running = false, elapsed = 0, tick = null;
+
+  function fmt(s) {
+    s = Math.max(0, Math.round(s));
+    var m = Math.floor(s / 60);
+    return (m < 10 ? '0' : '') + m + ':' + ((s % 60) < 10 ? '0' : '') + (s % 60);
+  }
+
+  function updateClock() {
+    clockEl.textContent = fmt(elapsed) + ' / 40:00';
+    clockEl.className = !running ? '' :
+      elapsed > TALK_SECONDS + 300 ? 'late' :
+      elapsed > TALK_SECONDS ? 'over' : 'run';
+
+    if (!running || cur > LAST_TALK_SLIDE) { paceEl.textContent = ''; paceEl.className = ''; return; }
+    var expected = Math.round(elapsed / TALK_SECONDS * LAST_TALK_SLIDE);
+    var delta = cur - expected;
+    if (Math.abs(delta) <= 1) { paceEl.textContent = 'on pace'; paceEl.className = ''; }
+    else if (delta > 0) { paceEl.textContent = '+' + delta + ' ahead'; paceEl.className = 'ahead'; }
+    else { paceEl.textContent = delta + ' behind'; paceEl.className = 'behind'; }
+  }
+
+  function toggleTimer() {
+    running = !running;
+    if (running) { tick = setInterval(function () { elapsed++; updateClock(); }, 1000); }
+    else { clearInterval(tick); }
+    updateClock();
+  }
+
+  /* ---------------------------------------------------------- overview */
+  slides.forEach(function (s, i) {
+    var d = document.createElement('div');
+    d.className = 'ov';
+    d.innerHTML = '<div class="i">' + (i + 1) + '</div><div class="t"></div>';
+    d.querySelector('.t').textContent = titleOf(s);
+    d.addEventListener('click', function () {
+      overview.classList.remove('on');
+      show(i);
+    });
+    ovgrid.appendChild(d);
+  });
+
+  /* ---------------------------------------------------------- keys */
+  document.addEventListener('keydown', function (e) {
+    var k = e.key;
+
+    if (k === 'Escape') {
+      overview.classList.remove('on'); help.classList.remove('on'); return;
+    }
+    if (k === '?' || (k === '/' && e.shiftKey)) { help.classList.toggle('on'); e.preventDefault(); return; }
+
+    if (overview.classList.contains('on')) {
+      if (k === 'o' || k === 'O') overview.classList.remove('on');
+      return;
+    }
+
+    switch (k) {
+      case 'ArrowRight': case ' ': case 'PageDown': show(cur + 1); e.preventDefault(); break;
+      case 'ArrowLeft':  case 'PageUp':            show(cur - 1); e.preventDefault(); break;
+      case 'Home': show(0); break;
+      case 'End':  show(slides.length - 1); break;
+      case 'o': case 'O': overview.classList.toggle('on'); break;
+      case 'n': case 'N': notesEl.classList.toggle('on'); break;
+      case 't': case 'T': toggleTimer(); break;
+      case 'r': case 'R': elapsed = 0; updateClock(); break;
+      case 'f': case 'F':
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(function () {});
+        else document.exitFullscreen();
+        break;
+      case 'k': case 'K': {
+        var v = slides[cur].querySelector('video');
+        if (v) { v.paused ? v.play() : v.pause(); }
+        break;
+      }
+    }
+  });
+
+  // Click-to-advance, but never when the audience-facing overlays are open.
+  document.getElementById('stage').addEventListener('click', function (e) {
+    if (e.target.closest('video')) return;
+    show(cur + 1);
+  });
+
+  // Deep links and browser history. show() uses replaceState, so this never loops back on itself.
+  window.addEventListener('hashchange', function () {
+    var n = parseInt((location.hash || '').replace('#', ''), 10);
+    if (!isNaN(n) && n - 1 !== cur) show(n - 1);
+  });
+
+  /* ---------------------------------------------------------- boot */
+  fit();
+  var start = parseInt((location.hash || '').replace('#', ''), 10);
+  show(isNaN(start) ? 0 : start - 1);
+})();
+</script>
+</body>
+</html>
