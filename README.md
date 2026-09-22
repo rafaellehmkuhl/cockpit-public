@@ -224,7 +224,7 @@ Be sure to check our docs for more information on how to take advantage of these
 
 ## ⚠️ Current Limitations
 
-While Cockpit is a powerful and feature-rich ground control station, there are some current limitations to be aware of:
+While Cockpit is a powerful and feature-rich ground control station, there are a few current limitations to be aware of:
 
 
 ### 🚁 **Vehicle Support Gaps**
