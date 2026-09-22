@@ -205,7 +205,7 @@ jobs:
           # No `curl`: nothing the agent does needs the network, and the diff it reads is untrusted,
           # so denying it removes the obvious way to exfiltrate anything it is tricked into reading.
           claude_args: |
-            --model ${{ vars.CLAUDE_AGENT_MODEL || 'claude-opus-5' }}
+            --model ${{ vars.CLAUDE_AGENT_MODEL || 'claude-opus-5-5' }}
             --max-turns 26
             --allowedTools "Bash(node:*),Bash(ffmpeg:*),Bash(ls:*),Bash(cat:*),Bash(jq:*),Bash(wc:*),Bash(head:*),Bash(tail:*),Bash(mkdir:*),Bash(cp:*),Bash(rm:*),Bash(pkill:*),Read,Glob,Grep,Write,Edit"
             --system-prompt-file ${{ runner.temp }}/system-prompt.md
