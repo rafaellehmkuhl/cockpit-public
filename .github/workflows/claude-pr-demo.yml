@@ -153,29 +153,9 @@ jobs:
         continue-on-error: true
         run: node scripts/uicast/record.mjs scripts/uicast/scene-selftest.mjs /tmp/selftest.mp4
 
-      - name: Record the demo
-        id: record
-        uses: anthropics/claude-code-base-action@beta
+      - name: Write the system prompt
         env:
-          HEAD_SHA: ${{ env.HEAD_SHA }}
-          SMOKETEST: ${{ steps.smoketest.outcome }}
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          model: ${{ vars.CLAUDE_AGENT_MODEL || 'claude-opus-5' }}
-          # Spend cap, expressed as turns because neither the action nor Claude Code takes a
-          # currency budget. Opus 4.6 bills $5/M in, $25/M out, $0.50/M cache read and $6.25/M
-          # cache write, and for this job almost all of it is context being re-read rather than
-          # anything generated. Measured on run 31021157391: the fixed context costs ~$1.25 over
-          # the first ten turns and ~$0.04/turn after that, so $DEMO_BUDGET_USD runs out at turn
-          # 27. Re-derive this from the cost line below if the guidelines or the model change.
-          max_turns: "26"
-          # The action's own default is 10 minutes, which does not survive recording a clip and
-          # watching the frames back, let alone the couple of retakes that usually takes.
-          timeout_minutes: "20"
-          # No `curl`: nothing the agent does needs the network, and the diff it reads is untrusted,
-          # so denying it removes the obvious way to exfiltrate anything it is tricked into reading.
-          allowed_tools: "Bash(node:*),Bash(ffmpeg:*),Bash(ls:*),Bash(cat:*),Bash(jq:*),Bash(wc:*),Bash(head:*),Bash(tail:*),Bash(mkdir:*),Bash(cp:*),Bash(rm:*),Bash(pkill:*),View,GlobTool,GrepTool,BatchTool,Write,Edit"
-          system_prompt: |
+          SYSTEM_PROMPT: |
             You are the automated demo-video agent for `bluerobotics/cockpit`, running inside a GitHub Actions workflow.
 
             FIRST, read `.github/claude-review/demo-video-guidelines.md` from the checked-out base ref. It defines what makes a good demo, how to write and verify a scenario, the security constraints, and the exact output contract. Follow it exactly. Also read `AGENTS.md` for the project's conventions.
@@ -203,6 +183,32 @@ jobs:
             3. If there is nothing worth filming (refactor, CI, deps, tests, docs, no rendered surface), write `demo/skipped.md` and STOP. That is a valid, expected outcome — do not force a video.
             4. Otherwise write `demo/scenario.mjs`, record it, extract frames, LOOK at the frames, and iterate until the clip actually shows the feature. A recorder that exits successfully proves nothing about what is on screen.
             5. Write `demo/comment.md` using the placeholders `{{GIF}}` and `{{MP4_LINK}}` exactly as the guidelines specify.
+        run: printf '%s' "$SYSTEM_PROMPT" > "$RUNNER_TEMP/system-prompt.md"
+
+      - name: Record the demo
+        id: record
+        uses: anthropics/claude-code-base-action@52546c80b536daf02c27067b41e637b4e099c63f
+        # Ten minutes, the old action's default, does not survive recording a clip and
+        # watching the frames back, let alone the couple of retakes that usually takes.
+        timeout-minutes: 20
+        env:
+          HEAD_SHA: ${{ env.HEAD_SHA }}
+          SMOKETEST: ${{ steps.smoketest.outcome }}
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Spend cap, expressed as turns because neither the action nor Claude Code takes a
+          # currency budget. Opus 4.6 bills $5/M in, $25/M out, $0.50/M cache read and $6.25/M
+          # cache write, and for this job almost all of it is context being re-read rather than
+          # anything generated. Measured on run 31021157391: the fixed context costs ~$1.25 over
+          # the first ten turns and ~$0.04/turn after that, so $DEMO_BUDGET_USD runs out at turn
+          # 27. Re-derive this from the cost line below if the guidelines or the model change.
+          # No `curl`: nothing the agent does needs the network, and the diff it reads is untrusted,
+          # so denying it removes the obvious way to exfiltrate anything it is tricked into reading.
+          claude_args: |
+            --model ${{ vars.CLAUDE_AGENT_MODEL || 'claude-opus-5' }}
+            --max-turns 26
+            --allowedTools "Bash(node:*),Bash(ffmpeg:*),Bash(ls:*),Bash(cat:*),Bash(jq:*),Bash(wc:*),Bash(head:*),Bash(tail:*),Bash(mkdir:*),Bash(cp:*),Bash(rm:*),Bash(pkill:*),Read,Glob,Grep,Write,Edit"
+            --system-prompt-file ${{ runner.temp }}/system-prompt.md
           prompt: |
             Record a demo video for this pull request.
 
