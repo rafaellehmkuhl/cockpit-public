@@ -1,1 +1,0 @@
-import{d as s,cr as n,s as o,v as a,Z as c,B as e,cw as r}from"./index-BagWCvF4.js";const m={class:"flex items-center justify-center m-2 text-sm font-bold text-center text-white select-none min-w-[90px]"},f=s({__name:"Clock",setup(i){const t=n({interval:1e3});return(l,p)=>(a(),o("div",m,c(e(r)(e(t),"E LLL do HH:mm")),1))}});export{f as default};
