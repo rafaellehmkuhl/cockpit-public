@@ -345,7 +345,9 @@ Key line: 'Everything in that talk was about what Cockpit IS. Today is about wha
 <!-- ============================================================ 3 · NUMBERS -->
 <section class="slide" data-notes="Numbers are real, measured from the repo this month.
 
-v1.3.2 was the version live during the Kaga talk. v1.18.3 is current stable, v1.19 in beta.
+v1.3.2 was the version live during the Kaga talk. v1.18.3 is current stable, v1.19 in beta (beta.18 as of mid-October).
+
+Re-run these the week of the talk: git log upstream/master --since=2024-11-01 | wc -l, and git diff --shortstat v1.3.2 upstream/master.
 
 Don't read every number. Say: 'the short version is that the thing you saw in 2024 is not the thing running today.'
 
@@ -353,12 +355,12 @@ Don't read every number. Say: 'the short version is that the thing you saw in 20
   <div class="kicker">What happened since</div>
   <h2>v1.3.2 &nbsp;&rarr;&nbsp; v1.19</h2>
   <div class="stats">
-    <div class="stat"><div class="n">1,444</div><div class="l">commits since<br>November 2024</div></div>
+    <div class="stat"><div class="n">1,706</div><div class="l">commits since<br>November 2024</div></div>
     <div class="stat"><div class="n">27</div><div class="l">stable releases<br>v1.4.0 → v1.18.3</div></div>
-    <div class="stat"><div class="n">70k</div><div class="l">lines added<br>across 354 files</div></div>
-    <div class="stat"><div class="n">167→371</div><div class="l">source files<br>in <code>src/</code></div></div>
+    <div class="stat"><div class="n">126k</div><div class="l">lines added<br>across 596 files</div></div>
+    <div class="stat"><div class="n">167→576</div><div class="l">source files<br>in <code>src/</code></div></div>
   </div>
-  <p class="after muted">Nine people wrote it. Most of the volume is two of us — but the parts you are most likely
+  <p class="after muted">Eleven people wrote it. Most of the volume is two of us — but the parts you are most likely
      to care about today came from outside Blue Robotics.</p>
   <div class="callout good"><p><strong>Native TCP/UDP MAVLink</strong> — the feature that makes Cockpit useful to this
      room — was contributed by <em>@amir-hossein-zarei</em> in PR #2084. Not by us.</p></div>
@@ -466,6 +468,7 @@ Key sentence: 'If a value is in the data lake, every part of Cockpit can already
         <li>Joystick axes and buttons</li>
         <li>USB / serial GNSS receivers</li>
         <li>Points of interest on the map</li>
+        <li>Other vehicles on the network, read-only</li>
         <li>Your JavaScript, via <code>window.cockpit</code></li>
         <li>Other data-lake variables, transformed</li>
       </ul>
@@ -496,11 +499,11 @@ Your data lands under external/ automatically if it comes through the WebSocket 
     <tr><th>Source</th><th>Id format</th></tr>
     <tr><td class="n">MAVLink field</td><td><code>/mavlink/{sys}/{comp}/ATTITUDE/roll</code></td></tr>
     <tr><td class="n">Named value</td><td><code>/mavlink/{sys}/{comp}/NAMED_VALUE_FLOAT/{name}</code></td></tr>
+    <tr><td class="n">Another vehicle (mirrored)</td><td><code>/mavlink/{its sys}/{comp}/GLOBAL_POSITION_INT/lat</code></td></tr>
     <tr><td class="n">Generic WebSocket</td><td><code>external/{machinized-name}</code></td></tr>
     <tr><td class="n">USB GNSS</td><td><code>external/positioning/gnss/{device}/{field}</code></td></tr>
     <tr><td class="n">Point of interest</td><td><code>cockpit/pois/{id}/latitude</code></td></tr>
     <tr><td class="n">Joystick axis</td><td><code>inputs/mavlink/axis-x</code></td></tr>
-    <tr><td class="n">Built-in</td><td><code>vehicle-address</code></td></tr>
   </table>
   <div class="callout"><p>There is <strong>no enforced namespace</strong>. To expose a new MAVLink field, extend the
      flattener in <code>src/libs/vehicle/common/data-flattener.ts</code> — never special-case a widget.</p></div>
@@ -541,7 +544,9 @@ window.cockpit.deleteAction(id)</code></pre>
 
 Expression is plain JS with {{ }} substitution. It creates a real data-lake variable, so everything downstream just works.
 
-Good example to say out loud: 'water density from temperature and salinity, without writing a widget.'">
+Good example to say out loud: 'water density from temperature and salinity, without writing a widget.'
+
+Units are new since September: variables carry a unit and the operator picks display units per quantity. Expressions can ask for a unit system too.">
   <div class="kicker">Derived values</div>
   <h2>Compound variables: JavaScript over the lake</h2>
   <div class="cols wide-left">
@@ -558,6 +563,9 @@ Good example to say out loud: 'water density from temperature and salinity, with
       <p style="font-size:18px">User-created variables can survive reboots — the definition, the value, or both.</p>
       <p class="after muted" style="font-size:17px"><code>persistent</code> keeps the variable;
          <code>persistValue</code> keeps its last value.</p>
+      <h3 class="after">And carries a unit</h3>
+      <p style="font-size:18px">MAVLink fields arrive tagged with theirs, you can set your own, and every widget
+         shows it in the operator's choice of metric, imperial or nautical.</p>
     </div>
   </div>
 </section>
@@ -578,13 +586,15 @@ The rules matter though, walk each one:
 - one variable per message
 - type is guessed from the FIRST value and then LOCKED
 - quote it to force a string
-- name gets machinized and prefixed with external/">
+- name gets machinized and prefixed with external/
+
+A line starting with { is now read as JSON — but that's a COMMAND, not data. Today the only commands are point-of-interest add/update/remove. JSON data ingestion is still open (issue #3043).">
   <div class="kicker">Door 1 · the protocol</div>
   <h2>The entire wire format</h2>
   <pre style="font-size:30px; text-align:center; padding:34px"><code data-lang="txt">variableName=value</code></pre>
   <div class="cols after">
     <ul>
-      <li><strong>One variable per message.</strong> Not JSON. Not batched.</li>
+      <li><strong>One variable per message.</strong> Not batched.</li>
       <li><strong>Type is guessed once</strong>, from the first value, then locked forever.</li>
     </ul>
     <ul>
@@ -592,7 +602,8 @@ The rules matter though, walk each one:
       <li><strong>Lands at</strong> <code>external/</code> + a machinized name.</li>
     </ul>
   </div>
-  <div class="callout"><p><code>WaterTemp=23.5</code> &nbsp;→&nbsp; <code>external/watertemp</code>, typed <em>number</em>.</p></div>
+  <div class="callout"><p><code>WaterTemp=23.5</code> &nbsp;→&nbsp; <code>external/watertemp</code>, typed <em>number</em>.
+     A line starting with <code>{</code> is a JSON <em>command</em> instead — more on that in door 4.</p></div>
 </section>
 
 <!-- ============================================================ 16 · THE SERVER -->
@@ -716,7 +727,7 @@ Say: 'none of these require a Cockpit build.'">
 <!-- ============================================================ 23 · INTERPOLATION -->
 <section class="slide" data-notes="The {{ }} substitution is what makes actions dynamic without code.
 
-CALL OUT THE HEADERS GOTCHA HERE — url, params and body get interpolated. Headers do NOT. This bites people. It's on the rough-edges slide too.">
+Headers used to be the gotcha — they weren't interpolated. That was fixed in October (v1.19), after this talk was first drafted. Say so: it's a nice 'we listen' moment.">
   <div class="kicker">Door 2 · composing</div>
   <h2>Any action can read the lake</h2>
   <div class="cols wide-left">
@@ -732,8 +743,8 @@ CALL OUT THE HEADERS GOTCHA HERE — url, params and body get interpolated. Head
          parameters, and in MAVLink message fields.</p>
     </div>
     <div>
-      <div class="callout"><p><strong>Gotcha:</strong> the URL, query params and body are interpolated.
-         <em>Headers are not.</em> If you need a dynamic token in a header today, you need a JavaScript action.</p></div>
+      <div class="callout good"><p><strong>Everywhere:</strong> URL, query params, body <em>and headers</em> —
+         so a rotating auth token can live in the lake too. Headers joined in v1.19.</p></div>
       <div class="panel after">
         <h3>MAVLink message action</h3>
         <p style="font-size:18px">Compose any MAVLink message, fill fields from the lake, send it. No firmware
@@ -793,18 +804,21 @@ Also: actions export and import as JSON. That matters for door 5.">
 <!-- ============================================================ 27 · DIY -->
 <section class="slide" data-notes="An editor inside the app. Monaco, with autocomplete over data-lake ids and LIVE VALUES in the hover tooltips — that detail lands well, mention it.
 
-Be honest about the sandbox: the JS is appended as a script tag to Cockpit's own document. It is not isolated. That's a deliberate trade for power, and it's on the rough-edges slide.">
+New in v1.19: 'Run script in its own scope'. The script gets root (its own element) and a cockpit object whose listeners and timers are undone when you re-apply it or delete the widget — cockpit.onCleanup(fn) for anything else. Two copies of the same widget no longer fight over element ids. It's on by default for new widgets only; existing ones keep the old global script.
+
+Be honest: scoped is NOT sandboxed. Same document, same privileges. It's on the rough-edges slide.">
   <div class="kicker">Door 3</div>
   <h2>Write a widget without leaving the app</h2>
   <div class="cols wide-left">
     <div>
       <div class="filename">DIY widget · js</div>
-      <pre class="sm"><code data-lang="js">const el = document.getElementById('temp')
+      <pre class="sm"><code data-lang="js">// scoped mode: root is this widget's element
+const el = root.querySelector('.temp')
 
-window.cockpit.listenDataLakeVariable(
+cockpit.listenDataLakeVariable(
   'external/watertemp',
   (v) => { el.textContent = v.toFixed(1) + ' °C' }
-)</code></pre>
+) // undone automatically on re-apply or removal</code></pre>
       <p class="after muted" style="font-size:18px">Three panes — HTML, CSS, JS — in a Monaco editor, with
          autocomplete over variable ids and <strong>live values in the hover tooltips</strong>.</p>
     </div>
@@ -815,9 +829,9 @@ window.cockpit.listenDataLakeVariable(
            bolted on.</p>
       </div>
       <div class="callout">
-        <p><strong>Not sandboxed.</strong> Your JavaScript is appended to Cockpit's own document and runs with the
-           same privileges as the app. Powerful, and a real trade-off — treat shared DIY widgets like you'd treat
-           any script you paste into a console.</p>
+        <p><strong>Scoped, not sandboxed.</strong> Scoped mode cleans up after itself, but your JavaScript still
+           runs in Cockpit's own document with the app's privileges. Treat shared DIY widgets like any script you
+           paste into a console.</p>
       </div>
     </div>
   </div>
@@ -848,7 +862,9 @@ Point out that there's no distinction in the palette between Cockpit's widgets a
 
 useVehicleAddressAsBase is the killer option: your widget URL resolves against whatever vehicle the operator is connected to. No hardcoded IPs.
 
-The bridge is postMessage, so it works cross-origin.">
+The bridge is postMessage, so it works cross-origin.
+
+New since September: the child can WRITE points of interest — add, update, remove. Built for sonar or vision pipelines that drop a marker per detection. Each iframe widget only applies its own iframe's commands, so two widgets don't duplicate them. Coordinates must be numbers; icon is an mdi class, colour a hex code. The same JSON works over the WebSocket door.">
   <div class="kicker">Door 4</div>
   <h2>Your existing UI, as a widget</h2>
   <div class="cols">
@@ -873,8 +889,9 @@ The bridge is postMessage, so it works cross-origin.">
   variable: 'external/watertemp', value: 23.5 }</code></pre>
     </div>
   </div>
-  <div class="callout"><p><strong>Honest limitation:</strong> the bridge is <em>listen-only</em>. A child page can
-     read telemetry but has no documented way to write back into the lake. If you need to write, use door 1 or door 3.</p></div>
+  <div class="callout good"><p><strong>And now it writes back</strong> — points of interest, at least:
+     <code>CockpitAPI.addPointOfInterest({ id: 'target-1', name: 'Target 1', latitude, longitude })</code>.
+     A detection pipeline can drop a marker per hit. Writing arbitrary data-lake values still goes through door 1 or 3.</p></div>
 </section>
 
 <!-- ============================================================ 30 · IFRAME OPTS -->
@@ -1005,6 +1022,43 @@ Nothing from an extension applies itself.">
   </div>
 </section>
 
+<!-- ============================================================ 35b · BONUS: MCP -->
+<section class="slide" data-notes="BONUS DOOR — landed in October, after the five-door structure was set. ~75 seconds, take it out of the recap slide if you're behind.
+
+Cockpit Standalone runs a local MCP server (off by default, Settings → General → AI agent access). Any MCP client — Claude, Cursor, whatever — connects with a bearer token and gets 34 tools: data lake, transforming functions, actions, views, widgets, DIY widgets, points of interest, screenshots.
+
+Running code (JavaScript actions, DIY widgets) needs a second opt-in toggle.
+
+The pitch for THIS room: every door I just showed you, an agent can walk through for you. 'Make me a view for my sonar payload' is now a sentence, not an afternoon.
+
+Bridge to the AI lightning talk if that slot exists.">
+  <div class="kicker">Bonus door · new in v1.19</div>
+  <h2>Or let an agent walk through them</h2>
+  <div class="cols wide-left">
+    <div>
+      <p>Cockpit Standalone runs a <strong>local MCP server</strong>. Point any MCP client at it and the agent gets
+         the same doors you do — as tools.</p>
+      <div class="filename">a few of the 34 tools</div>
+      <pre class="xs"><code data-lang="txt">list_data_lake_variables   save_transforming_function
+save_http_request_action   execute_action
+add_view                   add_widget
+add_diy_widget             add_point_of_interest
+evaluate_expression        take_screenshot</code></pre>
+    </div>
+    <div>
+      <div class="panel">
+        <h3>Off by default</h3>
+        <ul style="gap:8px">
+          <li>Localhost only, bearer token</li>
+          <li>Creating or running code is a <strong>second</strong> opt-in</li>
+          <li>Standalone only — the browser can't host a server</li>
+        </ul>
+      </div>
+      <div class="callout good after"><p>"Build me a view for my sonar payload" is now a sentence, not an afternoon.</p></div>
+    </div>
+  </div>
+</section>
+
 <!-- ============================================================ 36 · CHOOSING -->
 <section class="slide" data-notes="The practical summary. If someone remembers one slide, make it this one.
 
@@ -1018,6 +1072,7 @@ Say the advice out loud: 'pick the lowest row that solves your problem.' Most pe
     <tr><td><strong>3 · DIY widget</strong></td><td>You need a custom display and don't want to host anything</td><td class="n">an afternoon</td></tr>
     <tr><td><strong>4 · iframe</strong></td><td>You already have a web UI worth keeping</td><td class="n">an hour, plus your app</td></tr>
     <tr><td><strong>5 · Manifest</strong></td><td>You ship a product and want it to configure itself</td><td class="n">half a day</td></tr>
+    <tr><td><strong>+ · MCP</strong></td><td>You'd rather describe it than build it</td><td class="n">a sentence</td></tr>
   </table>
   <div class="callout"><p>Most people reach for door 5 when door 1 would have done. Don't.</p></div>
 </section>
@@ -1034,6 +1089,8 @@ This section is why the room will trust you. Do not soften it.">
 <!-- ============================================================ 38 · ROUGH EDGES -->
 <section class="slide" data-notes="Read these honestly, one by one, no excuses. Every one is real and current as of v1.19.
 
+Each has an open issue: WebSocket JSON #3043, DIY sandbox #3040, iframe bridge docs #3044, manifest docs #3041.
+
 Then the punchline: 'every one of these is a small, well-scoped contribution. That's my ask.'
 
 This slide earns more credibility than any feature slide in the deck.">
@@ -1041,16 +1098,14 @@ This slide earns more credibility than any feature slide in the deck.">
   <h2>What's still wrong</h2>
   <div class="cols">
     <ul>
-      <li class="no">WebSocket ingestion is <strong>plain text, one variable per message</strong>
-        <small>No JSON. Type locks on the first value it ever sees.</small></li>
-      <li class="no">DIY widget JavaScript is <strong>not sandboxed</strong>
-        <small>It runs in Cockpit's own page, with Cockpit's privileges</small></li>
-      <li class="no">The iframe bridge is <strong>listen-only</strong>
-        <small>No documented write path from the child page</small></li>
+      <li class="no">WebSocket data is <strong>plain text, one variable per message</strong>
+        <small>JSON is only for commands. Type locks on the first value it ever sees.</small></li>
+      <li class="no">DIY widget JavaScript is <strong>scoped, not sandboxed</strong>
+        <small>It cleans up after itself, but runs with Cockpit's privileges</small></li>
+      <li class="no">The iframe bridge <strong>can't write the data lake</strong>
+        <small>It reads values and writes points of interest — and neither is documented</small></li>
     </ul>
     <ul>
-      <li class="no">HTTP action <strong>headers aren't interpolated</strong>
-        <small>Only URL, query params and body</small></li>
       <li class="no"><code>targetCockpitApiVersion</code> <strong>isn't enforced</strong>
         <small>It's parsed, then nothing gates on it</small></li>
       <li class="no">The manifest schema <strong>isn't documented</strong>
@@ -1058,7 +1113,7 @@ This slide earns more credibility than any feature slide in the deck.">
     </ul>
   </div>
   <div class="callout good"><p>Every one of these is small, well-scoped, and genuinely useful. If you want a way in,
-     this is the list.</p></div>
+     this is the list. <span class="muted">(It had six items when I drafted it. HTTP headers got fixed before I got on the plane.)</span></p></div>
 </section>
 
 <!-- ============================================================ 39 · AERIAL -->
@@ -1215,11 +1270,13 @@ Moved to SDL in Electron (v1.16) so the controller keeps working when the window
 <!-- ============================================================ 46 · BACKUP mission -->
 <section class="slide media-slide" data-notes="BACKUP · mission planning.
 
-v1.17 brought MAVLink command waypoints — loiters, loops, servo commands, DO_ items. v1.18 added the mission control panel, survey height and turnaround distance. v1.19 added a mission library, crosshatch re-fly for photogrammetry, and touchscreen gestures.">
+v1.17 brought MAVLink command waypoints — loiters, loops, servo commands, DO_ items. v1.18 added the mission control panel, survey height and turnaround distance. v1.19 added a mission library, crosshatch re-fly for photogrammetry, and touchscreen gestures.
+
+Also v1.19: geofences. Draw them in mission planning, upload/fetch/clear on the vehicle sized to its fence storage, a live overlay on the map, breach warnings, and waypoints that breach the fence are marked before upload. Mission download is pipelined instead of one item every 250 ms.">
   <h2>Backup · mission planning</h2>
   <figure class="grow">
     <img src="media/shots/10-mission-planning.webp" alt="Cockpit mission planning view">
-    <figcaption>Command waypoints, surveys with turnaround distance, offline tiles, GeoTiff overlays</figcaption>
+    <figcaption>Command waypoints, surveys, geofences, offline tiles, GeoTiff overlays</figcaption>
   </figure>
 </section>
 
