@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cockpit — Build On It · ArduPilot Dev Conference 2026</title>
+<title>Cockpit: Build On It</title>
 <style>
   :root{
     --bg:#0a1416;
@@ -1535,6 +1535,16 @@ Good answer if someone asks 'what was the hardest thing you fixed'.">
     if (e.target.closest('video')) return;
     show(cur + 1);
   });
+
+  // Phones have no arrow keys: a horizontal swipe moves either way.
+  var touchX = null;
+  document.addEventListener('touchstart', function (e) { touchX = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend', function (e) {
+    if (touchX === null) return;
+    var dx = e.changedTouches[0].clientX - touchX;
+    touchX = null;
+    if (Math.abs(dx) > 50) show(cur + (dx < 0 ? 1 : -1));
+  }, { passive: true });
 
   // Deep links and browser history. show() uses replaceState, so this never loops back on itself.
   window.addEventListener('hashchange', function () {
