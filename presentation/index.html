@@ -461,7 +461,7 @@ Key sentence: 'If a value is in the data lake, every part of Cockpit can already
         <li>USB / serial GNSS receivers</li>
         <li>Points of interest on the map</li>
         <li>Other vehicles on the network, read-only</li>
-        <li>Your JavaScript, via <code>window.cockpit</code></li>
+        <li>Your JavaScript, via <code>cockpit</code></li>
         <li>Other data-lake variables, transformed</li>
       </ul>
     </div>
@@ -502,29 +502,29 @@ Your data lands under external/ automatically if it comes through the WebSocket 
 </section>
 
 <!-- ============================================================ 12 · WINDOW.COCKPIT -->
-<section class="slide" data-notes="This is the API that doors 3 and 4 are built on. It's global, no import, available to any JS running in the page.
+<section class="slide" data-notes="This is the API that doors 3 and 4 are built on. It's global, no import, available to any JS running in the page. It's window.cockpit underneath, but every script in Cockpit just writes cockpit.
 
 Don't read the list. Point at the two halves: read/write data, and fire actions.">
   <div class="kicker">The public API</div>
-  <h2><code style="font-size:.8em">window.cockpit</code></h2>
+  <h2><code style="font-size:.8em">cockpit</code></h2>
   <div class="cols">
     <div>
       <div class="filename">data</div>
-      <pre class="sm"><code data-lang="js">window.cockpit.getDataLakeVariableData(id)
-window.cockpit.setDataLakeVariableData(id, value)
-window.cockpit.listenDataLakeVariable(id, cb)
-window.cockpit.unlistenDataLakeVariable(id, lid)
-window.cockpit.createDataLakeVariable({ id, name, type })
-window.cockpit.getAllDataLakeVariablesInfo()</code></pre>
+      <pre class="sm"><code data-lang="js">cockpit.getDataLakeVariableData(id)
+cockpit.setDataLakeVariableData(id, value)
+cockpit.listenDataLakeVariable(id, cb)
+cockpit.unlistenDataLakeVariable(id, lid)
+cockpit.createDataLakeVariable({ id, name, type })
+cockpit.getAllDataLakeVariablesInfo()</code></pre>
     </div>
     <div>
       <div class="filename">actions</div>
-      <pre class="sm"><code data-lang="js">window.cockpit.availableCockpitActions
-window.cockpit.registerNewAction(action)
-window.cockpit.registerActionCallback(a, cb)
-window.cockpit.executeActionCallback(id)
-window.cockpit.deleteAction(id)</code></pre>
-      <p class="after muted" style="font-size:17px">Global, no import. Defined in <code>src/libs/cosmos.ts</code>.</p>
+      <pre class="sm"><code data-lang="js">cockpit.availableCockpitActions
+cockpit.registerNewAction(action)
+cockpit.registerActionCallback(a, cb)
+cockpit.executeActionCallback(id)
+cockpit.deleteAction(id)</code></pre>
+      <p class="after muted" style="font-size:17px">Global, no import (<code>window.cockpit</code> underneath). Defined in <code>src/libs/cosmos.ts</code>.</p>
     </div>
   </div>
 </section>
