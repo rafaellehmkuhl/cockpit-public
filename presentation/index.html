@@ -310,7 +310,7 @@ Today is one question: how do you plug YOUR thing into it.'
 
 Target: off this slide by 0:45.
 
-The plan runs ~35:30, leaving the rest of the 40 minutes as slack for demos that run long. The pace indicator follows that plan, not an even split.">
+The plan runs ~33:45, leaving the rest of the 40 minutes as slack for demos that run long. The pace indicator follows that plan, not an even split.">
   <div class="kicker">ArduPilot Developer Conference · Ottawa 2026</div>
   <h1>Cockpit:<br>build on it</h1>
   <div class="title-rule"></div>
@@ -699,7 +699,7 @@ cockpit.deleteAction(id)</code></pre>
 
 New in v1.19: 'Run script in its own scope'. The script gets root (its own element) and a cockpit object whose listeners and timers are undone when you re-apply it or delete the widget — cockpit.onCleanup(fn) for anything else. Two copies of the same widget no longer fight over element ids. It's on by default for new widgets only; existing ones keep the old global script.
 
-Be honest: scoped is NOT sandboxed. Same document, same privileges. It's on the rough-edges slide.">
+Be honest: scoped is NOT sandboxed. Same document, same privileges.">
   <div class="kicker">Door 3</div>
   <h2>Write a widget without leaving the app</h2>
   <div class="cols wide-left">
@@ -819,7 +819,7 @@ useVehicleAddressAsBase is the one to emphasise again.">
 <!-- ============================================================ 32 · DISCOVERY -->
 <section data-secs="60" class="slide" data-notes="Walk the discovery chain left to right. Key point: there is NO fixed path. Your extension declares the relative path in its own BlueOS metadata under extras.cockpit.
 
-This is the bit that isn't documented anywhere outside the Zod types. Which is on the rough-edges slide.">
+This is the bit that isn't documented anywhere outside the Zod types.">
   <div class="kicker">Door 5 · discovery</div>
   <h2>How Cockpit finds you</h2>
   <div class="flow">
@@ -972,41 +972,6 @@ Say the advice out loud: 'pick the lowest row that solves your problem.' Most pe
     <tr><td><strong>+ · MCP</strong></td><td>You'd rather describe it than build it</td><td class="n">a sentence</td></tr>
   </table>
   <div class="callout"><p>Most people reach for door 5 when door 1 would have done. Don't.</p></div>
-</section>
-
-<!-- ============================================================ 37 · DIVIDER: ROUGH EDGES -->
-<section data-secs="10" class="slide divider" data-notes="Section 7. Target ~28:45.
-
-Don't soften this section.">
-  <div class="num">06</div>
-  <h1>Rough edges</h1>
-  <p>The things I'd rather you heard from me than found at 2am.</p>
-</section>
-
-<!-- ============================================================ 38 · ROUGH EDGES -->
-<section data-secs="90" class="slide" data-notes="Read these honestly, one by one, no excuses. Every one is real and current as of v1.19.
-
-Each has an open issue: DIY sandbox #3040, iframe bridge docs #3044 and writes #3217, manifest docs #3041.
-
-Then the punchline: 'every one of these is a small, well-scoped contribution. That's my ask.'">
-  <div class="kicker">Known, current, in v1.19</div>
-  <h2>What's still wrong</h2>
-  <div class="cols">
-    <ul>
-      <li class="no">DIY widget JavaScript is <strong>scoped, not sandboxed</strong>
-        <small>It cleans up after itself, but runs with Cockpit's privileges</small></li>
-      <li class="no">The iframe bridge <strong>can't write the data lake</strong>
-        <small>It reads values and writes points of interest — and neither is documented</small></li>
-    </ul>
-    <ul>
-      <li class="no"><code>targetCockpitApiVersion</code> <strong>isn't enforced</strong>
-        <small>It's parsed, then nothing gates on it</small></li>
-      <li class="no">The manifest schema <strong>isn't documented</strong>
-        <small>The Zod types in the repo are the only spec — this slide is closer to docs than anything we ship</small></li>
-    </ul>
-  </div>
-  <div class="callout good"><p>Each of these is a small, self-contained fix. If you want a way in,
-     start here. <span class="muted">(It had six items when I drafted it. HTTP headers and JSON over the WebSocket got fixed before I got on the plane.)</span></p></div>
 </section>
 
 <!-- ============================================================ 4 · THE OBJECTION -->
