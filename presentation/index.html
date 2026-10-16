@@ -363,19 +363,6 @@ Key sentence: 'If a value is in the data lake, every part of Cockpit can already
   </div>
 </section>
 
-<!-- ============================================================ 10 · DATA LAKE SHOT -->
-<section class="slide media-slide" data-notes="530 variables and there is NO VEHICLE CONNECTED in this screenshot. That's the joke — say it.
-
-With a vehicle it's well over a thousand.
-
-Point out the Record column on the right: any variable can be logged to CSV/JSON. That shipped in 1.19.">
-  <h2>530 variables — with nothing connected</h2>
-  <figure class="grow">
-    <img src="media/shots/04-data-lake.webp" alt="Cockpit data lake variable monitor">
-    <figcaption>Tools → Data-lake · live values, editable, and each one can be recorded</figcaption>
-  </figure>
-</section>
-
 <!-- ============================================================ 11 · IDS -->
 <section class="slide" data-notes="Important practical detail for integrators: ids are free-form strings. There is NO enforced schema. The /mavlink/ prefix is a convention the MAVLink layer follows, not a rule.
 
@@ -570,17 +557,6 @@ Getting data IN is half. Now getting Cockpit to DO something.">
   <p>Getting data in is half of it. Now make something happen.</p>
 </section>
 
-<!-- ============================================================ 22 · THREE TYPES -->
-<section class="slide media-slide" data-notes="Three types, and that's the whole taxonomy. All three are configured in the UI, all three are shareable as JSON, all three can be shipped by an extension (door 5).
-
-Say: 'none of these require a Cockpit build.'">
-  <h2>Three kinds of action. That's all of them.</h2>
-  <figure class="grow">
-    <img src="media/shots/05b-action-types.webp" alt="Cockpit action type selector">
-    <figcaption>Settings → Actions · HTTP request, MAVLink message, JavaScript</figcaption>
-  </figure>
-</section>
-
 <!-- ============================================================ 23 · INTERPOLATION -->
 <section class="slide" data-notes="The {{ }} substitution is what makes actions dynamic without code.
 
@@ -640,17 +616,6 @@ Give the worked example verbally: temperature crosses a threshold -> HTTP call t
   </div>
 </section>
 
-<!-- ============================================================ 25 · ACTIONS SHOT -->
-<section class="slide media-slide" data-notes="Note the two camera actions in the list — those ship with Cockpit and are built with exactly the same mechanism you'd use. Nothing privileged about first-party actions.
-
-Also: actions export and import as JSON. That matters for door 5.">
-  <h2>First-party actions use the same mechanism</h2>
-  <figure class="grow">
-    <img src="media/shots/05-actions.webp" alt="Cockpit actions configuration">
-    <figcaption>Camera zoom and focus ship with Cockpit — and are ordinary MAVLink message actions</figcaption>
-  </figure>
-</section>
-
 <!-- ============================================================ 26 · DIVIDER: DOOR 3 -->
 <section class="slide divider" data-notes="Section 4. Target ~21:00. Pick up the pace slightly from here.">
   <div class="num">03</div>
@@ -692,19 +657,6 @@ cockpit.listenDataLakeVariable(
       </div>
     </div>
   </div>
-</section>
-
-<!-- ============================================================ 27b · EDIT MODE -->
-<section class="slide media-slide" data-notes="Where doors 3 and 4 actually live: edit mode.
-
-Left panel is the view tree — every widget in every view, reorderable. Bottom strip is the palette; DIY and iframe are both in there next to the first-party widgets.
-
-Point out that there's no distinction in the palette between Cockpit's widgets and yours. Ten seconds.">
-  <h2>Same palette as every built-in widget</h2>
-  <figure class="grow">
-    <img src="media/shots/11-edit-mode.webp" alt="Cockpit edit mode with widget palette">
-    <figcaption>Edit mode · DIY and iframe sit in the palette alongside the first-party widgets</figcaption>
-  </figure>
 </section>
 
 <!-- ============================================================ 28 · DIVIDER: DOOR 4 -->
