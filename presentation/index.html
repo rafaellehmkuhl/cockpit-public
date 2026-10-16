@@ -522,6 +522,8 @@ An object whose type starts with cockpit: is a COMMAND, not data. Today that's p
 
 'That's the integration. That's all of it.'
 
+The temperature moves on purpose: the data lake only notifies on a change, so a constant value would never tick in the demos, fire an action link or update a widget.
+
 Prefer plain text? ws.send(&quot;WaterTemp=23.5&quot;) also works on the same connection.
 
 If someone asks about auth/TLS: wss:// works, Cockpit just opens a WebSocket.">
@@ -530,11 +532,11 @@ If someone asks about auth/TLS: wss:// works, Cockpit just opens a WebSocket.">
   <div class="cols">
     <div>
       <div class="filename">feed.py</div>
-      <pre class="sm"><code data-lang="py">import asyncio, json, websockets
+      <pre class="sm"><code data-lang="py">import asyncio, json, random, websockets
 
 async def handler(ws):
     while True:
-        reading = {"WaterTemp": 23.5, "Sonar": {"Altitude": 12.3}}
+        reading = {"WaterTemp": round(20 + random.random(), 2)}
         await ws.send(json.dumps(reading))
         await asyncio.sleep(1)
 
@@ -649,6 +651,30 @@ Give the worked example verbally: temperature crosses a threshold -> HTTP call t
   </div>
 </section>
 
+<!-- ============================================================ 24b · DEMO 2 -->
+<section class="slide demo" data-notes="LIVE DEMO, about two minutes.
+
+Have ready BEFORE you start:
+  · feed.py from the first demo still running and connected
+  · a second terminal, font cranked up, with python3 -m http.server 8000 typed but NOT running
+  · Cockpit open on Settings → Actions
+
+The point to land: nothing on the other end knows about Cockpit. It's a stock Python web server, and Cockpit is calling it with live values.
+
+The request lands in the server log even if Cockpit can't read the response, so a CORS complaint in Cockpit doesn't matter here.
+
+If it fails: say so and move on within 10 seconds. Do not debug on stage.">
+  <div class="badge">Live demo</div>
+  <h1>Cockpit calls you</h1>
+  <div class="steps">
+    <div><b>1</b> Run <code>python3 -m http.server 8000</code> in a second terminal</div>
+    <div><b>2</b> New HTTP request action: <code>http://localhost:8000/?temp={{ external/watertemp }}</code></div>
+    <div><b>3</b> Automatic triggers → when <code>external/watertemp</code> changes, no faster than 1/s</div>
+    <div><b>4</b> Every new reading shows up in the server log. Done.</div>
+  </div>
+  <div class="fallback">If it fails: no debugging on stage. Ten seconds, then move on.</div>
+</section>
+
 <!-- ============================================================ 26 · DIVIDER: DOOR 3 -->
 <section class="slide divider" data-notes="Section 4. Target ~21:00. Pick up the pace slightly from here.">
   <div class="num">03</div>
@@ -690,6 +716,28 @@ cockpit.listenDataLakeVariable(
       </div>
     </div>
   </div>
+</section>
+
+<!-- ============================================================ 27c · DEMO 3 -->
+<section class="slide demo" data-notes="LIVE DEMO, about ninety seconds.
+
+Have ready BEFORE you start:
+  · feed.py still running, so external/watertemp is moving
+  · Cockpit on a view with free space, edit mode one click away
+  · the HTML line and the JavaScript from the previous slide in your clipboard manager
+
+Show the autocomplete and the live value in the hover tooltip while you type the id. Then delete the widget to show the listener goes with it.
+
+If it fails: say so and move on within 10 seconds. Do not debug on stage.">
+  <div class="badge">Live demo</div>
+  <h1>A widget, typed in</h1>
+  <div class="steps">
+    <div><b>1</b> Edit mode → drop a DIY widget on the view</div>
+    <div><b>2</b> HTML: <code>&lt;div class="temp"&gt;--&lt;/div&gt;</code></div>
+    <div><b>3</b> JS: the code from the previous slide, with "Run script in its own scope" on</div>
+    <div><b>4</b> Apply → the temperature ticks. Delete it, and its listener goes too.</div>
+  </div>
+  <div class="fallback">If it fails: no debugging on stage. Ten seconds, then move on.</div>
 </section>
 
 <!-- ============================================================ 28 · DIVIDER: DOOR 4 -->
