@@ -688,30 +688,35 @@ Give the worked example verbally: external/watertemp crosses a threshold, a comp
 </section>
 
 <!-- ============================================================ 23 · INTERPOLATION -->
-<section data-secs="35" class="slide" data-notes="The {{ }} substitution is what makes actions dynamic without code.
+<section data-secs="35" class="slide" data-notes="This is an HTTP request action exactly as Cockpit stores it, under the cockpit-http-request-actions setting. Walk it top to bottom:
+
+- the URL follows the vehicle you're connected to, through vehicle-address
+- one header is fixed, the other is a bearer token read from the lake, so a rotating token can live there
+- the vehicle query parameter comes from autopilotSystemId, which Cockpit fills in
+- the body is a string with one fixed field and two live values
 
 Headers used to be the gotcha — they weren't interpolated. That was fixed in October (v1.19), after this talk was first drafted. Say so: it's a nice 'we listen' moment.">
   <div class="kicker">Door 2 · composing</div>
   <h2>Any action can read the lake</h2>
-  <div class="cols wide-left">
-    <div>
-      <div class="filename">HTTP request action · body</div>
-      <pre class="sm"><code data-lang="json">{
-  "vehicle": "{{ vehicle-address }}",
-  "temp_c":  {{ external/watertemp }},
-  "depth":   {{ mavlink/1/1/VFR_HUD/alt }}
+  <div class="filename">cockpit-http-request-actions · one stored action</div>
+  <pre class="sm"><code data-lang="json">{
+  "name": "Report to the winch",
+  "method": "POST",
+  "url": "http://{{ vehicle-address }}:9000/telemetry",
+  "headers": {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer {{ winch-api-token }}"
+  },
+  "urlParams": { "vehicle": "{{ autopilotSystemId }}" },
+  "body": "{ \"source\": \"cockpit\", \"temp_c\": {{ external/watertemp }}, \"depth\": {{ mavlink/1/1/VFR_HUD/alt }} }"
 }</code></pre>
-      <p class="after muted" style="font-size:18px">Same <code>{{ }}</code> syntax in the URL, in query
-         parameters, and in MAVLink message fields.</p>
-    </div>
-    <div>
-      <div class="callout good"><p><strong>Everywhere:</strong> URL, query params, body <em>and headers</em> —
-         so a rotating auth token can live in the lake too. Headers joined in v1.19.</p></div>
-      <div class="panel after">
-        <h3>MAVLink message action</h3>
-        <p style="font-size:18px">Compose any MAVLink message, fill fields from the lake, send it. The autopilot
-           needs nothing Cockpit-specific.</p>
-      </div>
+  <div class="cols after">
+    <div class="callout good"><p><strong>Everywhere:</strong> URL, query parameters, headers and body. The same
+       <code>{{ }}</code> works in MAVLink message fields.</p></div>
+    <div class="panel">
+      <h3>MAVLink message action</h3>
+      <p style="font-size:18px">Compose any MAVLink message, fill fields from the lake, send it. The autopilot
+         needs nothing Cockpit-specific.</p>
     </div>
   </div>
 </section>
