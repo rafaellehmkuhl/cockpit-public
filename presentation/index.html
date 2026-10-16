@@ -575,7 +575,7 @@ This is the crowd-pleaser. Slow down and enjoy it.">
 Walk the rules:
 - send a JSON object: every key is a variable, and nested keys and array indexes become path segments, so Sonar.Altitude lands at external/sonar/altitude
 - the type comes from the JSON value itself: a number stays a number, true is a boolean, &quot;12&quot; stays a string
-- the original name=value line still works, one variable per message, type guessed from the text, quote it to force a string
+- a plain name=value line also works, one variable per message, type guessed from the text, quote it to force a string
 - either way the type locks on the first value it sees; null values are skipped with a warning
 
 An object whose type starts with cockpit: is a COMMAND, not data. Today that's point-of-interest add/update/remove — door 4 covers it.">
@@ -594,7 +594,7 @@ An object whose type starts with cockpit: is a COMMAND, not data. Today that's p
     <ul>
       <li><strong>Every key is a variable.</strong> Nesting and array indexes become the path.</li>
       <li><strong>Typed by JSON:</strong> numbers, booleans and strings stay what they are.</li>
-      <li><strong>Plain text still works:</strong> <code>WaterTemp=18.4</code>, one variable per message.</li>
+      <li><strong>Plain text also works:</strong> <code>WaterTemp=18.4</code>, one variable per message.</li>
       <li><strong>Lands at</strong> <code>external/</code> + a machinized path.</li>
     </ul>
   </div>
@@ -607,7 +607,7 @@ An object whose type starts with cockpit: is a COMMAND, not data. Today that's p
 
 'That's the integration. That's all of it.'
 
-Prefer plain text? ws.send(&quot;WaterTemp=23.5&quot;) still works on the same connection.
+Prefer plain text? ws.send(&quot;WaterTemp=23.5&quot;) also works on the same connection.
 
 If someone asks about auth/TLS: wss:// works, Cockpit just opens a WebSocket.">
   <div class="kicker">Door 1 · the other side</div>
