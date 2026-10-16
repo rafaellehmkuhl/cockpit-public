@@ -143,6 +143,19 @@
   .act-triggers .lake-h{grid-column:1 / -1;}
   .lake-core small{display:block; font-size:15px; font-weight:400; color:var(--muted); margin-top:6px; font-family:var(--mono);}
 
+  /* ---------------------------------------------------------------- placeholders for media still to capture */
+  .ph{
+    border:2px dashed rgba(143,167,162,.45); border-radius:14px; background:rgba(255,255,255,.025);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
+    padding:20px; min-height:220px;
+  }
+  .ph b{display:block; font-size:13px; letter-spacing:2px; text-transform:uppercase; color:var(--kelp); margin-bottom:10px;}
+  .ph span{font-size:17px; color:var(--muted); max-width:52ch; line-height:1.45;}
+  .ph.tall{min-height:380px;}
+  .ph.short{min-height:150px;}
+  .stats.five{grid-template-columns:repeat(5,1fr);}
+  .stats.five .stat .n{font-size:40px;}
+
   /* ---------------------------------------------------------------- what landed */
   .landed{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
   .landed .panel{padding:18px 22px;}
@@ -315,7 +328,7 @@
 <div id="stage"><div id="deck">
 
 <!-- ============================================================ 1 · TITLE -->
-<section data-secs="45" class="slide title-slide" data-notes="Open cold. Do NOT re-introduce Cockpit.
+<section data-secs="30" class="slide title-slide" data-notes="Open cold. Do NOT re-introduce Cockpit.
 
 'Two years ago in Kaga I stood up and explained what Cockpit is. I'm not doing that again today — the recording is online.
 
@@ -323,7 +336,7 @@ Today is one question: how do you plug YOUR thing into it.'
 
 Target: off this slide by 0:45.
 
-The plan runs ~36:30, leaving the rest of the 40 minutes as slack for demos that run long. The pace indicator follows that plan, not an even split.">
+The slot is 30 minutes. The plan runs ~24:00, leaving the rest as slack for demos that run long. The pace indicator follows that plan, not an even split.">
   <div class="kicker">ArduPilot Developer Conference · Ottawa 2026</div>
   <h1>Cockpit:<br>build on it</h1>
   <div class="title-rule"></div>
@@ -337,31 +350,31 @@ The plan runs ~36:30, leaving the rest of the 40 minutes as slack for demos that
 <!-- ============================================================ 2a · SINCE KAGA -->
 <section data-secs="60" class="slide" data-notes="Where we left off. v1.3.2 was the version live during the Kaga talk in October 2024; v1.18.4 is current stable and v1.19 is in beta (beta.18 as of mid-October).
 
-Then: Cockpit reached the vehicle only through BlueOS, as MAVLink over a WebSocket to mavlink2rest. Eleven widgets, and the iframe was the only way to bring your own UI. Actions meant HTTP requests.
+Then: Cockpit reached the vehicle only through BlueOS, as MAVLink over a WebSocket to mavlink2rest. There were two basic ways to integrate: a plain iframe widget and an HTTP request action. Widget counts are the WidgetType and MiniWidgetType enums in src/types/widgets.ts at each version.
 
 Numbers are measured from upstream master. Re-run them the week of the talk: git rev-list --count --since=2024-11-01 upstream/master, git diff --shortstat v1.3.2 upstream/master, and git ls-tree -r --name-only upstream/master src | wc -l.
 
 Don't read every number. Say: 'the short version is that the thing you saw in 2024 is not the thing running today.'">
   <div class="kicker">Since Kaga, October 2024</div>
   <h2>v1.3.2 &nbsp;&rarr;&nbsp; v1.19</h2>
-  <div class="stats">
+  <div class="stats five">
     <div class="stat"><div class="n">1,706</div><div class="l">commits since<br>November 2024</div></div>
     <div class="stat"><div class="n">27</div><div class="l">stable releases<br>v1.4.0 → v1.18.4</div></div>
     <div class="stat"><div class="n">126k</div><div class="l">lines added<br>across 596 files</div></div>
     <div class="stat"><div class="n">167→576</div><div class="l">source files<br>in <code>src/</code></div></div>
+    <div class="stat"><div class="n">11→16</div><div class="l">widgets, plus<br>16→21 mini-widgets</div></div>
   </div>
   <div class="panel after">
     <h3>Where we were, at v1.3.2</h3>
     <ul style="gap:9px">
       <li>MAVLink only through BlueOS, over a WebSocket to mavlink2rest</li>
-      <li>Eleven widgets, and an iframe was the only way to bring your own UI</li>
-      <li>One kind of action: an HTTP request</li>
+      <li>Two basic ways to integrate: a plain iframe widget, and an HTTP request action</li>
     </ul>
   </div>
 </section>
 
 <!-- ============================================================ 2b · WHAT LANDED -->
-<section data-secs="75" class="slide" data-notes="A sweep, not a tour. Most of these get their own slide later; point at the four groups and move on.
+<section data-secs="45" class="slide" data-notes="A sweep, not a tour. Most of these get their own slide later; point at the four groups and move on.
 
 Versions where they matter: serial and USB in 1.16, TCP/UDP and the ffmpeg recording pipeline in 1.17, RTSP, the mission control panel and settings sync in 1.18, and geofences, units, raw data logs, the MAVLink dumper and the MCP server in 1.19.">
   <div class="kicker">What landed since</div>
@@ -403,7 +416,7 @@ Versions where they matter: serial and USB in 1.16, TCP/UDP and the ffmpeg recor
 </section>
 
 <!-- ============================================================ 7 · FOUR DOORS -->
-<section data-secs="60" class="slide" data-notes="THE ROADMAP SLIDE. Come back to it between sections.
+<section data-secs="40" class="slide" data-notes="THE ROADMAP SLIDE. Come back to it between sections.
 
 'Four doors. They go from zero code to your own web app. Pick the lowest one that solves your problem — that's the whole advice of this talk.'
 
@@ -420,14 +433,14 @@ Point out the effort column. ~60 seconds.">
 </section>
 
 <!-- ============================================================ 8 · DIVIDER: DATA LAKE -->
-<section data-secs="10" class="slide divider" data-notes="Section 1 of 7. Budget check: you should be at ~4:00 here.">
+<section data-secs="5" class="slide divider" data-notes="Section 1 of 7. Budget check: you should be at ~3:00 here.">
   <div class="num">00</div>
   <h1>The data lake</h1>
   <p>One bus. Everything on it. Every door leads here.</p>
 </section>
 
 <!-- ============================================================ 9 · WHAT IT IS -->
-<section data-secs="90" class="slide" data-notes="In 2024 this existed but was called CockpitActionVariable and was basically plumbing for joystick actions. It got renamed to the data lake in November 2024 — literally the week of the last conference.
+<section data-secs="60" class="slide" data-notes="In 2024 this existed but was called CockpitActionVariable and was basically plumbing for joystick actions. It got renamed to the data lake in November 2024 — literally the week of the last conference.
 
 Now it's the spine of the application.
 
@@ -455,7 +468,7 @@ Key sentence: 'If a value is in the data lake, every part of Cockpit can already
 </section>
 
 <!-- ============================================================ 11 · IDS -->
-<section data-secs="60" class="slide" data-notes="Important practical detail for integrators: ids are free-form strings. There is NO enforced schema. The mavlink/ prefix is a convention the MAVLink layer follows, not a rule.
+<section data-secs="40" class="slide" data-notes="Important practical detail for integrators: ids are free-form strings. There is NO enforced schema. The mavlink/ prefix is a convention the MAVLink layer follows, not a rule.
 
 Your data lands under external/ automatically if it comes through the WebSocket door.">
   <div class="kicker">Addressing</div>
@@ -475,7 +488,7 @@ Your data lands under external/ automatically if it comes through the WebSocket 
 </section>
 
 <!-- ============================================================ 11b · MUSTACHE -->
-<section data-secs="90" class="slide" data-notes="This syntax shows up in every door, so teach it once here.
+<section data-secs="60" class="slide" data-notes="This syntax shows up in every door, so teach it once here.
 
 Wrap an id in double braces and Cockpit puts the current value there: in action URLs, headers and bodies, MAVLink message fields, compound variable expressions, WebSocket URLs, indicator text and the video telemetry overlay.
 
@@ -508,38 +521,41 @@ In compound variables the value goes in as a JavaScript literal, so a string can
 </section>
 
 <!-- ============================================================ 13 · TRANSFORMS -->
-<section data-secs="75" class="slide" data-notes="Compound variables: derived values without writing a widget or a service.
+<section data-secs="50" class="slide" data-notes="Compound variables: derived values without writing a widget or a service.
 
 Expression is plain JS with {{ }} substitution. It creates a real data-lake variable, so everything downstream just works.
 
-Good example to say out loud: 'water density from temperature and salinity, without writing a widget.'
-
-Units are new in 1.19: variables carry a unit and the operator picks display units per quantity. Expressions can ask for a unit system too.">
+The example is a trigger rather than a unit conversion, since units are already handled for you. Point at the GIF: the pressure moves, the boolean flips when it crosses the limit. Don't go into actions yet; that's the next door.">
   <div class="kicker">Derived values</div>
   <h2>Compound variables: JavaScript over the lake</h2>
-  <div class="cols wide-left">
+  <div class="cols">
     <div>
-      <div class="filename">expression</div>
-      <pre><code data-lang="js">// depth from pressure, live
-({{ external/pressure }} - 101325)
-  / (1025 * 9.80665)</code></pre>
-      <p class="after">The result becomes a <strong>real data-lake variable</strong> — plottable, recordable,
-         bindable to a joystick, usable as an action trigger.</p>
+      <div class="filename">compound variable · pressure-limit-reached</div>
+      <pre><code data-lang="js">// true while the payload is past its rated depth
+{{ external/pressure }} > 250000</code></pre>
+      <p class="after">The result is a <strong>real data-lake variable</strong>, a boolean here, updated with every
+         new pressure reading: plottable, recordable, and ready to fire an action.</p>
+      <p class="after muted" style="font-size:17px">Any variable you create can also persist across reboots:
+         the definition, the last value, or both.</p>
     </div>
-    <div class="panel">
-      <h3>Also persistent</h3>
-      <p style="font-size:18px">User-created variables can survive reboots — the definition, the value, or both.</p>
-      <p class="after muted" style="font-size:17px"><code>persistent</code> keeps the variable;
-         <code>persistValue</code> keeps its last value.</p>
-      <h3 class="after">And carries a unit</h3>
-      <p style="font-size:18px">MAVLink fields arrive tagged with theirs, you can set your own, and every widget
-         shows it in the operator's choice of metric, imperial or nautical.</p>
-    </div>
+    <div class="ph tall"><b>Placeholder · GIF</b><span>Two plotters side by side: external/pressure moving over time, and pressure-limit-reached flipping between false and true as it crosses 250000.</span></div>
+  </div>
+</section>
+
+<!-- ============================================================ 13b · IN AND OUT -->
+<section data-secs="20" class="slide center" data-notes="The question someone always asks here: fine, but how do I put my data in there, and get it out? Answer it, then go straight into door 1.">
+  <div class="kicker">So how does your data get in, and out?</div>
+  <h1 style="font-size:56px; max-width:22ch">Through four doors.</h1>
+  <div style="margin-top:30px">
+    <span class="pill on">ws:// · in</span>
+    <span class="pill on">actions · out</span>
+    <span class="pill on">DIY · in and out</span>
+    <span class="pill on">iframe · in and out</span>
   </div>
 </section>
 
 <!-- ============================================================ 14 · DIVIDER: DOOR 1 -->
-<section data-secs="10" class="slide divider" data-notes="Section 2. You should be at roughly 9:30.
+<section data-secs="5" class="slide divider" data-notes="Section 2. You should be at roughly 6:45.
 
 This is the crowd-pleaser. Slow down and enjoy it.">
   <div class="num">01</div>
@@ -548,7 +564,7 @@ This is the crowd-pleaser. Slow down and enjoy it.">
 </section>
 
 <!-- ============================================================ 15 · WIRE FORMAT -->
-<section data-secs="90" class="slide" data-notes="Deliberately, almost insultingly simple. That's the design point — say that.
+<section data-secs="50" class="slide" data-notes="Deliberately, almost insultingly simple. That's the design point — say that.
 
 Walk the rules:
 - send a JSON object: every key is a variable, and nested keys and array indexes become path segments, so Sonar.Altitude lands at external/sonar/altitude
@@ -581,7 +597,7 @@ An object whose type starts with cockpit: is a COMMAND, not data. Today that's p
 </section>
 
 <!-- ============================================================ 16 · THE SERVER -->
-<section data-secs="60" class="slide" data-notes="This runs as-is: pip install websockets, then python3 feed.py.
+<section data-secs="30" class="slide" data-notes="This runs as-is: pip install websockets, then python3 feed.py.
 
 'That's the integration. That's all of it.'
 
@@ -589,7 +605,9 @@ The temperature moves on purpose: the data lake only notifies on a change, so a 
 
 Prefer plain text? ws.send(&quot;WaterTemp=23.5&quot;) also works on the same connection.
 
-If someone asks about auth/TLS: wss:// works, Cockpit just opens a WebSocket.">
+If someone asks about auth/TLS: wss:// works, Cockpit just opens a WebSocket.
+
+Say it: today this door is one way, data comes in. Getting data out goes through actions, next. Two-way is on the what's-next slide.">
   <div class="kicker">Door 1 · the other side</div>
   <h2>The entire server</h2>
   <div class="cols">
@@ -625,7 +643,7 @@ asyncio.run(main())</code></pre>
 </section>
 
 <!-- ============================================================ 20 · DEMO 1 -->
-<section data-secs="120" class="slide demo" data-notes="LIVE DEMO — the most important two minutes of the talk.
+<section data-secs="90" class="slide demo" data-notes="LIVE DEMO — the most important two minutes of the talk.
 
 Have ready BEFORE you start:
   · terminal with feed.py open, NOT running
@@ -647,7 +665,7 @@ If it fails: say so and move on within 10 seconds. Do not debug on stage.">
 </section>
 
 <!-- ============================================================ 21 · DIVIDER: DOOR 2 -->
-<section data-secs="10" class="slide divider" data-notes="Section 3. Target ~14:00.
+<section data-secs="5" class="slide divider" data-notes="Section 3. Target ~9:45.
 
 Getting data IN is half. Now getting Cockpit to DO something.">
   <div class="num">02</div>
@@ -655,37 +673,8 @@ Getting data IN is half. Now getting Cockpit to DO something.">
   <p>Getting data in is half of it. Now make something happen.</p>
 </section>
 
-<!-- ============================================================ 23 · INTERPOLATION -->
-<section data-secs="75" class="slide" data-notes="The {{ }} substitution is what makes actions dynamic without code.
-
-Headers used to be the gotcha — they weren't interpolated. That was fixed in October (v1.19), after this talk was first drafted. Say so: it's a nice 'we listen' moment.">
-  <div class="kicker">Door 2 · composing</div>
-  <h2>Any action can read the lake</h2>
-  <div class="cols wide-left">
-    <div>
-      <div class="filename">HTTP request action · body</div>
-      <pre class="sm"><code data-lang="json">{
-  "vehicle": "{{ vehicle-address }}",
-  "temp_c":  {{ external/watertemp }},
-  "depth":   {{ mavlink/1/1/VFR_HUD/alt }}
-}</code></pre>
-      <p class="after muted" style="font-size:18px">Same <code>{{ }}</code> syntax in the URL, in query
-         parameters, and in MAVLink message fields.</p>
-    </div>
-    <div>
-      <div class="callout good"><p><strong>Everywhere:</strong> URL, query params, body <em>and headers</em> —
-         so a rotating auth token can live in the lake too. Headers joined in v1.19.</p></div>
-      <div class="panel after">
-        <h3>MAVLink message action</h3>
-        <p style="font-size:18px">Compose any MAVLink message, fill fields from the lake, send it. The autopilot
-           needs nothing Cockpit-specific.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- ============================================================ 24 · TRIGGERS -->
-<section data-secs="75" class="slide" data-notes="This is the slide that turns actions from 'buttons' into 'automation'. Four triggers.
+<section data-secs="50" class="slide" data-notes="This is the slide that turns actions from 'buttons' into 'automation'. Four triggers.
 
 Action links are the interesting one: fire when a variable changes, no faster than a rate you set. That's a closed control loop with zero compiled code.
 
@@ -719,39 +708,77 @@ Give the worked example verbally: external/watertemp crosses a threshold, a comp
   </div>
 </section>
 
+<!-- ============================================================ 23 · INTERPOLATION -->
+<section data-secs="35" class="slide" data-notes="The {{ }} substitution is what makes actions dynamic without code.
+
+Headers used to be the gotcha — they weren't interpolated. That was fixed in October (v1.19), after this talk was first drafted. Say so: it's a nice 'we listen' moment.">
+  <div class="kicker">Door 2 · composing</div>
+  <h2>Any action can read the lake</h2>
+  <div class="cols wide-left">
+    <div>
+      <div class="filename">HTTP request action · body</div>
+      <pre class="sm"><code data-lang="json">{
+  "vehicle": "{{ vehicle-address }}",
+  "temp_c":  {{ external/watertemp }},
+  "depth":   {{ mavlink/1/1/VFR_HUD/alt }}
+}</code></pre>
+      <p class="after muted" style="font-size:18px">Same <code>{{ }}</code> syntax in the URL, in query
+         parameters, and in MAVLink message fields.</p>
+    </div>
+    <div>
+      <div class="callout good"><p><strong>Everywhere:</strong> URL, query params, body <em>and headers</em> —
+         so a rotating auth token can live in the lake too. Headers joined in v1.19.</p></div>
+      <div class="panel after">
+        <h3>MAVLink message action</h3>
+        <p style="font-size:18px">Compose any MAVLink message, fill fields from the lake, send it. The autopilot
+           needs nothing Cockpit-specific.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ============================================================ 24b · DEMO 2 -->
-<section data-secs="120" class="slide demo" data-notes="LIVE DEMO, about two minutes.
+<section data-secs="90" class="slide demo" data-notes="LIVE DEMO, about ninety seconds.
 
 Have ready BEFORE you start:
-  · feed.py from the first demo still running and connected
-  · a second terminal, font cranked up, with python3 -m http.server 8000 typed but NOT running
-  · Cockpit open on Settings → Actions
+  · the small API and its web page already running on your VPS, page open in a tab
+  · a joystick connected, with an axis that moves smoothly
+  · Cockpit with a plotter already on that axis
 
-The point to land: nothing on the other end knows about Cockpit. It's a stock Python web server, and Cockpit is calling it with live values.
+Create the action live: HTTP request with the axis value in the URL, then an automatic trigger on the axis, rate-limited.
 
-The request lands in the server log even if Cockpit can't read the response, so a CORS complaint in Cockpit doesn't matter here.
+The point to land: the page on the VPS knows nothing about Cockpit, and nothing is uploaded to Cockpit's repository. It's your own integration, local to you.
 
 If it fails: say so and move on within 10 seconds. Do not debug on stage.">
   <div class="badge">Live demo</div>
   <h1>Cockpit calls you</h1>
   <div class="steps">
-    <div><b>1</b> Run <code>python3 -m http.server 8000</code> in a second terminal</div>
-    <div><b>2</b> New HTTP request action: <code>http://localhost:8000/?temp={{ external/watertemp }}</code></div>
-    <div><b>3</b> Automatic triggers → when <code>external/watertemp</code> changes, no faster than 1/s</div>
-    <div><b>4</b> Every new reading shows up in the server log. Done.</div>
+    <div><b>1</b> A small API and its web page, already running on a VPS</div>
+    <div><b>2</b> New HTTP request action, with the joystick axis in the URL: <code>?v={{ inputs/mavlink/axis-x }}</code></div>
+    <div><b>3</b> Automatic triggers → when the axis changes, no faster than 10/s</div>
+    <div><b>4</b> Move the stick: Cockpit's plotter and the web page move together</div>
   </div>
   <div class="fallback">If it fails: no debugging on stage. Ten seconds, then move on.</div>
 </section>
 
 <!-- ============================================================ 26 · DIVIDER: DOOR 3 -->
-<section data-secs="10" class="slide divider" data-notes="Section 4. Target ~18:45. Pick up the pace slightly from here.">
+<section data-secs="5" class="slide divider" data-notes="The idea came out of Kaga 2024, inspired by a talk at that conference (fill in the name and credit it). Section 4. Target ~12:45. Pick up the pace slightly from here.">
   <div class="num">03</div>
   <h1>The DIY widget</h1>
   <p>When you need pixels, not just values.</p>
 </section>
 
+<!-- ============================================================ 27a · DIY GALLERY -->
+<section data-secs="30" class="slide" data-notes="Every widget on this slide is a DIY widget. None of them exists in Cockpit itself; they were made for this talk and live only locally.
+
+There's no public gallery of DIY widgets yet. A public repository where people can post theirs would be a good thing to have.">
+  <div class="kicker">Door 3</div>
+  <h2>None of these ship with Cockpit</h2>
+  <div class="ph tall"><b>Placeholder · Screenshot</b><span>A view full of DIY widgets built for this talk: a few different ones side by side, to show how far a widget typed into the app can go.</span></div>
+</section>
+
 <!-- ============================================================ 12 · WINDOW.COCKPIT -->
-<section data-secs="45" class="slide" data-notes="This is the API the DIY widget on the next slide uses, and JavaScript actions too. It's global, no import, available to any JS running in the page. It's window.cockpit underneath, but every script in Cockpit just writes cockpit.
+<section data-secs="30" class="slide" data-notes="This is the API the DIY widget on the next slide uses, and JavaScript actions too. It's global, no import, available to any JS running in the page. It's window.cockpit underneath, but every script in Cockpit just writes cockpit.
 
 Don't read the list. Point at the two halves: read/write data, and fire actions.">
   <div class="kicker">The public API</div>
@@ -779,7 +806,11 @@ cockpit.deleteAction(id)</code></pre>
 </section>
 
 <!-- ============================================================ 27 · DIY -->
-<section data-secs="90" class="slide" data-notes="An editor inside the app. Monaco, with autocomplete over data-lake ids and LIVE VALUES in the hover tooltips — that detail lands well, mention it.
+<section data-secs="45" class="slide" data-notes="An editor inside the app: Monaco, the same editor VS Code is built on, with autocomplete over data-lake ids and LIVE VALUES in the hover tooltips. That detail lands well, mention it.
+
+No {{ }} parsing here: it's plain JavaScript with direct access to the cockpit. API from the previous slide, so it can read, write and listen to the lake, create variables and call actions.
+
+One toggle and the widget picks up Cockpit's glass styling, so it doesn't look bolted on.
 
 New in v1.19: 'Run script in its own scope'. The script gets root (its own element) and a cockpit object whose listeners and timers are undone when you re-apply it or delete the widget — cockpit.onCleanup(fn) for anything else. Two copies of the same widget no longer fight over element ids. It's on by default for new widgets only; existing ones keep the old global script.
 
@@ -787,64 +818,55 @@ Be honest: scoped is NOT sandboxed. Same document, same privileges.">
   <div class="kicker">Door 3</div>
   <h2>Write a widget without leaving the app</h2>
   <div class="cols wide-left">
+    <div class="ph tall"><b>Placeholder · Screenshot</b><span>The DIY widget editor open: the HTML, CSS and JS panes in the Monaco editor, with autocomplete over variable ids.</span></div>
     <div>
       <div class="filename">DIY widget · js</div>
-      <pre class="sm"><code data-lang="js">// scoped mode: root is this widget's element
-const el = root.querySelector('.temp')
-
+      <pre class="xs"><code data-lang="js">const el = root.querySelector('.temp')
 cockpit.listenDataLakeVariable(
   'external/watertemp',
   (v) => { el.textContent = v.toFixed(1) + ' °C' }
-) // undone automatically on re-apply or removal</code></pre>
-      <p class="after muted" style="font-size:18px">Three panes — HTML, CSS, JS — in a Monaco editor, with
-         autocomplete over variable ids and <strong>live values in the hover tooltips</strong>.</p>
-    </div>
-    <div>
-      <div class="panel">
-        <h3>Inherits the interface</h3>
-        <p style="font-size:18px">One toggle and your widget picks up Cockpit's glass styling, so it doesn't look
-           bolted on.</p>
-      </div>
-      <div class="callout">
-        <p><strong>Scoped, not sandboxed.</strong> Scoped mode cleans up after itself, but your JavaScript still
-           runs in Cockpit's own document with the app's privileges. Treat shared DIY widgets like any script you
-           paste into a console.</p>
+)</code></pre>
+      <div class="callout after">
+        <p><strong>Scoped, not sandboxed.</strong> It cleans up after itself, but runs with Cockpit's
+           privileges.</p>
       </div>
     </div>
   </div>
 </section>
 
 <!-- ============================================================ 27c · DEMO 3 -->
-<section data-secs="90" class="slide demo" data-notes="LIVE DEMO, about ninety seconds.
+<section data-secs="75" class="slide demo" data-notes="LIVE DEMO, about seventy-five seconds.
 
 Have ready BEFORE you start:
   · feed.py still running, so external/watertemp is moving
+  · the DIY widget's exported configuration in a file you can find fast
   · Cockpit on a view with free space, edit mode one click away
-  · the HTML line and the JavaScript from the previous slide in your clipboard manager
 
-Show the autocomplete and the live value in the hover tooltip while you type the id. Then delete the widget to show the listener goes with it.
+Import it, show it working, then open the editor and change one thing in the code (a colour, a threshold) and apply. Show the autocomplete and the live value in the hover tooltip while you're in there.
 
 If it fails: say so and move on within 10 seconds. Do not debug on stage.">
   <div class="badge">Live demo</div>
   <h1>A widget, typed in</h1>
   <div class="steps">
     <div><b>1</b> Edit mode → drop a DIY widget on the view</div>
-    <div><b>2</b> HTML: <code>&lt;div class="temp"&gt;--&lt;/div&gt;</code></div>
-    <div><b>3</b> JS: the code from the previous slide, with "Run script in its own scope" on</div>
-    <div><b>4</b> Apply → the temperature ticks. Delete it, and its listener goes too.</div>
+    <div><b>2</b> Import a ready-made widget from a file: it runs straight away</div>
+    <div><b>3</b> Open the editor and change one thing in the code</div>
+    <div><b>4</b> Apply → the widget updates in place</div>
   </div>
   <div class="fallback">If it fails: no debugging on stage. Ten seconds, then move on.</div>
 </section>
 
 <!-- ============================================================ 28 · DIVIDER: DOOR 4 -->
-<section data-secs="10" class="slide divider" data-notes="Section 5. Target ~22:45.">
+<section data-secs="5" class="slide divider" data-notes="Section 5. Target ~15:45.">
   <div class="num">04</div>
   <h1>iframe + CockpitAPI</h1>
   <p>You already have a web app. Bring it.</p>
 </section>
 
 <!-- ============================================================ 29 · IFRAME -->
-<section data-secs="75" class="slide" data-notes="For teams who already built a payload UI. Don't rewrite it — embed it.
+<section data-secs="50" class="slide" data-notes="For teams who already built a payload UI. Don't rewrite it — embed it. It can run on the companion computer, on the topside machine, anywhere.
+
+The page can stay completely separate from Cockpit, or talk to it over postMessage. That API is badly documented today, and we know it.
 
 useVehicleAddressAsBase is the killer option: your widget URL resolves against whatever vehicle the operator is connected to. No hardcoded IPs.
 
@@ -875,10 +897,11 @@ New since September: the child can WRITE points of interest — add, update, rem
   variable: 'external/watertemp', value: 23.5 }</code></pre>
     </div>
   </div>
+  <div class="ph short after"><b>Placeholder · Screenshot</b><span>An iframe widget on a view, showing an external page inside Cockpit, such as a camera control page served by the companion computer.</span></div>
 </section>
 
 <!-- ============================================================ 30 · IFRAME OPTS -->
-<section data-secs="30" class="slide" data-notes="Quick slide, 30 seconds. The options that matter for integrators.
+<section data-secs="25" class="slide" data-notes="Quick slide, 30 seconds. The options that matter for integrators.
 
 useVehicleAddressAsBase is the one to emphasise again.">
   <div class="kicker">Door 4 · options worth knowing</div>
@@ -894,7 +917,9 @@ useVehicleAddressAsBase is the one to emphasise again.">
 </section>
 
 <!-- ============================================================ 35b · BONUS: MCP -->
-<section data-secs="75" class="slide" data-notes="BONUS DOOR — landed in October, after the four-door structure was set. ~75 seconds, take it out of the recap slide if you're behind.
+<section data-secs="45" class="slide" data-notes="BONUS DOOR — landed in October, after the four-door structure was set.
+
+The bridge: 'I've shown you how to build all of this by hand, through the interface. But most of us use agents for a lot of our work now, and changing an app to work your way is close to coding it. So why not vibe-code your Cockpit integration directly?'
 
 Cockpit Standalone runs a local MCP server (off by default, Settings → General → AI agent access). Any MCP client — Claude, Cursor, whatever — connects with a bearer token and gets 34 tools: data lake, transforming functions, actions, views, widgets, DIY widgets, points of interest, screenshots.
 
@@ -930,27 +955,51 @@ evaluate_expression        take_screenshot</code></pre>
   </div>
 </section>
 
-<!-- ============================================================ 36 · CHOOSING -->
-<section data-secs="60" class="slide" data-notes="The practical summary. If someone remembers one slide, make it this one.
+<!-- ============================================================ 35c · DEMO 4 -->
+<section data-secs="90" class="slide demo" data-notes="LIVE DEMO, about ninety seconds. Rough is fine, that's the point.
 
-Say the advice out loud: 'pick the lowest row that solves your problem.' Most people over-build — they reach for door 4 when door 1 would do.">
+Have ready BEFORE you start:
+  · Cockpit Standalone with AI agent access on, and the code opt-in on
+  · an MCP client already connected to it, with a big font
+  · feed.py still running, so there's live data to build on
+
+Ask for a DIY widget in one sentence. Let the agent build it, take a screenshot of its own work and fix what it sees.
+
+If it fails: say so and move on within 10 seconds. Do not debug on stage.">
+  <div class="badge">Live demo</div>
+  <h1>Describe it instead</h1>
+  <div class="steps">
+    <div><b>1</b> Settings → General → AI agent access, on</div>
+    <div><b>2</b> Ask an agent for a DIY widget that shows the water temperature</div>
+    <div><b>3</b> It builds the widget, then takes a screenshot to check its own work</div>
+    <div><b>4</b> One more sentence to change it. Done.</div>
+  </div>
+  <div class="fallback">If it fails: no debugging on stage. Ten seconds, then move on.</div>
+</section>
+
+<!-- ============================================================ 36 · CHOOSING -->
+<section data-secs="30" class="slide" data-notes="The practical summary. If someone remembers one slide, make it this one.
+
+Say the advice out loud: 'pick the lowest row that solves your problem.' Most people over-build — they reach for door 4 when door 1 would do.
+
+Worth saying: Blue Robotics builds its own product integrations on these same doors, so they get the same care as any first-party feature.">
   <div class="kicker">Recap</div>
   <h2>Pick the lowest door that works</h2>
   <table>
-    <tr><th>Door</th><th>Use it when</th><th>Cost</th></tr>
-    <tr><td><strong>1 · WebSocket</strong></td><td>You have values and want them seen, plotted, logged</td><td class="n">~5 minutes</td></tr>
-    <tr><td><strong>2 · Actions</strong></td><td>You need Cockpit to call you, or the vehicle to react</td><td class="n">~15 minutes</td></tr>
-    <tr><td><strong>3 · DIY widget</strong></td><td>You need a custom display and don't want to host anything</td><td class="n">~30 minutes</td></tr>
-    <tr><td><strong>4 · iframe</strong></td><td>You already have a web UI worth keeping</td><td class="n">~1 hour, plus your app</td></tr>
-    <tr><td><strong>+ · MCP</strong></td><td>You'd rather describe it than build it</td><td class="n">a sentence</td></tr>
+    <tr><th>Door</th><th>Use it when</th></tr>
+    <tr><td><strong>1 · WebSocket</strong></td><td>You have values and want them seen, plotted, logged</td></tr>
+    <tr><td><strong>2 · Actions</strong></td><td>You need Cockpit to call you, or the vehicle to react</td></tr>
+    <tr><td><strong>3 · DIY widget</strong></td><td>You need a custom display and don't want to host anything</td></tr>
+    <tr><td><strong>4 · iframe</strong></td><td>You already have a web UI worth keeping</td></tr>
+    <tr><td><strong>+ · MCP</strong></td><td>You'd rather describe it than build it</td></tr>
   </table>
   <div class="callout"><p>Most people reach for door 4 when door 1 would have done. Don't.</p></div>
 </section>
 
 <!-- ============================================================ 4 · THE OBJECTION -->
-<section data-secs="30" class="slide center" data-notes="Say it plainly and let it sit.
+<section data-secs="15" class="slide center" data-notes="Say it plainly and let it sit.
 
-'In 2024 a lot of you looked at Cockpit and thought: nice, but that's the Blue Robotics ROV thing. It never needed one of our vehicles, but it did need BlueOS. Today BlueOS still adds things, and the next slides show them, but you don't need it.'
+'In 2024 a lot of you looked at Cockpit and thought: nice, but that's the Blue Robotics ROV thing. It never needed one of our vehicles, but it did need BlueOS. Today BlueOS still adds things, and the slide after next lists them, but you don't need it.'
 
 Beat. Then next slide.">
   <div class="kicker">BlueOS, optional</div>
@@ -959,9 +1008,9 @@ Beat. Then next slide.">
 </section>
 
 <!-- ============================================================ 5 · NOT ANYMORE -->
-<section data-secs="60" class="slide" data-notes="Three bullets, three releases.
+<section data-secs="35" class="slide" data-notes="Three bullets, three releases.
 
-The fourth is not shipped: raw RTP over UDP is a draft PR, #2961. Say it's in progress, no date.
+The fourth is not shipped: raw RTP over UDP is a draft PR, #2961. Say it's in progress, no date. It's the last piece for video parity with the other ground stations.
 
 ~60 seconds.">
   <div class="kicker">Without BlueOS</div>
@@ -986,115 +1035,32 @@ The fourth is not shipped: raw RTP over UDP is a draft PR, #2961. Say it's in pr
   </div>
 </section>
 
-<!-- ============================================================ 32 · DISCOVERY -->
-<section data-secs="60" class="slide" data-notes="This is what BlueOS adds: an extension can set Cockpit up for the operator, with widgets, actions and joystick mappings in one file it serves itself.
+<!-- ============================================================ 35d · WITH BLUEOS -->
+<section data-secs="40" class="slide" data-notes="What you get on top when there's a BlueOS on the vehicle.
 
-Walk the discovery chain left to right. Key point: there is NO fixed path. Your extension declares the relative path in its own BlueOS metadata under extras.cockpit.
+Extensions: Cockpit asks BlueOS which services are running, and any service that declares extras.cockpit in its metadata gets its manifest fetched from whatever relative path it names. The manifest carries iframe widgets, actions and joystick button suggestions. The schema is only documented by the Zod types in the repo. Nothing applies itself: the operator reviews every suggestion and accepts or ignores it, which is why they can install an extension the morning of a dive.
 
-This is the bit that isn't documented anywhere outside the Zod types.">
-  <div class="kicker">With BlueOS · discovery</div>
-  <h2>How Cockpit finds you</h2>
-  <div class="flow">
-    <div class="step">GET /helper/v1.0/web_services</div>
-    <div class="arw">→</div>
-    <div class="step">metadata.extras.cockpit</div>
-    <div class="arw">→</div>
-    <div class="step">fetch that path</div>
-    <div class="arw">→</div>
-    <div class="step">ExtrasJson</div>
-  </div>
-  <p class="after">Cockpit asks BlueOS what services are running. Any service that declares
-     <code>extras.cockpit</code> in its metadata gets fetched at <strong>whatever relative path it names</strong>.</p>
-  <div class="callout"><p>There is <strong>no fixed endpoint</strong> like <code>/cockpit-widgets</code>.
-     You choose the path; Cockpit follows it.</p></div>
-</section>
+Companion computer data lands in the data lake under blueos/, such as CPU temperature, load and frequency.
 
-<!-- ============================================================ 33 · MANIFEST -->
-<section data-secs="60" class="slide" data-notes="The whole contract on one slide. Three arrays.
-
-Read the shape, don't read every field. Say: 'widgets, actions, and joystick suggestions — in one file that you serve yourself.'">
-  <div class="kicker">With BlueOS · the contract</div>
-  <h2>One file, three arrays</h2>
-  <pre class="sm"><code data-lang="json">{
-  "targetSystem": "cockpit",
-  "targetCockpitApiVersion": "1.0.0",
-
-  "widgets": [
-    { "name": "Sonar Payload",
-      "iframeUrl": "/ui/panel.html",
-      "iconUrl": "/ui/icon.svg",
-      "useExtensionPathAsBaseUrl": true,
-      "collapsibleContainerName": "Payload" }
-  ],
-
-  "actions": [
-    { "id": "payload-ping", "name": "Ping payload", "type": "http-request",
-      "config": { "url": "http://{{ vehicle-address }}:9000/ping", "method": "POST" } }
-  ],
-
-  "joystickSuggestions": [ /* ... */ ]
-}</code></pre>
-</section>
-
-<!-- ============================================================ 34 · JOYSTICK -->
-<section data-secs="75" class="slide" data-notes="THE SURPRISE. Land this one properly — pause before it.
-
-'Your extension can propose joystick button mappings. I have not seen another ground station do this.'
-
-Then immediately reassure: it's a SUGGESTION. The operator reviews and accepts. You cannot silently rebind someone's controller mid-dive.">
-  <div class="kicker">With BlueOS · the one nobody expects</div>
-  <h2>Your extension can propose button mappings</h2>
-  <div class="cols wide-left">
-    <div>
-      <pre class="sm"><code data-lang="json">{
-  "id": "sonar-payload-map",
-  "name": "Sonar payload controls",
-  "targetVehicleTypes": ["sub", "rover"],
-  "buttonMappingSuggestions": [
-    { "actionProtocol": "cockpit-action",
-      "actionId": "payload-ping",
-      "actionName": "Ping payload",
-      "button": 3,
-      "modifierKey": "shift" }
-  ]
-}</code></pre>
-    </div>
-    <div>
-      <p>Ship a payload, and ship <strong>the controls for it</strong> — so the operator doesn't have to read your
-         manual to find out that shift+Y pings the sonar.</p>
-      <div class="callout good"><p>It's a <em>suggestion</em>. The operator sees a review dialog and accepts or
-         ignores it. You cannot silently rebind someone's controller.</p></div>
-      <p class="after muted" style="font-size:17px">Keys may be snake_case — the schema normalises them.</p>
-    </div>
-  </div>
-</section>
-
-<!-- ============================================================ 35 · CONSENT -->
-<section data-secs="45" class="slide" data-notes="Say the rule plainly: nothing from an extension applies itself. It limits what an extension can do, and it's the reason an operator can trust installing one.">
-  <div class="kicker">With BlueOS · the rule that makes it safe</div>
-  <h2>Nothing applies itself</h2>
-  <div class="cols">
-    <div>
-      <p>Every suggested widget, action and mapping goes through a review dialog. The operator accepts, ignores,
-         or restores it later.</p>
-      <p class="after">This is why an operator can install your extension the morning of a dive without reading
-         the source.</p>
-    </div>
-    <div class="panel">
-      <h3>Which also means</h3>
-      <ul style="gap:9px">
-        <li>Your integration is <strong>discoverable</strong>, not imposed</li>
-        <li>Uninstalling your extension doesn't wreck their layout</li>
-        <li>Several payload extensions can run side by side</li>
-      </ul>
-    </div>
-  </div>
+Settings are stored on the vehicle through BlueOS, so they follow the operator between topside machines.">
+  <div class="kicker">With BlueOS</div>
+  <h2>What BlueOS adds on top</h2>
+  <ul>
+    <li><strong>Extensions that set Cockpit up for you</strong>
+      <small>A manifest the extension serves: iframe widgets, actions and joystick button suggestions, each one reviewed by the operator</small></li>
+    <li><strong>The companion computer in the data lake</strong>
+      <small>CPU temperature, load and more, under <code>blueos/</code></small></li>
+    <li><strong>Settings synced with the vehicle</strong>
+      <small>They follow the operator from one topside machine to the next</small></li>
+  </ul>
 </section>
 
 <!-- ============================================================ 41 · WHAT'S NEXT -->
-<section data-secs="90" class="slide" data-notes="Forward look, ~90 seconds. Don't read every line; pick the two or three this room cares about (3D maps and measuring, for anyone flying).
+<section data-secs="50" class="slide" data-notes="Forward look, ~90 seconds. Don't read every line; pick the two or three this room cares about (3D maps and measuring, for anyone flying).
 
-Record and replay: the 1.18 release notes promised the data lake would become the de-facto pipeline, and 1.19 shipped raw CSV/JSON logs and a MAVLink dumper with a live plotter. The same four doors that feed live telemetry will feed the recording, so your payload data replays alongside the vehicle's.
+Two-way WebSocket: today the generic WebSocket only brings data in; the plan is to send data out over it too.
+
+Record and replay: a few widgets still read outside the data lake, and they all have to move before a whole session can be saved to a file and replayed, which is mostly for debugging. The 1.18 release notes promised the data lake would become the de-facto pipeline, and 1.19 shipped raw CSV/JSON logs and a MAVLink dumper with a live plotter. The same four doors that feed live telemetry will feed the recording, so your payload data replays alongside the vehicle's.
 
 3D maps: two draft PRs replace Leaflet across the map widget, the minimap and mission planning, one with MapLibre GL (#3120) and one with CesiumJS (#3122). We're testing both before picking one. Ask the room to try them.
 
@@ -1104,7 +1070,9 @@ H.265: PR #2967. Translations: PR #2314 sets up i18n, with Chinese and English t
   <div class="cols">
     <ul>
       <li><strong>Record and replay</strong> of a whole session
-        <small>If it's in the lake, it can be replayed</small></li>
+        <small>Every widget on the data lake first, then a saved lake you can replay</small></li>
+      <li><strong>Two-way generic WebSocket</strong>
+        <small>Send data out, not just in</small></li>
       <li><strong>3D maps</strong>
         <small>Draft PRs open for testing: MapLibre GL #3120, CesiumJS #3122</small></li>
       <li><strong>Map tools</strong>
@@ -1124,7 +1092,7 @@ H.265: PR #2967. Translations: PR #2314 sets up i18n, with Chinese and English t
 </section>
 
 <!-- ============================================================ 39 · AERIAL -->
-<section data-secs="90" class="slide" data-notes="THE ASK. Say it plainly, no hedging.
+<section data-secs="60" class="slide" data-notes="THE ASK. Say it plainly, no hedging.
 
 Quote our own README out loud — it's more credible coming from you than from a critic.
 
@@ -1156,7 +1124,7 @@ Then: pause. Actually ask. Look at people.">
 </section>
 
 <!-- ============================================================ 42 · GET INVOLVED -->
-<section data-secs="45" class="slide" data-notes="Practical landing slide. Leave it up during questions.
+<section data-secs="25" class="slide" data-notes="Practical landing slide. Leave it up during questions.
 
 Mention the monthly developer calls on Discord — that's the lowest-friction way in for anyone in this room.">
   <div class="kicker">Get involved</div>
@@ -1185,7 +1153,7 @@ Mention the monthly developer calls on Discord — that's the lowest-friction wa
 </section>
 
 <!-- ============================================================ 43 · CLOSE -->
-<section data-secs="20" class="slide center" data-notes="Land it and stop talking. Q&A is a separate slot, so don't invite questions here — just stop.
+<section data-secs="15" class="slide center" data-notes="Land it and stop talking. Q&A is a separate slot, so don't invite questions here — just stop.
 
 'Four doors. Pick the lowest one. And if you fly, please come find me.'">
   <h1 style="font-size:58px; max-width:22ch">Four doors.<br>Pick the lowest one that works.</h1>
@@ -1204,7 +1172,7 @@ Mention the monthly developer calls on Discord — that's the lowest-friction wa
 <div id="hud"><div id="bar"></div></div>
 <div id="meta">
   <span id="pace"></span>
-  <span id="clock">00:00 / 40:00</span>
+  <span id="clock">00:00 / 30:00</span>
   <span id="count">1 / 1</span>
   <span class="dim">? help</span>
 </div>
@@ -1240,7 +1208,7 @@ Mention the monthly developer calls on Discord — that's the lowest-friction wa
   var ovgrid    = document.getElementById('ovgrid');
   var help      = document.getElementById('help');
 
-  var TALK_SECONDS = 40 * 60;
+  var TALK_SECONDS = 30 * 60;
   var LAST_TALK_SLIDE = slides.length - 1;
   // Each slide's data-secs is its share of the plan, so a two-minute demo isn't counted as falling behind.
   var plannedStart = [];
@@ -1334,7 +1302,7 @@ Mention the monthly developer calls on Discord — that's the lowest-friction wa
   }
 
   function updateClock() {
-    clockEl.textContent = fmt(elapsed) + ' / 40:00';
+    clockEl.textContent = fmt(elapsed) + ' / ' + fmt(TALK_SECONDS);
     clockEl.className = !running ? '' :
       elapsed > TALK_SECONDS + 300 ? 'late' :
       elapsed > TALK_SECONDS ? 'over' : 'run';
