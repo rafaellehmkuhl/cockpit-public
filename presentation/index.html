@@ -1240,94 +1240,6 @@ Mention the monthly developer calls on Discord — that's the lowest-friction wa
   <p class="after dim" style="font-size:17px">Rafael Lehmkuhl · Blue Robotics · github.com/bluerobotics/cockpit</p>
 </section>
 
-<!-- ============================================================ 44 · BACKUP -->
-<section class="slide" data-notes="BACKUP SLIDES START HERE. Don't present these — jump to them if a question needs them.
-
-Press O for the overview grid to find the right one fast.">
-  <div class="kicker">Backup</div>
-  <h2>Backup slides</h2>
-  <p class="muted">Not part of the 40 minutes. Jump here from the overview (press <code>O</code>) if a question needs it.</p>
-  <ul class="after">
-    <li>Joystick configuration and SDL</li>
-    <li>Mission planning and command waypoints</li>
-    <li>Video pipeline and RTSP</li>
-    <li>MAVLink inspector</li>
-    <li>Settings sync architecture</li>
-  </ul>
-</section>
-
-<!-- ============================================================ 45 · BACKUP joystick -->
-<section class="slide media-slide" data-notes="BACKUP · joystick.
-
-Moved to SDL in Electron (v1.16) so the controller keeps working when the window is unfocused. Deadband calibration and exponential scaling. Multiple joysticks. Auto-disables when another GCS is in control. Steam Deck profiles ship by default.">
-  <h2>Backup · joystick configuration</h2>
-  <figure class="grow">
-    <img src="media/shots/07-joystick.webp" alt="Cockpit joystick configuration">
-    <figcaption>SDL-backed in Standalone since v1.16 — works with the window unfocused</figcaption>
-  </figure>
-</section>
-
-<!-- ============================================================ 46 · BACKUP mission -->
-<section class="slide media-slide" data-notes="BACKUP · mission planning.
-
-v1.17 brought MAVLink command waypoints — loiters, loops, servo commands, DO_ items. v1.18 added the mission control panel, survey height and turnaround distance. v1.19 added a mission library, crosshatch re-fly for photogrammetry, and touchscreen gestures.
-
-Also v1.19: geofences. Draw them in mission planning, upload/fetch/clear on the vehicle sized to its fence storage, a live overlay on the map, breach warnings, and waypoints that breach the fence are marked before upload. Mission download is pipelined instead of one item every 250 ms.">
-  <h2>Backup · mission planning</h2>
-  <figure class="grow">
-    <img src="media/shots/10-mission-planning.webp" alt="Cockpit mission planning view">
-    <figcaption>Command waypoints, surveys, geofences, offline tiles, GeoTiff overlays</figcaption>
-  </figure>
-</section>
-
-<!-- ============================================================ 47 · BACKUP video -->
-<section class="slide media-slide" data-notes="BACKUP · video.
-
-v1.17 rewrote the pipeline on ffmpeg — recording is processed in real time, so length is no longer bounded by memory. Tested past three hours. v1.18 added direct RTSP so the stream can come straight from the camera.">
-  <h2>Backup · video pipeline</h2>
-  <figure class="grow">
-    <img src="media/shots/08-video.webp" alt="Cockpit video configuration">
-    <figcaption>ffmpeg-backed since v1.17 · direct RTSP since v1.18</figcaption>
-  </figure>
-</section>
-
-<!-- ============================================================ 48 · BACKUP mavlink -->
-<section class="slide media-slide" data-notes="BACKUP · MAVLink inspector.
-
-Shows incoming and outgoing messages with timestamps. v1.19 added a message dumper and live plotter — effectively readable JSON tlogs for debugging.">
-  <h2>Backup · MAVLink inspector</h2>
-  <figure class="grow">
-    <img src="media/shots/09-mavlink-inspector.webp" alt="Cockpit MAVLink inspector">
-    <figcaption>Per-message inspection, timestamps, and a live plotter for debugging</figcaption>
-  </figure>
-</section>
-
-<!-- ============================================================ 49 · BACKUP settings -->
-<section class="slide" data-notes="BACKUP · settings sync.
-
-The old behaviour: a modal on every startup asking which version of each changed setting to keep. Universally hated.
-
-v1.18 refactored it: every write carries a timestamp, newest wins, sync is automatic, scoped per user AND per vehicle. The modal is gone.
-
-Good answer if someone asks 'what was the hardest thing you fixed'.">
-  <div class="kicker">Backup</div>
-  <h2>Settings sync, before and after</h2>
-  <div class="cols">
-    <div class="panel">
-      <h3 style="color:var(--red)">Before</h3>
-      <p style="font-size:18px">A modal on every startup, asking which copy of every changed setting to keep.
-         The most-hated feature we shipped.</p>
-    </div>
-    <div class="panel">
-      <h3>After · v1.18</h3>
-      <p style="font-size:18px">Every write carries a timestamp. Newest wins. Automatic, scoped per user and per
-         vehicle. No modal.</p>
-    </div>
-  </div>
-  <div class="callout good"><p>Settings follow the operator between topside machines — which is what the feature was
-     always for, minus the interrogation.</p></div>
-</section>
-
 </div></div>
 
 <div id="hud"><div id="bar"></div></div>
@@ -1370,9 +1282,7 @@ Good answer if someone asks 'what was the hardest thing you fixed'.">
   var help      = document.getElementById('help');
 
   var TALK_SECONDS = 40 * 60;
-  // Backup slides sit outside the timed run, so pacing is measured against the real talk only.
-  var LAST_TALK_SLIDE = slides.findIndex(function (s) { return /Backup slides/.test(s.textContent); });
-  if (LAST_TALK_SLIDE < 0) LAST_TALK_SLIDE = slides.length - 1;
+  var LAST_TALK_SLIDE = slides.length - 1;
 
   var cur = 0;
 
