@@ -317,7 +317,7 @@ Today is one question: how do you plug YOUR thing into it.'
 
 Target: off this slide by 0:45.
 
-The plan runs ~33:45, leaving the rest of the 40 minutes as slack for demos that run long. The pace indicator follows that plan, not an even split.">
+The plan runs ~34:15, leaving the rest of the 40 minutes as slack for demos that run long. The pace indicator follows that plan, not an even split.">
   <div class="kicker">ArduPilot Developer Conference · Ottawa 2026</div>
   <h1>Cockpit:<br>build on it</h1>
   <div class="title-rule"></div>
@@ -1057,21 +1057,35 @@ Then: pause. Actually ask. Look at people.">
 </section>
 
 <!-- ============================================================ 41 · WHAT'S NEXT -->
-<section data-secs="60" class="slide" data-notes="Short forward look, ~60 seconds. Ties back to the data lake, which is where the talk started.
+<section data-secs="90" class="slide" data-notes="Forward look, ~90 seconds. Don't read every line; pick the two or three this room cares about (3D maps and measuring, for anyone flying).
 
-The 1.18 release notes promised the data lake would become the de-facto pipeline. 1.19 shipped raw CSV/JSON logs and a MAVLink dumper with a live plotter. Record and replay is the direction.
+Record and replay: the 1.18 release notes promised the data lake would become the de-facto pipeline, and 1.19 shipped raw CSV/JSON logs and a MAVLink dumper with a live plotter. The same five doors that feed live telemetry will feed the recording, so your payload data replays alongside the vehicle's.
 
-3D maps: two draft PRs replace Leaflet across the map widget, the minimap and mission planning, one with MapLibre GL (#3120) and one with CesiumJS (#3122). We're testing both before picking one. Ask the room to try them, especially anyone flying.">
+3D maps: two draft PRs replace Leaflet across the map widget, the minimap and mission planning, one with MapLibre GL (#3120) and one with CesiumJS (#3122). We're testing both before picking one. Ask the room to try them.
+
+H.265: PR #2967. Translations: PR #2314 sets up i18n, with Chinese and English to start. Custom alerts: PR #2305, alerts the operator defines on any data-lake variable. Local recording: voice is in draft PR #2659; camera has no PR yet. Map tools: measuring (issue #2368), a rectangle survey with typed dimensions (PR #2975), and interactive map metadata.">
   <div class="kicker">Where this goes</div>
-  <h2>Replay and 3D maps</h2>
-  <ul>
-    <li><strong>Record and replay</strong> of a whole session
-      <small>The direction: if it's in the lake, it can be replayed</small></li>
-    <li><strong>3D maps</strong>
-      <small>Two draft PRs open for testing: MapLibre GL #3120 and CesiumJS #3122</small></li>
-  </ul>
-  <p class="after muted">The same five doors that feed live telemetry will feed the recording, so your payload
-     data replays alongside the vehicle's.</p>
+  <h2>What's next</h2>
+  <div class="cols">
+    <ul>
+      <li><strong>Record and replay</strong> of a whole session
+        <small>If it's in the lake, it can be replayed</small></li>
+      <li><strong>3D maps</strong>
+        <small>Draft PRs open for testing: MapLibre GL #3120, CesiumJS #3122</small></li>
+      <li><strong>Map tools</strong>
+        <small>Measuring, predefined survey shapes, interactive map metadata</small></li>
+      <li><strong>H.265 video</strong>
+        <small>PR #2967</small></li>
+    </ul>
+    <ul>
+      <li><strong>Custom alerts</strong> on any data-lake variable
+        <small>PR #2305</small></li>
+      <li><strong>Translations</strong>
+        <small>i18n in PR #2314, Chinese and English first</small></li>
+      <li><strong>Local media recording</strong>
+        <small>The operator's voice and camera, recorded locally</small></li>
+    </ul>
+  </div>
 </section>
 
 <!-- ============================================================ 42 · GET INVOLVED -->
