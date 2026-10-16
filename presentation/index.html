@@ -1109,11 +1109,13 @@ Then: pause. Actually ask. Look at people.">
 </section>
 
 <!-- ============================================================ 41 · WHAT'S NEXT -->
-<section class="slide" data-notes="Short forward look, 45 seconds. Ties back to the data lake, which is where the talk started.
+<section class="slide" data-notes="Short forward look, ~60 seconds. Ties back to the data lake, which is where the talk started.
 
-The 1.18 release notes promised the data lake would become the de-facto pipeline. 1.19 shipped raw CSV/JSON logs and a MAVLink dumper with a live plotter. Record and replay is the direction.">
+The 1.18 release notes promised the data lake would become the de-facto pipeline. 1.19 shipped raw CSV/JSON logs and a MAVLink dumper with a live plotter. Record and replay is the direction.
+
+3D maps: two draft PRs replace Leaflet across the map widget, the minimap and mission planning, one with MapLibre GL (#3120) and one with CesiumJS (#3122). We're testing both before picking one. Ask the room to try them, especially anyone flying.">
   <div class="kicker">Where this goes</div>
-  <h2>The lake becomes the recording</h2>
+  <h2>Recording, replay and 3D maps</h2>
   <div class="cols wide-left">
     <div>
       <ul>
@@ -1123,6 +1125,8 @@ The 1.18 release notes promised the data lake would become the de-facto pipeline
           <small>Shipped in v1.19 — think readable tlogs</small></li>
         <li><strong>Record and replay</strong> of a whole session
           <small>The direction: if it's in the lake, it can be replayed</small></li>
+        <li><strong>3D maps</strong>
+          <small>Two draft PRs open for testing: MapLibre GL #3120 and CesiumJS #3122</small></li>
       </ul>
       <p class="after muted">Which means the same five doors that feed live telemetry also feed the recording.
          Your payload data replays alongside the vehicle's.</p>
