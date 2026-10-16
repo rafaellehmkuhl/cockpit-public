@@ -922,6 +922,42 @@ Worth saying: Blue Robotics builds its own product integrations on these same do
   <div class="callout"><p>Most people reach for door 4 when door 1 would have done. Don't.</p></div>
 </section>
 
+<!-- ============================================================ 41 · WHAT'S NEXT -->
+<section data-secs="50" class="slide" data-notes="Forward look, ~90 seconds. Don't read every line; pick the two or three this room cares about (3D maps and measuring, for anyone flying).
+
+Two-way WebSocket: today the generic WebSocket only brings data in; the plan is to send data out over it too.
+
+Record and replay: a few widgets still read outside the data lake, and they all have to move before a whole session can be saved to a file and replayed, which is mostly for debugging. The 1.18 release notes promised the data lake would become the de-facto pipeline, and 1.19 shipped raw CSV/JSON logs and a MAVLink dumper with a live plotter. The same four doors that feed live telemetry will feed the recording, so your payload data replays alongside the vehicle's.
+
+3D maps: two draft PRs replace Leaflet across the map widget, the minimap and mission planning, one with MapLibre GL (#3120) and one with CesiumJS (#3122). We're testing both before picking one. Ask the room to try them.
+
+H.265: PR #2967. Translations: PR #2314 sets up i18n, with Chinese and English to start. Custom alerts: PR #2305, alerts the operator defines on any data-lake variable. Local recording: voice is in draft PR #2659; camera has no PR yet. Map tools: measuring (issue #2368), a rectangle survey with typed dimensions (PR #2975), and interactive map metadata.">
+  <div class="kicker">Where this goes</div>
+  <h2>What's next</h2>
+  <div class="cols">
+    <ul>
+      <li><strong>Record and replay</strong> of a whole session
+        <small>Every widget on the data lake first, then a saved lake you can replay</small></li>
+      <li><strong>Two-way generic WebSocket</strong>
+        <small>Send data out, not just in</small></li>
+      <li><strong>3D maps</strong>
+        <small>Draft PRs open for testing: MapLibre GL #3120, CesiumJS #3122</small></li>
+      <li><strong>Map tools</strong>
+        <small>Measuring, predefined survey shapes, interactive map metadata</small></li>
+      <li><strong>H.265 video</strong>
+        <small>PR #2967</small></li>
+    </ul>
+    <ul>
+      <li><strong>Custom alerts</strong> on any data-lake variable
+        <small>PR #2305</small></li>
+      <li><strong>Translations</strong>
+        <small>i18n in PR #2314, Chinese and English first</small></li>
+      <li><strong>Local media recording</strong>
+        <small>The operator's voice and camera, recorded locally</small></li>
+    </ul>
+  </div>
+</section>
+
 <!-- ============================================================ 4 · THE OBJECTION -->
 <section data-secs="15" class="slide center" data-notes="Say it plainly and let it sit.
 
@@ -979,42 +1015,6 @@ Settings are stored on the vehicle through BlueOS, so they follow the operator b
     <li><strong>Settings synced with the vehicle</strong>
       <small>They follow the operator from one topside machine to the next</small></li>
   </ul>
-</section>
-
-<!-- ============================================================ 41 · WHAT'S NEXT -->
-<section data-secs="50" class="slide" data-notes="Forward look, ~90 seconds. Don't read every line; pick the two or three this room cares about (3D maps and measuring, for anyone flying).
-
-Two-way WebSocket: today the generic WebSocket only brings data in; the plan is to send data out over it too.
-
-Record and replay: a few widgets still read outside the data lake, and they all have to move before a whole session can be saved to a file and replayed, which is mostly for debugging. The 1.18 release notes promised the data lake would become the de-facto pipeline, and 1.19 shipped raw CSV/JSON logs and a MAVLink dumper with a live plotter. The same four doors that feed live telemetry will feed the recording, so your payload data replays alongside the vehicle's.
-
-3D maps: two draft PRs replace Leaflet across the map widget, the minimap and mission planning, one with MapLibre GL (#3120) and one with CesiumJS (#3122). We're testing both before picking one. Ask the room to try them.
-
-H.265: PR #2967. Translations: PR #2314 sets up i18n, with Chinese and English to start. Custom alerts: PR #2305, alerts the operator defines on any data-lake variable. Local recording: voice is in draft PR #2659; camera has no PR yet. Map tools: measuring (issue #2368), a rectangle survey with typed dimensions (PR #2975), and interactive map metadata.">
-  <div class="kicker">Where this goes</div>
-  <h2>What's next</h2>
-  <div class="cols">
-    <ul>
-      <li><strong>Record and replay</strong> of a whole session
-        <small>Every widget on the data lake first, then a saved lake you can replay</small></li>
-      <li><strong>Two-way generic WebSocket</strong>
-        <small>Send data out, not just in</small></li>
-      <li><strong>3D maps</strong>
-        <small>Draft PRs open for testing: MapLibre GL #3120, CesiumJS #3122</small></li>
-      <li><strong>Map tools</strong>
-        <small>Measuring, predefined survey shapes, interactive map metadata</small></li>
-      <li><strong>H.265 video</strong>
-        <small>PR #2967</small></li>
-    </ul>
-    <ul>
-      <li><strong>Custom alerts</strong> on any data-lake variable
-        <small>PR #2305</small></li>
-      <li><strong>Translations</strong>
-        <small>i18n in PR #2314, Chinese and English first</small></li>
-      <li><strong>Local media recording</strong>
-        <small>The operator's voice and camera, recorded locally</small></li>
-    </ul>
-  </div>
 </section>
 
 <!-- ============================================================ 39 · AERIAL -->
