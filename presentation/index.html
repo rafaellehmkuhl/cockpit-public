@@ -143,6 +143,12 @@
   .act-triggers .lake-h{grid-column:1 / -1;}
   .lake-core small{display:block; font-size:15px; font-weight:400; color:var(--muted); margin-top:6px; font-family:var(--mono);}
 
+  /* ---------------------------------------------------------------- what landed */
+  .landed{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .landed .panel{padding:18px 22px;}
+  .landed ul{gap:6px;}
+  .landed li{font-size:17px;}
+
   /* ---------------------------------------------------------------- stats */
   .stats{display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin-top:10px;}
   .stat{
@@ -317,7 +323,7 @@ Today is one question: how do you plug YOUR thing into it.'
 
 Target: off this slide by 0:45.
 
-The plan runs ~34:15, leaving the rest of the 40 minutes as slack for demos that run long. The pace indicator follows that plan, not an even split.">
+The plan runs ~36:30, leaving the rest of the 40 minutes as slack for demos that run long. The pace indicator follows that plan, not an even split.">
   <div class="kicker">ArduPilot Developer Conference · Ottawa 2026</div>
   <h1>Cockpit:<br>build on it</h1>
   <div class="title-rule"></div>
@@ -326,6 +332,74 @@ The plan runs ~34:15, leaving the rest of the 40 minutes as slack for demos that
     <span class="dim">Five ways to put your own hardware, service or extension inside the ground station</span>
   </div>
   <div class="venue">Brookstreet Hotel · 23–25 October 2026<br>github.com/bluerobotics/cockpit</div>
+</section>
+
+<!-- ============================================================ 2a · SINCE KAGA -->
+<section data-secs="60" class="slide" data-notes="Where we left off. v1.3.2 was the version live during the Kaga talk in October 2024; v1.18.4 is current stable and v1.19 is in beta (beta.18 as of mid-October).
+
+Then: Cockpit reached the vehicle only through BlueOS, as MAVLink over a WebSocket to mavlink2rest. Eleven widgets, and the iframe was the only way to bring your own UI. Actions meant HTTP requests.
+
+Numbers are measured from upstream master. Re-run them the week of the talk: git rev-list --count --since=2024-11-01 upstream/master, git diff --shortstat v1.3.2 upstream/master, and git ls-tree -r --name-only upstream/master src | wc -l.
+
+Don't read every number. Say: 'the short version is that the thing you saw in 2024 is not the thing running today.'">
+  <div class="kicker">Since Kaga, October 2024</div>
+  <h2>v1.3.2 &nbsp;&rarr;&nbsp; v1.19</h2>
+  <div class="stats">
+    <div class="stat"><div class="n">1,706</div><div class="l">commits since<br>November 2024</div></div>
+    <div class="stat"><div class="n">27</div><div class="l">stable releases<br>v1.4.0 → v1.18.4</div></div>
+    <div class="stat"><div class="n">126k</div><div class="l">lines added<br>across 596 files</div></div>
+    <div class="stat"><div class="n">167→576</div><div class="l">source files<br>in <code>src/</code></div></div>
+  </div>
+  <div class="panel after">
+    <h3>Where we were, at v1.3.2</h3>
+    <ul style="gap:9px">
+      <li>MAVLink only through BlueOS, over a WebSocket to mavlink2rest</li>
+      <li>Eleven widgets, and an iframe was the only way to bring your own UI</li>
+      <li>One kind of action: an HTTP request</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================ 2b · WHAT LANDED -->
+<section data-secs="75" class="slide" data-notes="A sweep, not a tour. Most of these get their own slide later; point at the four groups and move on.
+
+Versions where they matter: serial and USB in 1.16, TCP/UDP and the ffmpeg recording pipeline in 1.17, RTSP, the mission control panel and settings sync in 1.18, and geofences, units, raw data logs, the MAVLink dumper and the MCP server in 1.19.">
+  <div class="kicker">What landed since</div>
+  <h2>Two years in four boxes</h2>
+  <div class="landed">
+    <div class="panel">
+      <h3>Connect</h3>
+      <ul>
+        <li>Serial and USB, straight to the autopilot</li>
+        <li>MAVLink over TCP and UDP</li>
+        <li>RTSP video from the camera</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h3>Extend</h3>
+      <ul>
+        <li>WebSocket input, MAVLink and JavaScript actions</li>
+        <li>DIY widget, and an API for iframes</li>
+        <li>Extension manifests, and an MCP server</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h3>Data</h3>
+      <ul>
+        <li>The data lake as the app's spine, with compound variables</li>
+        <li>Units, and a plotter widget</li>
+        <li>Raw data logs and a MAVLink dumper</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h3>Operate</h3>
+      <ul>
+        <li>Command waypoints, mission control panel, geofences</li>
+        <li>Video recording that runs for hours</li>
+        <li>Settings that follow the operator between machines</li>
+      </ul>
+    </div>
+  </div>
 </section>
 
 <!-- ============================================================ 7 · FIVE DOORS -->
@@ -347,7 +421,7 @@ Point out the effort column. ~60 seconds.">
 </section>
 
 <!-- ============================================================ 8 · DIVIDER: DATA LAKE -->
-<section data-secs="10" class="slide divider" data-notes="Section 1 of 7. Budget check: you should be at ~1:45 here.">
+<section data-secs="10" class="slide divider" data-notes="Section 1 of 7. Budget check: you should be at ~4:00 here.">
   <div class="num">00</div>
   <h1>The data lake</h1>
   <p>One bus. Everything on it. Every door leads here.</p>
@@ -466,7 +540,7 @@ Units are new in 1.19: variables carry a unit and the operator picks display uni
 </section>
 
 <!-- ============================================================ 14 · DIVIDER: DOOR 1 -->
-<section data-secs="10" class="slide divider" data-notes="Section 2. You should be at roughly 7:15.
+<section data-secs="10" class="slide divider" data-notes="Section 2. You should be at roughly 9:30.
 
 This is the crowd-pleaser. Slow down and enjoy it.">
   <div class="num">01</div>
@@ -574,7 +648,7 @@ If it fails: say so and move on within 10 seconds. Do not debug on stage.">
 </section>
 
 <!-- ============================================================ 21 · DIVIDER: DOOR 2 -->
-<section data-secs="10" class="slide divider" data-notes="Section 3. Target ~11:45.
+<section data-secs="10" class="slide divider" data-notes="Section 3. Target ~14:00.
 
 Getting data IN is half. Now getting Cockpit to DO something.">
   <div class="num">02</div>
@@ -671,7 +745,7 @@ If it fails: say so and move on within 10 seconds. Do not debug on stage.">
 </section>
 
 <!-- ============================================================ 26 · DIVIDER: DOOR 3 -->
-<section data-secs="10" class="slide divider" data-notes="Section 4. Target ~16:30. Pick up the pace slightly from here.">
+<section data-secs="10" class="slide divider" data-notes="Section 4. Target ~18:45. Pick up the pace slightly from here.">
   <div class="num">03</div>
   <h1>The DIY widget</h1>
   <p>When you need pixels, not just values.</p>
@@ -764,7 +838,7 @@ If it fails: say so and move on within 10 seconds. Do not debug on stage.">
 </section>
 
 <!-- ============================================================ 28 · DIVIDER: DOOR 4 -->
-<section data-secs="10" class="slide divider" data-notes="Section 5. Target ~20:30.">
+<section data-secs="10" class="slide divider" data-notes="Section 5. Target ~22:45.">
   <div class="num">04</div>
   <h1>iframe + CockpitAPI</h1>
   <p>You already have a web app. Bring it.</p>
@@ -821,7 +895,7 @@ useVehicleAddressAsBase is the one to emphasise again.">
 </section>
 
 <!-- ============================================================ 31 · DIVIDER: DOOR 5 -->
-<section data-secs="10" class="slide divider" data-notes="Section 6. Target ~22:15. This is the richest door — give it time.">
+<section data-secs="10" class="slide divider" data-notes="Section 6. Target ~24:30. This is the richest door — give it time.">
   <div class="num">05</div>
   <h1>The extension manifest</h1>
   <p>Ship the widgets, the actions and the controls together.</p>
