@@ -539,43 +539,6 @@ asyncio.run(main())</code></pre>
   </div>
 </section>
 
-<!-- ============================================================ 17 · CONNECTED -->
-<section class="slide media-slide" data-notes="Real screenshot, real connection, taken while building this deck.
-
-Point at the green dot and the word 'connected'.">
-  <h2>One field. One button.</h2>
-  <figure class="grow">
-    <img src="media/shots/03-websocket-connected.webp" alt="Generic WebSocket connection established in Cockpit settings">
-    <figcaption>Settings → General · the connection is live and will re-establish itself on its own</figcaption>
-  </figure>
-</section>
-
-<!-- ============================================================ 18 · VIDEO -->
-<section class="slide media-slide" data-notes="VIDEO — it autoplays and loops. ~22 seconds.
-
-Talk over it: 'paste the URL, add the connection, jump to the data lake, filter to external — and there's the payload, live, typed, nested, with no code written inside Cockpit.'
-
-Press K to pause/resume the video if you want to hold on a frame.">
-  <h2>Start to finish, no code in Cockpit</h2>
-  <figure class="grow">
-    <video src="media/clips/websocket-door.mp4" muted loop playsinline></video>
-    <figcaption>Recorded against Cockpit master · a real WebSocket server sending one JSON object a tick</figcaption>
-  </figure>
-</section>
-
-<!-- ============================================================ 19 · ARRIVED -->
-<section class="slide media-slide" data-notes="The payoff frame. One JSON message, six variables: four numbers, a boolean and a string.
-
-Point at Sonar/Altitude and the two Winch rows — the nesting became the path. Point at Winch/Locked — a real boolean, because the JSON said so. No quoting tricks.
-
-These are now recordable, plottable, and can trigger actions. Which is door 2.">
-  <h2>Arrived: typed, live, and yours</h2>
-  <figure class="grow">
-    <img src="media/shots/04b-data-lake-external.webp" alt="External variables live in the Cockpit data lake">
-    <figcaption>One message, six variables — nesting became the path, and each keeps its JSON type</figcaption>
-  </figure>
-</section>
-
 <!-- ============================================================ 20 · DEMO 1 -->
 <section class="slide demo" data-notes="LIVE DEMO — the most important two minutes of the talk.
 
@@ -586,7 +549,7 @@ Have ready BEFORE you start:
 
 Do NOT improvise. Run the script exactly.
 
-If it fails: the video on the previous slide is the same flow. Say 'here's one I made earlier' and move on within 10 seconds. Do not debug on stage.">
+If it fails: say so and move on within 10 seconds. Do not debug on stage.">
   <div class="badge">Live demo</div>
   <h1>Four lines, on stage</h1>
   <div class="steps">
@@ -595,7 +558,7 @@ If it fails: the video on the previous slide is the same flow. Say 'here's one I
     <div><b>3</b> Data lake → filter <code>external</code> → values ticking</div>
     <div><b>4</b> Drop a Plotter on it. Done.</div>
   </div>
-  <div class="fallback">Fallback: the previous slide is this exact flow, pre-recorded. Ten seconds, then move on.</div>
+  <div class="fallback">If it fails: no debugging on stage. Ten seconds, then move on.</div>
 </section>
 
 <!-- ============================================================ 21 · DIVIDER: DOOR 2 -->
