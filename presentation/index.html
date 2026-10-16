@@ -134,12 +134,12 @@
   .stat .l{font-size:14px; color:var(--muted); margin-top:9px; line-height:1.35;}
 
   /* ---------------------------------------------------------------- doors */
-  .doors{display:flex; flex-direction:column; gap:11px; margin-top:4px;}
+  .doors{display:flex; flex-direction:column; gap:8px; margin-top:4px;}
   .door{
     display:grid; grid-template-columns:52px 1fr auto; align-items:center; gap:20px;
     background:var(--glass); border:1px solid var(--line);
     border-left:3px solid var(--kelp-dim);
-    border-radius:11px; padding:14px 20px;
+    border-radius:11px; padding:12px 20px;
     transition:border-color .2s, background .2s;
   }
   .door .d{font-size:26px; font-weight:700; color:var(--kelp-dim);}
@@ -316,13 +316,13 @@ Point out the effort column. ~60 seconds.">
   <div class="kicker">What this talk is</div>
   <h2>Five doors into Cockpit</h2>
   <div class="doors">
+    <div class="door"><div class="d">0</div><div class="t">The data lake<small>Where every door leads: one bus for every value in Cockpit</small></div><div class="e">the base</div></div>
     <div class="door hot"><div class="d">1</div><div class="t">Generic WebSocket<small>Send JSON or <code>name=value</code>. No code inside Cockpit at all.</small></div><div class="e">~5 minutes</div></div>
     <div class="door"><div class="d">2</div><div class="t">Actions<small>HTTP, MAVLink or JavaScript — triggered by buttons, data or time</small></div><div class="e">~15 minutes</div></div>
     <div class="door"><div class="d">3</div><div class="t">DIY widget<small>Your HTML/CSS/JS, typed into the app</small></div><div class="e">~30 minutes</div></div>
     <div class="door"><div class="d">4</div><div class="t">iframe widget + CockpitAPI<small>Your own web app, hosted anywhere</small></div><div class="e">~1 hour</div></div>
     <div class="door"><div class="d">5</div><div class="t">BlueOS extension manifest<small>Ship widgets, actions <em>and</em> joystick mappings together</small></div><div class="e">~half a day</div></div>
   </div>
-  <p class="after muted">All five reach the same place. Let me show you that place first.</p>
 </section>
 
 <!-- ============================================================ 8 · DIVIDER: DATA LAKE -->
