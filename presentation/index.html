@@ -134,6 +134,13 @@
     text-align:center; font-size:30px; font-weight:750; padding:46px 10px; border-radius:18px;
     border:2px solid var(--kelp); background:rgba(79,164,131,.12);
   }
+  .act{grid-template-rows:auto auto auto; row-gap:6px;}
+  .act-out{display:flex; flex-direction:column; gap:10px;}
+  .act-box{font-size:17px; font-weight:600; padding:10px 14px; border:1px solid var(--line); border-radius:12px; background:var(--glass);}
+  .act-box small{display:block; font-size:14px; font-weight:400; color:var(--muted); margin-top:2px;}
+  .act-up{grid-column:3; text-align:center; font-size:30px; color:var(--kelp); line-height:1;}
+  .act-triggers{grid-column:1 / -1; display:grid; grid-template-columns:repeat(4, 1fr); gap:12px;}
+  .act-triggers .lake-h{grid-column:1 / -1;}
   .lake-core small{display:block; font-size:15px; font-weight:400; color:var(--muted); margin-top:6px; font-family:var(--mono);}
 
   /* ---------------------------------------------------------------- stats */
@@ -611,27 +618,31 @@ Action links are the interesting one: fire when a variable changes, no faster th
 
 They fire on every change, in both directions, so the receiving side checks the value it gets.
 
-Give the worked example verbally: temperature crosses a threshold -> HTTP call to your winch service.">
-  <div class="kicker">Door 2 · firing</div>
-  <h2>Four ways to pull the trigger</h2>
-  <div class="cols">
-    <ul>
-      <li><strong>A joystick button</strong>
-        <small>Any button, with a shift modifier</small></li>
-      <li><strong>An on-screen element</strong>
-        <small>Button, switch, slider, dial, dropdown</small></li>
-    </ul>
-    <ul>
-      <li><strong>A data-lake change</strong> — <em>action links</em>
-        <small>Fires when a variable changes, no faster than a rate you set</small></li>
-      <li><strong>Time</strong>
-        <small>On startup, or repeatedly</small></li>
-    </ul>
-  </div>
-  <div class="callout good after">
-    <p><strong>Worked example.</strong> <code>external/watertemp</code> crosses a threshold → a compound variable flips →
-       an action link sends it to your service → your service pays the winch out when it reads true. Nothing compiled, nothing
-       forked, and it survives a Cockpit update.</p>
+Give the worked example verbally: external/watertemp crosses a threshold, a compound variable flips, an action link sends it to your service, and your service pays the winch out when it reads true. Nothing compiled, nothing forked, and it survives a Cockpit update.">
+  <div class="kicker">Door 2 · the picture</div>
+  <h2>Read the lake, reach the world</h2>
+  <div class="lake act">
+    <div class="lake-col">
+      <div class="lake-h">Reads</div>
+      <span>external/watertemp</span><span>vehicle-address</span><span>mavlink/…/VFR_HUD/alt</span>
+      <span>Compound variables</span>
+    </div>
+    <div class="lake-arw">→</div>
+    <div class="lake-core">actions<small>HTTP request<br>MAVLink message<br>JavaScript</small></div>
+    <div class="lake-arw">→</div>
+    <div class="act-out">
+      <div class="lake-h">Reaches</div>
+      <div class="act-box">HTTP server<small>Your service, any URL</small></div>
+      <div class="act-box">MAVLink vehicle<small>Any message, fields from the lake</small></div>
+    </div>
+    <div class="act-up">↑</div>
+    <div class="act-triggers">
+      <div class="lake-h">Fired by</div>
+      <div class="act-box">Joystick button<small>Any button, with a shift modifier</small></div>
+      <div class="act-box">On-screen element<small>Button, switch, slider, dial</small></div>
+      <div class="act-box">Data-lake change<small>Action links, rate-limited</small></div>
+      <div class="act-box">Time<small>On startup, or repeatedly</small></div>
+    </div>
   </div>
 </section>
 
