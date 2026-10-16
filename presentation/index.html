@@ -334,7 +334,7 @@
 
 Target: off this slide by 0:45.
 
-The slot is 30 minutes. The plan runs ~23:45, leaving the rest as slack for demos that run long. The pace indicator follows that plan, not an even split.">
+The slot is 30 minutes. The plan runs ~23:30, leaving the rest as slack for demos that run long. The pace indicator follows that plan, not an even split.">
   <div class="kicker">ArduPilot Developer Conference · Ottawa 2026</div>
   <h1>Cockpit:<br>build on it</h1>
   <div class="title-rule"></div>
@@ -771,38 +771,10 @@ There's no public gallery of DIY widgets yet. A public repository where people c
   <div class="ph tall"><b>Placeholder · Screenshot</b><span>A view full of DIY widgets built for this talk: a few different ones side by side, to show how far a widget typed into the app can go.</span></div>
 </section>
 
-<!-- ============================================================ 12 · WINDOW.COCKPIT -->
-<section data-secs="30" class="slide" data-notes="This is the API the DIY widget on the next slide uses, and JavaScript actions too. It's global, no import, available to any JS running in the page. It's window.cockpit underneath, but every script in Cockpit just writes cockpit.
-
-Don't read the list. Point at the two halves: read/write data, and fire actions.">
-  <div class="kicker">The public API</div>
-  <h2><code style="font-size:.8em">cockpit.</code></h2>
-  <div class="cols">
-    <div>
-      <div class="filename">data</div>
-      <pre class="sm"><code data-lang="js">cockpit.getDataLakeVariableData(id)
-cockpit.setDataLakeVariableData(id, value)
-cockpit.listenDataLakeVariable(id, cb)
-cockpit.unlistenDataLakeVariable(id, lid)
-cockpit.createDataLakeVariable({ id, name, type })
-cockpit.getAllDataLakeVariablesInfo()</code></pre>
-    </div>
-    <div>
-      <div class="filename">actions</div>
-      <pre class="sm"><code data-lang="js">cockpit.availableCockpitActions
-cockpit.registerNewAction(action)
-cockpit.registerActionCallback(a, cb)
-cockpit.executeActionCallback(id)
-cockpit.deleteAction(id)</code></pre>
-      <p class="after muted" style="font-size:17px">Global, no import (<code>window.cockpit</code> underneath). Defined in <code>src/libs/cosmos.ts</code>.</p>
-    </div>
-  </div>
-</section>
-
 <!-- ============================================================ 27 · DIY -->
-<section data-secs="45" class="slide" data-notes="An editor inside the app: Monaco, the same editor VS Code is built on, with autocomplete over data-lake ids and LIVE VALUES in the hover tooltips. That detail lands well, mention it.
+<section data-secs="60" class="slide" data-notes="An editor inside the app: Monaco, the same editor VS Code is built on, with autocomplete over data-lake ids and LIVE VALUES in the hover tooltips. That detail lands well, mention it.
 
-No {{ }} parsing here: it's plain JavaScript with direct access to the cockpit. API from the previous slide, so it can read, write and listen to the lake, create variables and call actions.
+No {{ }} parsing here: it's plain JavaScript with direct access to the cockpit. API on the right, so it can read, write and listen to the lake, create variables and call actions. Don't read the list; point at the two halves, data and actions. It's global, no import, window.cockpit underneath, and JavaScript actions get the same API.
 
 One toggle and the widget picks up Cockpit's glass styling, so it doesn't look bolted on.
 
@@ -811,19 +783,24 @@ New in v1.19: 'Run script in its own scope'. The script gets root (its own eleme
 Be honest: scoped is NOT sandboxed. Same document, same privileges.">
   <div class="kicker">Door 3</div>
   <h2>Write a widget without leaving the app</h2>
-  <div class="cols wide-left">
+  <div class="cols">
     <div class="ph tall"><b>Placeholder · Screenshot</b><span>The DIY widget editor open: the HTML, CSS and JS panes in the Monaco editor, with autocomplete over variable ids.</span></div>
     <div>
-      <div class="filename">DIY widget · js</div>
-      <pre class="xs"><code data-lang="js">const el = root.querySelector('.temp')
-cockpit.listenDataLakeVariable(
-  'external/watertemp',
-  (v) => { el.textContent = v.toFixed(1) + ' °C' }
-)</code></pre>
-      <div class="callout after">
-        <p><strong>Scoped, not sandboxed.</strong> It cleans up after itself, but runs with Cockpit's
-           privileges.</p>
-      </div>
+      <div class="filename">the cockpit. API · data</div>
+      <pre class="xs"><code data-lang="js">cockpit.getDataLakeVariableData(id)
+cockpit.setDataLakeVariableData(id, value)
+cockpit.listenDataLakeVariable(id, cb)
+cockpit.unlistenDataLakeVariable(id, lid)
+cockpit.createDataLakeVariable({ id, name, type })
+cockpit.getAllDataLakeVariablesInfo()</code></pre>
+      <div class="filename after">actions</div>
+      <pre class="xs"><code data-lang="js">cockpit.availableCockpitActions
+cockpit.registerNewAction(action)
+cockpit.registerActionCallback(a, cb)
+cockpit.executeActionCallback(id)
+cockpit.deleteAction(id)</code></pre>
+      <p class="after muted" style="font-size:16px">Global, no import (<code>window.cockpit</code> underneath).
+         Scoped, not sandboxed: it runs with Cockpit's privileges.</p>
     </div>
   </div>
 </section>
@@ -851,7 +828,7 @@ If it fails: say so and move on within 10 seconds. Do not debug on stage.">
 </section>
 
 <!-- ============================================================ 28 · DIVIDER: DOOR 4 -->
-<section data-secs="5" class="slide divider" data-notes="Section 5. Target ~15:30.">
+<section data-secs="5" class="slide divider" data-notes="Section 5. Target ~15:15.">
   <div class="num">04</div>
   <h1>iframe + CockpitAPI</h1>
   <p>You already have a web app. Bring it.</p>
