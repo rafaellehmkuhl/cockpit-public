@@ -693,13 +693,15 @@ Give the worked example verbally: external/watertemp crosses a threshold, a comp
 - the URL follows the vehicle you're connected to, through vehicle-address
 - one header is fixed, the other is a bearer token read from the lake, so a rotating token can live there
 - the vehicle query parameter comes from autopilotSystemId, which Cockpit fills in
-- the body is a string with one fixed field and two live values
+- the body has one fixed field and two live values (Cockpit stores the body as a string; it's laid out as JSON here so it reads)
 
 Headers used to be the gotcha — they weren't interpolated. That was fixed in October (v1.19), after this talk was first drafted. Say so: it's a nice 'we listen' moment.">
   <div class="kicker">Door 2 · composing</div>
   <h2>Any action can read the lake</h2>
-  <div class="filename">cockpit-http-request-actions · one stored action</div>
-  <pre class="sm"><code data-lang="json">{
+  <div class="cols">
+    <div>
+      <div class="filename">cockpit-http-request-actions · one stored action</div>
+      <pre class="sm"><code data-lang="json">{
   "name": "Report to the winch",
   "method": "POST",
   "url": "http://{{ vehicle-address }}:9000/telemetry",
@@ -707,16 +709,24 @@ Headers used to be the gotcha — they weren't interpolated. That was fixed in O
     "Content-Type": "application/json",
     "Authorization": "Bearer {{ winch-api-token }}"
   },
-  "urlParams": { "vehicle": "{{ autopilotSystemId }}" },
-  "body": "{ \"source\": \"cockpit\", \"temp_c\": {{ external/watertemp }}, \"depth\": {{ mavlink/1/1/VFR_HUD/alt }} }"
+  "urlParams": {
+    "vehicle": "{{ autopilotSystemId }}"
+  },
+  "body": {
+    "source": "cockpit",
+    "temp_c": {{ external/watertemp }},
+    "depth": {{ mavlink/1/1/VFR_HUD/alt }}
+  }
 }</code></pre>
-  <div class="cols after">
-    <div class="callout good"><p><strong>Everywhere:</strong> URL, query parameters, headers and body. The same
-       <code>{{ }}</code> works in MAVLink message fields.</p></div>
-    <div class="panel">
-      <h3>MAVLink message action</h3>
-      <p style="font-size:18px">Compose any MAVLink message, fill fields from the lake, send it. The autopilot
-         needs nothing Cockpit-specific.</p>
+    </div>
+    <div>
+      <div class="callout good"><p><strong>Everywhere:</strong> URL, query parameters, headers and body. The same
+         <code>{{ }}</code> works in MAVLink message fields.</p></div>
+      <div class="panel after">
+        <h3>MAVLink message action</h3>
+        <p style="font-size:18px">Compose any MAVLink message, fill fields from the lake, send it. The autopilot
+           needs nothing Cockpit-specific.</p>
+      </div>
     </div>
   </div>
 </section>
