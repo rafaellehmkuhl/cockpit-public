@@ -2,7 +2,9 @@ import { chromium } from 'playwright'
 import { WebSocketServer } from 'ws'
 import { mkdirSync, renameSync, rmSync, readdirSync } from 'node:fs'
 
-const BASE = 'http://localhost:5173/'
+const BASE = process.env.CAPTURE_BASE ?? 'http://localhost:5173/'
+// Set to retake only the WebSocket door's shots and clip.
+const ONLY_WEBSOCKET = process.env.CAPTURE_ONLY === 'websocket'
 const SHOTS = new URL('../presentation/media/shots/', import.meta.url).pathname
 const CLIPS = new URL('../presentation/media/clips/', import.meta.url).pathname
 const TMPVID = new URL('./vid/', import.meta.url).pathname
@@ -14,7 +16,7 @@ mkdirSync(TMPVID, { recursive: true })
 
 const WS_PORT = 8765
 
-// Live payload feed, in the exact `name=value` wire format Cockpit's generic WebSocket door expects.
+// Live payload feed, as one JSON object per tick: nested keys become `external/sonar/altitude` and so on.
 const startFeed = () => {
   const wss = new WebSocketServer({ port: WS_PORT })
   wss.on('connection', (ws) => {
@@ -22,11 +24,13 @@ const startFeed = () => {
     const tick = setInterval(() => {
       t += 1
       const send = (s) => ws.readyState === 1 && ws.send(s)
-      send(`WaterTemp=${(18.4 + Math.sin(t / 9) * 1.7).toFixed(2)}`)
-      send(`Salinity=${(34.7 + Math.cos(t / 13) * 0.4).toFixed(2)}`)
-      send(`SonarAltitude=${(12.3 + Math.sin(t / 5) * 3.1).toFixed(2)}`)
-      send(`WinchPayout=${(45 + t * 0.35).toFixed(1)}`)
-      send(`PayloadStatus="Logging"`)
+      send(JSON.stringify({
+        WaterTemp: +(18.4 + Math.sin(t / 9) * 1.7).toFixed(2),
+        Salinity: +(34.7 + Math.cos(t / 13) * 0.4).toFixed(2),
+        Sonar: { Altitude: +(12.3 + Math.sin(t / 5) * 3.1).toFixed(2) },
+        Winch: { Payout: +(45 + t * 0.35).toFixed(1), Locked: false },
+        PayloadStatus: 'Logging',
+      }))
     }, 250)
     ws.on('close', () => clearInterval(tick))
   })
@@ -101,7 +105,7 @@ const browser = await chromium.launch()
   const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 2 })
   const page = await boot(ctx)
 
-  await shot(page, '01-main-interface')
+  if (!ONLY_WEBSOCKET) await shot(page, '01-main-interface')
 
   try {
     await wireUpWebSocket(page)
@@ -111,7 +115,7 @@ const browser = await chromium.launch()
   // The data lake carries 500+ variables; filtering to the ones that just arrived is the point being made.
   try {
     await go(page, '#/tools/data-lake', 3000)
-    await shot(page, '04-data-lake')
+    if (!ONLY_WEBSOCKET) await shot(page, '04-data-lake')
     const search = page.getByPlaceholder('Search variables').first()
     await search.click()
     await search.type('external', { delay: 80 })
@@ -119,7 +123,7 @@ const browser = await chromium.launch()
     await shot(page, '04b-data-lake-external')
   } catch (e) { console.log('  !! data-lake:', e.message.slice(0, 120)) }
 
-  try {
+  if (!ONLY_WEBSOCKET) try {
     await go(page, '#/settings/actions', 2600)
     await shot(page, '05-actions')
     await page.locator('button:has-text("New action")').first().click()
@@ -138,7 +142,7 @@ const browser = await chromium.launch()
     ['#/edit', '11-edit-mode', 2600],
     ['#/about', '12-about', 2000],
   ]
-  for (const [hash, name, wait] of pages) {
+  for (const [hash, name, wait] of ONLY_WEBSOCKET ? [] : pages) {
     try {
       await go(page, hash, wait)
       await shot(page, name)

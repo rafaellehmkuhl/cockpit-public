@@ -429,7 +429,7 @@ Point out the effort column. ~60 seconds.">
   <div class="kicker">What this talk is</div>
   <h2>Five doors into Cockpit</h2>
   <div class="doors">
-    <div class="door hot"><div class="d">1</div><div class="t">Generic WebSocket<small>Send <code>name=value</code>. No code inside Cockpit at all.</small></div><div class="e">~5 minutes</div></div>
+    <div class="door hot"><div class="d">1</div><div class="t">Generic WebSocket<small>Send JSON or <code>name=value</code>. No code inside Cockpit at all.</small></div><div class="e">~5 minutes</div></div>
     <div class="door"><div class="d">2</div><div class="t">Actions<small>HTTP, MAVLink or JavaScript — triggered by buttons, data or time</small></div><div class="e">~15 minutes</div></div>
     <div class="door"><div class="d">3</div><div class="t">DIY widget<small>Your HTML/CSS/JS, typed into the app</small></div><div class="e">~30 minutes</div></div>
     <div class="door"><div class="d">4</div><div class="t">iframe widget + CockpitAPI<small>Your own web app, hosted anywhere</small></div><div class="e">~1 hour</div></div>
@@ -500,7 +500,7 @@ Your data lands under external/ automatically if it comes through the WebSocket 
     <tr><td class="n">MAVLink field</td><td><code>/mavlink/{sys}/{comp}/ATTITUDE/roll</code></td></tr>
     <tr><td class="n">Named value</td><td><code>/mavlink/{sys}/{comp}/NAMED_VALUE_FLOAT/{name}</code></td></tr>
     <tr><td class="n">Another vehicle (mirrored)</td><td><code>/mavlink/{its sys}/{comp}/GLOBAL_POSITION_INT/lat</code></td></tr>
-    <tr><td class="n">Generic WebSocket</td><td><code>external/{machinized-name}</code></td></tr>
+    <tr><td class="n">Generic WebSocket</td><td><code>external/{key}/{nested-key}</code></td></tr>
     <tr><td class="n">USB GNSS</td><td><code>external/positioning/gnss/{device}/{field}</code></td></tr>
     <tr><td class="n">Point of interest</td><td><code>cockpit/pois/{id}/latitude</code></td></tr>
     <tr><td class="n">Joystick axis</td><td><code>inputs/mavlink/axis-x</code></td></tr>
@@ -582,28 +582,34 @@ This is the crowd-pleaser. Slow down and enjoy it.">
 <!-- ============================================================ 15 · WIRE FORMAT -->
 <section class="slide" data-notes="Deliberately, almost insultingly simple. That's the design point — say that.
 
-The rules matter though, walk each one:
-- one variable per message
-- type is guessed from the FIRST value and then LOCKED
-- quote it to force a string
-- name gets machinized and prefixed with external/
+Walk the rules:
+- send a JSON object: every key is a variable, and nested keys and array indexes become path segments, so Sonar.Altitude lands at external/sonar/altitude
+- the type comes from the JSON value itself: a number stays a number, true is a boolean, &quot;12&quot; stays a string
+- the original name=value line still works, one variable per message, type guessed from the text, quote it to force a string
+- either way the type locks on the first value it sees; null values are skipped with a warning
 
-A line starting with { is now read as JSON — but that's a COMMAND, not data. Today the only commands are point-of-interest add/update/remove. JSON data ingestion is still open (issue #3043).">
+An object whose type starts with cockpit: is a COMMAND, not data. Today that's point-of-interest add/update/remove — door 4 covers it.">
   <div class="kicker">Door 1 · the protocol</div>
   <h2>The entire wire format</h2>
-  <pre style="font-size:30px; text-align:center; padding:34px"><code data-lang="txt">variableName=value</code></pre>
-  <div class="cols after">
+  <div class="cols">
+    <div>
+      <div class="filename">one message</div>
+      <pre class="sm"><code data-lang="json">{
+  "WaterTemp": 18.4,
+  "Sonar": { "Altitude": 12.3 },
+  "Winch": { "Locked": false },
+  "PayloadStatus": "Logging"
+}</code></pre>
+    </div>
     <ul>
-      <li><strong>One variable per message.</strong> Not batched.</li>
-      <li><strong>Type is guessed once</strong>, from the first value, then locked forever.</li>
-    </ul>
-    <ul>
-      <li><strong>Quote it to force a string:</strong> <code>Status="12"</code></li>
-      <li><strong>Lands at</strong> <code>external/</code> + a machinized name.</li>
+      <li><strong>Every key is a variable.</strong> Nesting and array indexes become the path.</li>
+      <li><strong>Typed by JSON:</strong> numbers, booleans and strings stay what they are.</li>
+      <li><strong>Plain text still works:</strong> <code>WaterTemp=18.4</code>, one variable per message.</li>
+      <li><strong>Lands at</strong> <code>external/</code> + a machinized path.</li>
     </ul>
   </div>
-  <div class="callout"><p><code>WaterTemp=23.5</code> &nbsp;→&nbsp; <code>external/watertemp</code>, typed <em>number</em>.
-     A line starting with <code>{</code> is a JSON <em>command</em> instead — more on that in door 4.</p></div>
+  <div class="callout"><p><code>"Sonar": { "Altitude": 12.3 }</code> &nbsp;→&nbsp; <code>external/sonar/altitude</code>, typed <em>number</em>.
+     An object whose <code>type</code> starts with <code>cockpit:</code> is a <em>command</em> instead — more on that in door 4.</p></div>
 </section>
 
 <!-- ============================================================ 16 · THE SERVER -->
@@ -611,17 +617,20 @@ A line starting with { is now read as JSON — but that's a COMMAND, not data. T
 
 'That's the integration. That's all of it.'
 
+Prefer plain text? ws.send(&quot;WaterTemp=23.5&quot;) still works on the same connection.
+
 If someone asks about auth/TLS: wss:// works, Cockpit just opens a WebSocket.">
   <div class="kicker">Door 1 · the other side</div>
   <h2>The entire server</h2>
   <div class="cols">
     <div>
       <div class="filename">feed.py</div>
-      <pre class="sm"><code data-lang="py">import asyncio, websockets
+      <pre class="sm"><code data-lang="py">import asyncio, json, websockets
 
 async def handler(ws):
     while True:
-        await ws.send("WaterTemp=23.5")
+        reading = {"WaterTemp": 23.5, "Sonar": {"Altitude": 12.3}}
+        await ws.send(json.dumps(reading))
         await asyncio.sleep(1)
 
 async def main():
@@ -657,28 +666,28 @@ Point at the green dot and the word 'connected'.">
 </section>
 
 <!-- ============================================================ 18 · VIDEO -->
-<section class="slide media-slide" data-notes="VIDEO — it autoplays and loops. ~26 seconds.
+<section class="slide media-slide" data-notes="VIDEO — it autoplays and loops. ~22 seconds.
 
-Talk over it: 'paste the URL, add the connection, jump to the data lake, filter to external — and there's the payload, live, typed, with no code written inside Cockpit.'
+Talk over it: 'paste the URL, add the connection, jump to the data lake, filter to external — and there's the payload, live, typed, nested, with no code written inside Cockpit.'
 
 Press K to pause/resume the video if you want to hold on a frame.">
   <h2>Start to finish, no code in Cockpit</h2>
   <figure class="grow">
     <video src="media/clips/websocket-door.mp4" muted loop playsinline></video>
-    <figcaption>Recorded against Cockpit v1.19 · a real WebSocket server feeding five variables</figcaption>
+    <figcaption>Recorded against Cockpit master · a real WebSocket server sending one JSON object a tick</figcaption>
   </figure>
 </section>
 
 <!-- ============================================================ 19 · ARRIVED -->
-<section class="slide media-slide" data-notes="The payoff frame. Five variables, four numbers and one string.
+<section class="slide media-slide" data-notes="The payoff frame. One JSON message, six variables: four numbers, a boolean and a string.
 
-Point at PayloadStatus — it's a string because the server quoted it. That's the type-forcing rule in action.
+Point at Sonar/Altitude and the two Winch rows — the nesting became the path. Point at Winch/Locked — a real boolean, because the JSON said so. No quoting tricks.
 
 These are now recordable, plottable, and can trigger actions. Which is door 2.">
   <h2>Arrived: typed, live, and yours</h2>
   <figure class="grow">
     <img src="media/shots/04b-data-lake-external.webp" alt="External variables live in the Cockpit data lake">
-    <figcaption>Four numbers and one string — <code>PayloadStatus</code> is text because the sender quoted it</figcaption>
+    <figcaption>One message, six variables — nesting became the path, and each keeps its JSON type</figcaption>
   </figure>
 </section>
 
@@ -1089,7 +1098,7 @@ This section is why the room will trust you. Do not soften it.">
 <!-- ============================================================ 38 · ROUGH EDGES -->
 <section class="slide" data-notes="Read these honestly, one by one, no excuses. Every one is real and current as of v1.19.
 
-Each has an open issue: WebSocket JSON #3043, DIY sandbox #3040, iframe bridge docs #3044, manifest docs #3041.
+Each has an open issue: DIY sandbox #3040, iframe bridge docs #3044 and writes #3217, manifest docs #3041.
 
 Then the punchline: 'every one of these is a small, well-scoped contribution. That's my ask.'
 
@@ -1098,8 +1107,6 @@ This slide earns more credibility than any feature slide in the deck.">
   <h2>What's still wrong</h2>
   <div class="cols">
     <ul>
-      <li class="no">WebSocket data is <strong>plain text, one variable per message</strong>
-        <small>JSON is only for commands. Type locks on the first value it ever sees.</small></li>
       <li class="no">DIY widget JavaScript is <strong>scoped, not sandboxed</strong>
         <small>It cleans up after itself, but runs with Cockpit's privileges</small></li>
       <li class="no">The iframe bridge <strong>can't write the data lake</strong>
@@ -1113,7 +1120,7 @@ This slide earns more credibility than any feature slide in the deck.">
     </ul>
   </div>
   <div class="callout good"><p>Every one of these is small, well-scoped, and genuinely useful. If you want a way in,
-     this is the list. <span class="muted">(It had six items when I drafted it. HTTP headers got fixed before I got on the plane.)</span></p></div>
+     this is the list. <span class="muted">(It had six items when I drafted it. HTTP headers and JSON over the WebSocket got fixed before I got on the plane.)</span></p></div>
 </section>
 
 <!-- ============================================================ 39 · AERIAL -->
