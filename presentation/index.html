@@ -124,6 +124,18 @@
   .divider h1{font-size:66px; margin-top:8px;}
   .divider p{font-size:24px; color:var(--muted); margin-top:18px;}
 
+  /* ---------------------------------------------------------------- data lake diagram */
+  .lake{display:grid; grid-template-columns:1fr auto 260px auto 1fr; align-items:center; gap:18px;}
+  .lake-col{display:flex; flex-wrap:wrap; gap:8px; align-content:center;}
+  .lake-h{width:100%; font-size:13px; letter-spacing:2px; text-transform:uppercase; color:var(--kelp); font-weight:700;}
+  .lake-col span{font-size:15px; padding:6px 12px; border:1px solid var(--line); border-radius:999px; background:var(--glass);}
+  .lake-arw{font-size:34px; color:var(--kelp);}
+  .lake-core{
+    text-align:center; font-size:30px; font-weight:750; padding:46px 10px; border-radius:18px;
+    border:2px solid var(--kelp); background:rgba(79,164,131,.12);
+  }
+  .lake-core small{display:block; font-size:15px; font-weight:400; color:var(--muted); margin-top:6px; font-family:var(--mono);}
+
   /* ---------------------------------------------------------------- stats */
   .stats{display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin-top:10px;}
   .stat{
@@ -290,13 +302,15 @@
 <div id="stage"><div id="deck">
 
 <!-- ============================================================ 1 · TITLE -->
-<section class="slide title-slide" data-notes="Open cold. Do NOT re-introduce Cockpit.
+<section data-secs="45" class="slide title-slide" data-notes="Open cold. Do NOT re-introduce Cockpit.
 
 'Two years ago in Kaga I stood up and explained what Cockpit is. I'm not doing that again today — the recording is online.
 
 Today is one question: how do you plug YOUR thing into it.'
 
-Target: off this slide by 0:45.">
+Target: off this slide by 0:45.
+
+The plan runs ~35:30, leaving the rest of the 40 minutes as slack for demos that run long. The pace indicator follows that plan, not an even split.">
   <div class="kicker">ArduPilot Developer Conference · Ottawa 2026</div>
   <h1>Cockpit:<br>build on it</h1>
   <div class="title-rule"></div>
@@ -308,7 +322,7 @@ Target: off this slide by 0:45.">
 </section>
 
 <!-- ============================================================ 7 · FIVE DOORS -->
-<section class="slide" data-notes="THE ROADMAP SLIDE. Come back to it between sections.
+<section data-secs="60" class="slide" data-notes="THE ROADMAP SLIDE. Come back to it between sections.
 
 'Five doors. They go from zero code to a full extension. Pick the lowest one that solves your problem — that's the whole advice of this talk.'
 
@@ -326,45 +340,42 @@ Point out the effort column. ~60 seconds.">
 </section>
 
 <!-- ============================================================ 8 · DIVIDER: DATA LAKE -->
-<section class="slide divider" data-notes="Section 1 of 7. Budget check: you should be at ~4:30 here.">
+<section data-secs="10" class="slide divider" data-notes="Section 1 of 7. Budget check: you should be at ~1:45 here.">
   <div class="num">00</div>
   <h1>The data lake</h1>
   <p>One bus. Everything on it. Every door leads here.</p>
 </section>
 
 <!-- ============================================================ 9 · WHAT IT IS -->
-<section class="slide" data-notes="In 2024 this existed but was called CockpitActionVariable and was basically plumbing for joystick actions. It got renamed to the data lake in November 2024 — literally the week of the last conference.
+<section data-secs="90" class="slide" data-notes="In 2024 this existed but was called CockpitActionVariable and was basically plumbing for joystick actions. It got renamed to the data lake in November 2024 — literally the week of the last conference.
 
 Now it's the spine of the application.
 
 Key sentence: 'If a value is in the data lake, every part of Cockpit can already use it. You never write widget code to display something.'">
   <div class="kicker">The bus</div>
   <h2>Every value in Cockpit lives in one place</h2>
-  <div class="cols wide-left">
-    <div>
-      <p>A flat, observable key–value store. Telemetry, internal state, your data — no distinction.</p>
-      <p class="after">Once a value is in there, <strong>every consumer already works</strong>: plotters, indicators,
-         gauges, telemetry overlays, CSV logs, joystick bindings, action triggers.</p>
-      <div class="callout good"><p>You do not write display code. You put a number in the lake and bind a widget to it.</p></div>
+  <p>A flat, observable key–value store. Telemetry, internal state, your data — no distinction.</p>
+  <div class="lake after">
+    <div class="lake-col">
+      <div class="lake-h">Fed by</div>
+      <span>MAVLink messages</span><span>WebSocket feeds</span><span>Joystick axes and buttons</span>
+      <span>USB / serial GNSS</span><span>Points of interest</span><span>Other vehicles, read-only</span>
+      <span>Your JavaScript</span><span>Compound variables</span>
     </div>
-    <div class="panel">
-      <h3>Fed by</h3>
-      <ul style="gap:8px">
-        <li>MAVLink messages (auto-flattened)</li>
-        <li>Generic WebSocket connections</li>
-        <li>Joystick axes and buttons</li>
-        <li>USB / serial GNSS receivers</li>
-        <li>Points of interest on the map</li>
-        <li>Other vehicles on the network, read-only</li>
-        <li>Your JavaScript, via <code>cockpit.</code></li>
-        <li>Other data-lake variables, transformed</li>
-      </ul>
+    <div class="lake-arw">→</div>
+    <div class="lake-core">data lake<small>id → value</small></div>
+    <div class="lake-arw">→</div>
+    <div class="lake-col">
+      <div class="lake-h">Used by</div>
+      <span>Plotters and indicators</span><span>Video telemetry overlay</span><span>CSV / JSON logs</span>
+      <span>Joystick bindings</span><span>Action triggers</span><span><code>{{ }}</code> templates</span>
     </div>
   </div>
+  <div class="callout good"><p>You do not write display code. You put a number in the lake and bind a widget to it.</p></div>
 </section>
 
 <!-- ============================================================ 11 · IDS -->
-<section class="slide" data-notes="Important practical detail for integrators: ids are free-form strings. There is NO enforced schema. The mavlink/ prefix is a convention the MAVLink layer follows, not a rule.
+<section data-secs="60" class="slide" data-notes="Important practical detail for integrators: ids are free-form strings. There is NO enforced schema. The mavlink/ prefix is a convention the MAVLink layer follows, not a rule.
 
 Your data lands under external/ automatically if it comes through the WebSocket door.">
   <div class="kicker">Addressing</div>
@@ -384,7 +395,7 @@ Your data lands under external/ automatically if it comes through the WebSocket 
 </section>
 
 <!-- ============================================================ 11b · MUSTACHE -->
-<section class="slide" data-notes="This syntax shows up in every door, so teach it once here.
+<section data-secs="90" class="slide" data-notes="This syntax shows up in every door, so teach it once here.
 
 Wrap an id in double braces and Cockpit puts the current value there: in action URLs, headers and bodies, MAVLink message fields, compound variable expressions, WebSocket URLs, indicator text and the video telemetry overlay.
 
@@ -416,42 +427,14 @@ In compound variables the value goes in as a JavaScript literal, so a string can
   </div>
 </section>
 
-<!-- ============================================================ 12 · WINDOW.COCKPIT -->
-<section class="slide" data-notes="This is the API that doors 3 and 4 are built on. It's global, no import, available to any JS running in the page. It's window.cockpit underneath, but every script in Cockpit just writes cockpit.
-
-Don't read the list. Point at the two halves: read/write data, and fire actions.">
-  <div class="kicker">The public API</div>
-  <h2><code style="font-size:.8em">cockpit.</code></h2>
-  <div class="cols">
-    <div>
-      <div class="filename">data</div>
-      <pre class="sm"><code data-lang="js">cockpit.getDataLakeVariableData(id)
-cockpit.setDataLakeVariableData(id, value)
-cockpit.listenDataLakeVariable(id, cb)
-cockpit.unlistenDataLakeVariable(id, lid)
-cockpit.createDataLakeVariable({ id, name, type })
-cockpit.getAllDataLakeVariablesInfo()</code></pre>
-    </div>
-    <div>
-      <div class="filename">actions</div>
-      <pre class="sm"><code data-lang="js">cockpit.availableCockpitActions
-cockpit.registerNewAction(action)
-cockpit.registerActionCallback(a, cb)
-cockpit.executeActionCallback(id)
-cockpit.deleteAction(id)</code></pre>
-      <p class="after muted" style="font-size:17px">Global, no import (<code>window.cockpit</code> underneath). Defined in <code>src/libs/cosmos.ts</code>.</p>
-    </div>
-  </div>
-</section>
-
 <!-- ============================================================ 13 · TRANSFORMS -->
-<section class="slide" data-notes="Compound variables: derived values without writing a widget or a service.
+<section data-secs="75" class="slide" data-notes="Compound variables: derived values without writing a widget or a service.
 
 Expression is plain JS with {{ }} substitution. It creates a real data-lake variable, so everything downstream just works.
 
 Good example to say out loud: 'water density from temperature and salinity, without writing a widget.'
 
-Units are new since September: variables carry a unit and the operator picks display units per quantity. Expressions can ask for a unit system too.">
+Units are new in 1.19: variables carry a unit and the operator picks display units per quantity. Expressions can ask for a unit system too.">
   <div class="kicker">Derived values</div>
   <h2>Compound variables: JavaScript over the lake</h2>
   <div class="cols wide-left">
@@ -476,16 +459,16 @@ Units are new since September: variables carry a unit and the operator picks dis
 </section>
 
 <!-- ============================================================ 14 · DIVIDER: DOOR 1 -->
-<section class="slide divider" data-notes="Section 2. You should be at roughly 9:00.
+<section data-secs="10" class="slide divider" data-notes="Section 2. You should be at roughly 7:15.
 
 This is the crowd-pleaser. Slow down and enjoy it.">
   <div class="num">01</div>
   <h1>The WebSocket door</h1>
-  <p>Zero code inside Cockpit. Four lines outside it.</p>
+  <p>Zero code inside Cockpit. One short script outside it.</p>
 </section>
 
 <!-- ============================================================ 15 · WIRE FORMAT -->
-<section class="slide" data-notes="Deliberately, almost insultingly simple. That's the design point — say that.
+<section data-secs="90" class="slide" data-notes="Deliberately, almost insultingly simple. That's the design point — say that.
 
 Walk the rules:
 - send a JSON object: every key is a variable, and nested keys and array indexes become path segments, so Sonar.Altitude lands at external/sonar/altitude
@@ -493,7 +476,7 @@ Walk the rules:
 - a plain name=value line also works, one variable per message, type guessed from the text, quote it to force a string
 - either way the type locks on the first value it sees; null values are skipped with a warning
 
-An object whose type starts with cockpit: is a COMMAND, not data. Today that's point-of-interest add/update/remove — door 4 covers it.">
+An object whose type starts with cockpit: is a COMMAND, not data. Today that's point-of-interest add/update/remove.">
   <div class="kicker">Door 1 · the protocol</div>
   <h2>The entire wire format</h2>
   <div class="cols">
@@ -514,11 +497,11 @@ An object whose type starts with cockpit: is a COMMAND, not data. Today that's p
     </ul>
   </div>
   <div class="callout"><p><code>"Sonar": { "Altitude": 12.3 }</code> &nbsp;→&nbsp; <code>external/sonar/altitude</code>, typed <em>number</em>.
-     An object whose <code>type</code> starts with <code>cockpit:</code> is a <em>command</em> instead — more on that in door 4.</p></div>
+     An object whose <code>type</code> starts with <code>cockpit:</code> is a <em>command</em> instead, such as adding a point of interest.</p></div>
 </section>
 
 <!-- ============================================================ 16 · THE SERVER -->
-<section class="slide" data-notes="This runs as-is: pip install websockets, then python feed.py.
+<section data-secs="60" class="slide" data-notes="This runs as-is: pip install websockets, then python3 feed.py.
 
 'That's the integration. That's all of it.'
 
@@ -562,7 +545,7 @@ asyncio.run(main())</code></pre>
 </section>
 
 <!-- ============================================================ 20 · DEMO 1 -->
-<section class="slide demo" data-notes="LIVE DEMO — the most important two minutes of the talk.
+<section data-secs="120" class="slide demo" data-notes="LIVE DEMO — the most important two minutes of the talk.
 
 Have ready BEFORE you start:
   · terminal with feed.py open, NOT running
@@ -573,9 +556,9 @@ Do NOT improvise. Run the script exactly.
 
 If it fails: say so and move on within 10 seconds. Do not debug on stage.">
   <div class="badge">Live demo</div>
-  <h1>Four lines, on stage</h1>
+  <h1>One script, on stage</h1>
   <div class="steps">
-    <div><b>1</b> Run <code>feed.py</code> — 4 lines, visible on screen</div>
+    <div><b>1</b> Run <code>feed.py</code>, visible on screen</div>
     <div><b>2</b> Paste <code>ws://localhost:8765</code> into Cockpit</div>
     <div><b>3</b> Data lake → filter <code>external</code> → values ticking</div>
     <div><b>4</b> Drop a Plotter on it. Done.</div>
@@ -584,7 +567,7 @@ If it fails: say so and move on within 10 seconds. Do not debug on stage.">
 </section>
 
 <!-- ============================================================ 21 · DIVIDER: DOOR 2 -->
-<section class="slide divider" data-notes="Section 3. Target ~15:00.
+<section data-secs="10" class="slide divider" data-notes="Section 3. Target ~11:45.
 
 Getting data IN is half. Now getting Cockpit to DO something.">
   <div class="num">02</div>
@@ -593,7 +576,7 @@ Getting data IN is half. Now getting Cockpit to DO something.">
 </section>
 
 <!-- ============================================================ 23 · INTERPOLATION -->
-<section class="slide" data-notes="The {{ }} substitution is what makes actions dynamic without code.
+<section data-secs="75" class="slide" data-notes="The {{ }} substitution is what makes actions dynamic without code.
 
 Headers used to be the gotcha — they weren't interpolated. That was fixed in October (v1.19), after this talk was first drafted. Say so: it's a nice 'we listen' moment.">
   <div class="kicker">Door 2 · composing</div>
@@ -604,7 +587,6 @@ Headers used to be the gotcha — they weren't interpolated. That was fixed in O
       <pre class="sm"><code data-lang="json">{
   "vehicle": "{{ vehicle-address }}",
   "temp_c":  {{ external/watertemp }},
-  "alt_m":   {{ external/sonar/altitude }},
   "depth":   {{ mavlink/1/1/VFR_HUD/alt }}
 }</code></pre>
       <p class="after muted" style="font-size:18px">Same <code>{{ }}</code> syntax in the URL, in query
@@ -623,9 +605,11 @@ Headers used to be the gotcha — they weren't interpolated. That was fixed in O
 </section>
 
 <!-- ============================================================ 24 · TRIGGERS -->
-<section class="slide" data-notes="This is the slide that turns actions from 'buttons' into 'automation'. Four triggers.
+<section data-secs="75" class="slide" data-notes="This is the slide that turns actions from 'buttons' into 'automation'. Four triggers.
 
-Action links are the interesting one: fire when a variable changes, rate-limited by minInterval. That's a closed control loop with zero compiled code.
+Action links are the interesting one: fire when a variable changes, no faster than a rate you set. That's a closed control loop with zero compiled code.
+
+They fire on every change, in both directions, so the receiving side checks the value it gets.
 
 Give the worked example verbally: temperature crosses a threshold -> HTTP call to your winch service.">
   <div class="kicker">Door 2 · firing</div>
@@ -639,20 +623,20 @@ Give the worked example verbally: temperature crosses a threshold -> HTTP call t
     </ul>
     <ul>
       <li><strong>A data-lake change</strong> — <em>action links</em>
-        <small>Fires when a variable moves, rate-limited by <code>minInterval</code></small></li>
-      <li><strong>Time</strong> — <em>auto-run</em>
-        <small>Once at startup, or on an interval</small></li>
+        <small>Fires when a variable changes, no faster than a rate you set</small></li>
+      <li><strong>Time</strong>
+        <small>On startup, or repeatedly</small></li>
     </ul>
   </div>
   <div class="callout good after">
-    <p><strong>Worked example.</strong> <code>external/watertemp</code> crosses a threshold → a compound variable goes
-       true → an action link fires an HTTP request to your service → your winch pays out. Nothing compiled, nothing
+    <p><strong>Worked example.</strong> <code>external/watertemp</code> crosses a threshold → a compound variable flips →
+       an action link sends it to your service → your service pays the winch out when it reads true. Nothing compiled, nothing
        forked, and it survives a Cockpit update.</p>
   </div>
 </section>
 
 <!-- ============================================================ 24b · DEMO 2 -->
-<section class="slide demo" data-notes="LIVE DEMO, about two minutes.
+<section data-secs="120" class="slide demo" data-notes="LIVE DEMO, about two minutes.
 
 Have ready BEFORE you start:
   · feed.py from the first demo still running and connected
@@ -676,14 +660,42 @@ If it fails: say so and move on within 10 seconds. Do not debug on stage.">
 </section>
 
 <!-- ============================================================ 26 · DIVIDER: DOOR 3 -->
-<section class="slide divider" data-notes="Section 4. Target ~21:00. Pick up the pace slightly from here.">
+<section data-secs="10" class="slide divider" data-notes="Section 4. Target ~16:30. Pick up the pace slightly from here.">
   <div class="num">03</div>
   <h1>The DIY widget</h1>
   <p>When you need pixels, not just values.</p>
 </section>
 
+<!-- ============================================================ 12 · WINDOW.COCKPIT -->
+<section data-secs="45" class="slide" data-notes="This is the API the DIY widget on the next slide uses, and JavaScript actions too. It's global, no import, available to any JS running in the page. It's window.cockpit underneath, but every script in Cockpit just writes cockpit.
+
+Don't read the list. Point at the two halves: read/write data, and fire actions.">
+  <div class="kicker">The public API</div>
+  <h2><code style="font-size:.8em">cockpit.</code></h2>
+  <div class="cols">
+    <div>
+      <div class="filename">data</div>
+      <pre class="sm"><code data-lang="js">cockpit.getDataLakeVariableData(id)
+cockpit.setDataLakeVariableData(id, value)
+cockpit.listenDataLakeVariable(id, cb)
+cockpit.unlistenDataLakeVariable(id, lid)
+cockpit.createDataLakeVariable({ id, name, type })
+cockpit.getAllDataLakeVariablesInfo()</code></pre>
+    </div>
+    <div>
+      <div class="filename">actions</div>
+      <pre class="sm"><code data-lang="js">cockpit.availableCockpitActions
+cockpit.registerNewAction(action)
+cockpit.registerActionCallback(a, cb)
+cockpit.executeActionCallback(id)
+cockpit.deleteAction(id)</code></pre>
+      <p class="after muted" style="font-size:17px">Global, no import (<code>window.cockpit</code> underneath). Defined in <code>src/libs/cosmos.ts</code>.</p>
+    </div>
+  </div>
+</section>
+
 <!-- ============================================================ 27 · DIY -->
-<section class="slide" data-notes="An editor inside the app. Monaco, with autocomplete over data-lake ids and LIVE VALUES in the hover tooltips — that detail lands well, mention it.
+<section data-secs="90" class="slide" data-notes="An editor inside the app. Monaco, with autocomplete over data-lake ids and LIVE VALUES in the hover tooltips — that detail lands well, mention it.
 
 New in v1.19: 'Run script in its own scope'. The script gets root (its own element) and a cockpit object whose listeners and timers are undone when you re-apply it or delete the widget — cockpit.onCleanup(fn) for anything else. Two copies of the same widget no longer fight over element ids. It's on by default for new widgets only; existing ones keep the old global script.
 
@@ -719,7 +731,7 @@ cockpit.listenDataLakeVariable(
 </section>
 
 <!-- ============================================================ 27c · DEMO 3 -->
-<section class="slide demo" data-notes="LIVE DEMO, about ninety seconds.
+<section data-secs="90" class="slide demo" data-notes="LIVE DEMO, about ninety seconds.
 
 Have ready BEFORE you start:
   · feed.py still running, so external/watertemp is moving
@@ -741,14 +753,14 @@ If it fails: say so and move on within 10 seconds. Do not debug on stage.">
 </section>
 
 <!-- ============================================================ 28 · DIVIDER: DOOR 4 -->
-<section class="slide divider" data-notes="Section 5. Target ~24:30.">
+<section data-secs="10" class="slide divider" data-notes="Section 5. Target ~20:30.">
   <div class="num">04</div>
   <h1>iframe + CockpitAPI</h1>
   <p>You already have a web app. Bring it.</p>
 </section>
 
 <!-- ============================================================ 29 · IFRAME -->
-<section class="slide" data-notes="For teams who already built a payload UI. Don't rewrite it — embed it.
+<section data-secs="75" class="slide" data-notes="For teams who already built a payload UI. Don't rewrite it — embed it.
 
 useVehicleAddressAsBase is the killer option: your widget URL resolves against whatever vehicle the operator is connected to. No hardcoded IPs.
 
@@ -782,7 +794,7 @@ New since September: the child can WRITE points of interest — add, update, rem
 </section>
 
 <!-- ============================================================ 30 · IFRAME OPTS -->
-<section class="slide" data-notes="Quick slide, 30 seconds. The options that matter for integrators.
+<section data-secs="30" class="slide" data-notes="Quick slide, 30 seconds. The options that matter for integrators.
 
 useVehicleAddressAsBase is the one to emphasise again.">
   <div class="kicker">Door 4 · options worth knowing</div>
@@ -798,14 +810,14 @@ useVehicleAddressAsBase is the one to emphasise again.">
 </section>
 
 <!-- ============================================================ 31 · DIVIDER: DOOR 5 -->
-<section class="slide divider" data-notes="Section 6. Target ~28:00. This is the richest door — give it time.">
+<section data-secs="10" class="slide divider" data-notes="Section 6. Target ~22:15. This is the richest door — give it time.">
   <div class="num">05</div>
   <h1>The extension manifest</h1>
   <p>Ship the widgets, the actions and the controls together.</p>
 </section>
 
 <!-- ============================================================ 32 · DISCOVERY -->
-<section class="slide" data-notes="Walk the discovery chain left to right. Key point: there is NO fixed path. Your extension declares the relative path in its own BlueOS metadata under extras.cockpit.
+<section data-secs="60" class="slide" data-notes="Walk the discovery chain left to right. Key point: there is NO fixed path. Your extension declares the relative path in its own BlueOS metadata under extras.cockpit.
 
 This is the bit that isn't documented anywhere outside the Zod types. Which is on the rough-edges slide.">
   <div class="kicker">Door 5 · discovery</div>
@@ -826,7 +838,7 @@ This is the bit that isn't documented anywhere outside the Zod types. Which is o
 </section>
 
 <!-- ============================================================ 33 · MANIFEST -->
-<section class="slide" data-notes="The whole contract on one slide. Three arrays.
+<section data-secs="60" class="slide" data-notes="The whole contract on one slide. Three arrays.
 
 Read the shape, don't read every field. Say: 'widgets, actions, and joystick suggestions — in one file that you serve yourself.'">
   <div class="kicker">Door 5 · the contract</div>
@@ -853,7 +865,7 @@ Read the shape, don't read every field. Say: 'widgets, actions, and joystick sug
 </section>
 
 <!-- ============================================================ 34 · JOYSTICK -->
-<section class="slide" data-notes="THE SURPRISE. Land this one properly — pause before it.
+<section data-secs="75" class="slide" data-notes="THE SURPRISE. Land this one properly — pause before it.
 
 'Your extension can propose joystick button mappings. I have not seen another ground station do this.'
 
@@ -886,7 +898,7 @@ Then immediately reassure: it's a SUGGESTION. The operator reviews and accepts. 
 </section>
 
 <!-- ============================================================ 35 · CONSENT -->
-<section class="slide" data-notes="Say the rule plainly: nothing from an extension applies itself. It limits what an extension can do, and it's the reason an operator can trust installing one.">
+<section data-secs="45" class="slide" data-notes="Say the rule plainly: nothing from an extension applies itself. It limits what an extension can do, and it's the reason an operator can trust installing one.">
   <div class="kicker">Door 5 · the rule that makes it safe</div>
   <h2>Nothing applies itself</h2>
   <div class="cols">
@@ -908,7 +920,7 @@ Then immediately reassure: it's a SUGGESTION. The operator reviews and accepts. 
 </section>
 
 <!-- ============================================================ 35b · BONUS: MCP -->
-<section class="slide" data-notes="BONUS DOOR — landed in October, after the five-door structure was set. ~75 seconds, take it out of the recap slide if you're behind.
+<section data-secs="75" class="slide" data-notes="BONUS DOOR — landed in October, after the five-door structure was set. ~75 seconds, take it out of the recap slide if you're behind.
 
 Cockpit Standalone runs a local MCP server (off by default, Settings → General → AI agent access). Any MCP client — Claude, Cursor, whatever — connects with a bearer token and gets 34 tools: data lake, transforming functions, actions, views, widgets, DIY widgets, points of interest, screenshots.
 
@@ -945,64 +957,25 @@ evaluate_expression        take_screenshot</code></pre>
 </section>
 
 <!-- ============================================================ 36 · CHOOSING -->
-<section class="slide" data-notes="The practical summary. If someone remembers one slide, make it this one.
+<section data-secs="60" class="slide" data-notes="The practical summary. If someone remembers one slide, make it this one.
 
 Say the advice out loud: 'pick the lowest row that solves your problem.' Most people over-build — they reach for door 5 when door 1 would do.">
   <div class="kicker">Recap</div>
   <h2>Pick the lowest door that works</h2>
   <table>
     <tr><th>Door</th><th>Use it when</th><th>Cost</th></tr>
-    <tr><td><strong>1 · WebSocket</strong></td><td>You have values and want them seen, plotted, logged</td><td class="n">minutes</td></tr>
-    <tr><td><strong>2 · Actions</strong></td><td>You need Cockpit to call you, or the vehicle to react</td><td class="n">an afternoon</td></tr>
-    <tr><td><strong>3 · DIY widget</strong></td><td>You need a custom display and don't want to host anything</td><td class="n">an afternoon</td></tr>
-    <tr><td><strong>4 · iframe</strong></td><td>You already have a web UI worth keeping</td><td class="n">an hour, plus your app</td></tr>
-    <tr><td><strong>5 · Manifest</strong></td><td>You ship a product and want it to configure itself</td><td class="n">half a day</td></tr>
+    <tr><td><strong>1 · WebSocket</strong></td><td>You have values and want them seen, plotted, logged</td><td class="n">~5 minutes</td></tr>
+    <tr><td><strong>2 · Actions</strong></td><td>You need Cockpit to call you, or the vehicle to react</td><td class="n">~15 minutes</td></tr>
+    <tr><td><strong>3 · DIY widget</strong></td><td>You need a custom display and don't want to host anything</td><td class="n">~30 minutes</td></tr>
+    <tr><td><strong>4 · iframe</strong></td><td>You already have a web UI worth keeping</td><td class="n">~1 hour, plus your app</td></tr>
+    <tr><td><strong>5 · Manifest</strong></td><td>You ship a product and want it to configure itself</td><td class="n">~half a day</td></tr>
     <tr><td><strong>+ · MCP</strong></td><td>You'd rather describe it than build it</td><td class="n">a sentence</td></tr>
   </table>
   <div class="callout"><p>Most people reach for door 5 when door 1 would have done. Don't.</p></div>
 </section>
 
-<!-- ============================================================ 4 · THE OBJECTION -->
-<section class="slide center" data-notes="Say it plainly and let it sit.
-
-'In 2024 a lot of you looked at Cockpit and thought: nice, but that's the Blue Robotics ROV thing. It never needed one of our vehicles, but it did need BlueOS. Today BlueOS still adds things, like extension discovery and door 5, but you don't need it.'
-
-Beat. Then next slide.">
-  <div class="kicker">What changed since 2024</div>
-  <h1 style="font-size:52px; max-width:24ch">Better with BlueOS.<br>Works great without it.</h1>
-  <p class="lead muted after">In 2024 you needed BlueOS. Not anymore.</p>
-</section>
-
-<!-- ============================================================ 5 · NOT ANYMORE -->
-<section class="slide" data-notes="Three bullets, three releases.
-
-The fourth is not shipped: raw RTP over UDP is a draft PR, #2961. Say it's in progress, no date.
-
-~60 seconds.">
-  <div class="kicker">Without BlueOS</div>
-  <h2>Cockpit talks to a plain ArduPilot vehicle</h2>
-  <div class="cols wide-left">
-    <ul>
-      <li><strong>Serial / USB</strong> — direct to the autopilot
-        <small>v1.16 · PR #1930</small></li>
-      <li><strong>MAVLink over TCP and UDP</strong>, client or server
-        <small>v1.17 · PR #2084 — community contribution</small></li>
-      <li><strong>RTSP video, straight from the camera</strong>
-        <small>v1.18 · PR #2417 — no companion computer in the path</small></li>
-      <li style="opacity:.6"><strong>Raw RTP video over UDP</strong>
-        <small>Work in progress · PR #2961</small></li>
-    </ul>
-    <div>
-      <div class="panel">
-        <h3>No BlueOS required.</h3>
-        <p style="font-size:18px">A Pixhawk, a telemetry link, and Cockpit.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- ============================================================ 37 · DIVIDER: ROUGH EDGES -->
-<section class="slide divider" data-notes="Section 7. Target ~33:00.
+<section data-secs="10" class="slide divider" data-notes="Section 7. Target ~28:45.
 
 Don't soften this section.">
   <div class="num">06</div>
@@ -1011,7 +984,7 @@ Don't soften this section.">
 </section>
 
 <!-- ============================================================ 38 · ROUGH EDGES -->
-<section class="slide" data-notes="Read these honestly, one by one, no excuses. Every one is real and current as of v1.19.
+<section data-secs="90" class="slide" data-notes="Read these honestly, one by one, no excuses. Every one is real and current as of v1.19.
 
 Each has an open issue: DIY sandbox #3040, iframe bridge docs #3044 and writes #3217, manifest docs #3041.
 
@@ -1036,8 +1009,47 @@ Then the punchline: 'every one of these is a small, well-scoped contribution. Th
      start here. <span class="muted">(It had six items when I drafted it. HTTP headers and JSON over the WebSocket got fixed before I got on the plane.)</span></p></div>
 </section>
 
+<!-- ============================================================ 4 · THE OBJECTION -->
+<section data-secs="30" class="slide center" data-notes="Say it plainly and let it sit.
+
+'In 2024 a lot of you looked at Cockpit and thought: nice, but that's the Blue Robotics ROV thing. It never needed one of our vehicles, but it did need BlueOS. Today BlueOS still adds things, like extension discovery and door 5, but you don't need it.'
+
+Beat. Then next slide.">
+  <div class="kicker">What changed since 2024</div>
+  <h1 style="font-size:52px; max-width:24ch">Better with BlueOS.<br>Works great without it.</h1>
+  <p class="lead muted after">In 2024 you needed BlueOS. Not anymore.</p>
+</section>
+
+<!-- ============================================================ 5 · NOT ANYMORE -->
+<section data-secs="60" class="slide" data-notes="Three bullets, three releases.
+
+The fourth is not shipped: raw RTP over UDP is a draft PR, #2961. Say it's in progress, no date.
+
+~60 seconds.">
+  <div class="kicker">Without BlueOS</div>
+  <h2>Cockpit talks to a plain ArduPilot vehicle</h2>
+  <div class="cols wide-left">
+    <ul>
+      <li><strong>Serial / USB</strong> — direct to the autopilot
+        <small>v1.16 · PR #1930</small></li>
+      <li><strong>MAVLink over TCP and UDP</strong>, client or server
+        <small>v1.17 · PR #2084</small></li>
+      <li><strong>RTSP video, straight from the camera</strong>
+        <small>v1.18 · PR #2417 — no companion computer in the path</small></li>
+      <li style="opacity:.6"><strong>Raw RTP video over UDP</strong>
+        <small>Work in progress · PR #2961</small></li>
+    </ul>
+    <div>
+      <div class="panel">
+        <h3>No BlueOS required.</h3>
+        <p style="font-size:18px">A Pixhawk, a telemetry link, and Cockpit.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ============================================================ 39 · AERIAL -->
-<section class="slide" data-notes="THE ASK. Say it plainly, no hedging.
+<section data-secs="90" class="slide" data-notes="THE ASK. Say it plainly, no hedging.
 
 Quote our own README out loud — it's more credible coming from you than from a critic.
 
@@ -1064,14 +1076,12 @@ Then: pause. Actually ask. Look at people.">
           <small>Widgets, joystick profiles, mission behaviour</small></li>
         <li>Bug reports from <strong>vehicles I'll never own</strong></li>
       </ul>
-      <p class="after muted" style="font-size:17px">PRs from outside this team already shipped TCP/UDP, bitfields
-         and the EKF widget. It works.</p>
     </div>
   </div>
 </section>
 
 <!-- ============================================================ 41 · WHAT'S NEXT -->
-<section class="slide" data-notes="Short forward look, ~60 seconds. Ties back to the data lake, which is where the talk started.
+<section data-secs="60" class="slide" data-notes="Short forward look, ~60 seconds. Ties back to the data lake, which is where the talk started.
 
 The 1.18 release notes promised the data lake would become the de-facto pipeline. 1.19 shipped raw CSV/JSON logs and a MAVLink dumper with a live plotter. Record and replay is the direction.
 
@@ -1089,7 +1099,7 @@ The 1.18 release notes promised the data lake would become the de-facto pipeline
 </section>
 
 <!-- ============================================================ 42 · GET INVOLVED -->
-<section class="slide" data-notes="Practical landing slide. Leave it up during questions.
+<section data-secs="45" class="slide" data-notes="Practical landing slide. Leave it up during questions.
 
 Mention the monthly developer calls on Discord — that's the lowest-friction way in for anyone in this room.">
   <div class="kicker">Get involved</div>
@@ -1111,19 +1121,20 @@ Mention the monthly developer calls on Discord — that's the lowest-friction wa
         <p style="font-size:18px">On Discord. Open. If you want to own aerial support, that's the fastest way to
            start — turn up and say so.</p>
       </div>
-      <div class="callout good after"><p>Try it with nothing installed: there's a browser demo with no vehicle
-         attached, and the five doors all work against it.</p></div>
+      <div class="callout good after"><p>Try it with nothing installed: the live demo at docs.bluerobotics.com/cockpit
+         runs in the browser with no vehicle. The data lake, DIY and iframe widgets work there; door 5 needs BlueOS.</p></div>
     </div>
   </div>
 </section>
 
 <!-- ============================================================ 43 · CLOSE -->
-<section class="slide center" data-notes="Land it and stop talking. Q&A is a separate slot, so don't invite questions here — just stop.
+<section data-secs="20" class="slide center" data-notes="Land it and stop talking. Q&A is a separate slot, so don't invite questions here — just stop.
 
 'Five doors. Pick the lowest one. And if you fly, please come find me.'">
   <h1 style="font-size:58px; max-width:22ch">Five doors.<br>Pick the lowest one that works.</h1>
   <p class="lead muted after">And if you fly copters or planes — please come and find me.</p>
   <div style="margin-top:34px">
+    <span class="pill on">data lake</span>
     <span class="pill on">ws://</span>
     <span class="pill on">actions</span>
     <span class="pill on">DIY</span>
@@ -1176,6 +1187,9 @@ Mention the monthly developer calls on Discord — that's the lowest-friction wa
 
   var TALK_SECONDS = 40 * 60;
   var LAST_TALK_SLIDE = slides.length - 1;
+  // Each slide's data-secs is its share of the plan, so a two-minute demo isn't counted as falling behind.
+  var plannedStart = [];
+  slides.reduce(function (t, s) { plannedStart.push(t); return t + (Number(s.dataset.secs) || 60); }, 0);
 
   var cur = 0;
 
@@ -1271,7 +1285,8 @@ Mention the monthly developer calls on Discord — that's the lowest-friction wa
       elapsed > TALK_SECONDS ? 'over' : 'run';
 
     if (!running || cur > LAST_TALK_SLIDE) { paceEl.textContent = ''; paceEl.className = ''; return; }
-    var expected = Math.round(elapsed / TALK_SECONDS * LAST_TALK_SLIDE);
+    var expected = 0;
+    while (expected < LAST_TALK_SLIDE && plannedStart[expected + 1] <= elapsed) expected++;
     var delta = cur - expected;
     if (Math.abs(delta) <= 1) { paceEl.textContent = 'on pace'; paceEl.className = ''; }
     else if (delta > 0) { paceEl.textContent = '+' + delta + ' ahead'; paceEl.className = 'ahead'; }
