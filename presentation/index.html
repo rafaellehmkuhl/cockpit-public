@@ -334,7 +334,7 @@
 
 Target: off this slide by 0:45.
 
-The slot is 30 minutes. The plan runs ~23:30, leaving the rest as slack for demos that run long. The pace indicator follows that plan, not an even split.">
+The slot is 30 minutes. The plan runs ~22:15, leaving the rest as slack for demos that run long. The pace indicator follows that plan, not an even split.">
   <div class="kicker">ArduPilot Developer Conference · Ottawa 2026</div>
   <h1>Cockpit:<br>build on it</h1>
   <div class="title-rule"></div>
@@ -803,30 +803,70 @@ cockpit.deleteAction(id)</code></pre>
   </div>
 </section>
 
+<!-- ============================================================ 27b · MCP -->
+<section data-secs="45" class="slide" data-notes="Still door 3. The bridge from the previous slide: 'So that's the DIY widget: you write the HTML, CSS and JavaScript, you have these APIs, and the editor has autocomplete. But developing inside that little box gets old fast. So we added MCP support.'
+
+The wider point: most of us use agents for a lot of our work now, and changing an app to work your way is close to coding it. So why not vibe-code your Cockpit integration directly? It isn't limited to DIY widgets either: the same server handles the data lake, actions and views.
+
+Cockpit Standalone runs a local MCP server (off by default, Settings → General → AI agent access). Any MCP client — Claude, Cursor, whatever — connects with a bearer token and gets 34 tools: data lake, transforming functions, actions, views, widgets, DIY widgets, points of interest, screenshots.
+
+Running code (JavaScript actions, DIY widgets) needs a second opt-in toggle.
+
+The pitch for THIS room: every door I just showed you, an agent can walk through for you. 'Make me a view for my sonar payload' is now a sentence, not an afternoon.
+
+Bridge to the AI lightning talk if that slot exists.">
+  <div class="kicker">Door 3 · new in v1.19</div>
+  <h2>Or let an agent write it</h2>
+  <div class="cols wide-left">
+    <div>
+      <p>Cockpit Standalone runs a <strong>local MCP server</strong>. Point any MCP client at it and the agent gets
+         the same doors you do — as tools.</p>
+      <div class="filename">a few of the 34 tools</div>
+      <pre class="xs"><code data-lang="txt">list_data_lake_variables   save_transforming_function
+save_http_request_action   execute_action
+add_view                   add_widget
+add_diy_widget             add_point_of_interest
+evaluate_expression        take_screenshot</code></pre>
+    </div>
+    <div>
+      <div class="panel">
+        <h3>Off by default</h3>
+        <ul style="gap:8px">
+          <li>Localhost only, bearer token</li>
+          <li>Creating or running code is a <strong>second</strong> opt-in</li>
+          <li>Standalone only — the browser can't host a server</li>
+        </ul>
+      </div>
+      <div class="callout good after"><p>"Build me a view for my sonar payload" is now a sentence, not an afternoon.</p></div>
+    </div>
+  </div>
+</section>
+
 <!-- ============================================================ 27c · DEMO 3 -->
-<section data-secs="75" class="slide demo" data-notes="LIVE DEMO, about seventy-five seconds.
+<section data-secs="90" class="slide demo" data-notes="LIVE DEMO, about ninety seconds: the DIY widget, built through MCP. Rough is fine, that's the point.
 
 Have ready BEFORE you start:
   · feed.py still running, so external/watertemp is moving
-  · the DIY widget's exported configuration in a file you can find fast
-  · Cockpit on a view with free space, edit mode one click away
+  · Cockpit Standalone with AI agent access on, and the code opt-in on
+  · an MCP client already connected to it, with a big font
+  · Cockpit on a view with free space
 
-Import it, show it working, then open the editor and change one thing in the code (a colour, a threshold) and apply. Show the autocomplete and the live value in the hover tooltip while you're in there.
+Ask for the widget in one sentence. Let the agent build it, take a screenshot of its own work and fix what it sees. Then open the widget's editor to show the code it wrote is right there, yours to change.
 
 If it fails: say so and move on within 10 seconds. Do not debug on stage.">
   <div class="badge">Live demo</div>
-  <h1>A widget, typed in</h1>
+  <h1>A widget, described</h1>
   <div class="steps">
-    <div><b>1</b> Edit mode → drop a DIY widget on the view</div>
-    <div><b>2</b> Import a ready-made widget from a file: it runs straight away</div>
-    <div><b>3</b> Open the editor and change one thing in the code</div>
-    <div><b>4</b> Apply → the widget updates in place</div>
+    <div><b>1</b> Settings → General → AI agent access, on</div>
+    <div><b>2</b> Ask an agent for a DIY widget that shows the water temperature</div>
+    <div><b>3</b> It builds the widget, then takes a screenshot to check its own work</div>
+    <div><b>4</b> Open the editor: the code it wrote is right there, yours to change</div>
   </div>
   <div class="fallback">If it fails: no debugging on stage. Ten seconds, then move on.</div>
 </section>
 
 <!-- ============================================================ 28 · DIVIDER: DOOR 4 -->
-<section data-secs="5" class="slide divider" data-notes="Section 5. Target ~15:15.">
+<section data-secs="5" class="slide divider" data-notes="Section 5. Target ~16:15.">
   <div class="num">04</div>
   <h1>iframe + CockpitAPI</h1>
   <p>You already have a web app. Bring it.</p>
@@ -883,67 +923,6 @@ useVehicleAddressAsBase is the one to emphasise again.">
     <li><code>collapsibleContainerName</code> and <code>startCollapsed</code>
       <small>Dock the widget into a collapsible drawer instead of eating canvas</small></li>
   </ul>
-</section>
-
-<!-- ============================================================ 35b · BONUS: MCP -->
-<section data-secs="45" class="slide" data-notes="BONUS DOOR — landed in October, after the four-door structure was set.
-
-The bridge: 'I've shown you how to build all of this by hand, through the interface. But most of us use agents for a lot of our work now, and changing an app to work your way is close to coding it. So why not vibe-code your Cockpit integration directly?'
-
-Cockpit Standalone runs a local MCP server (off by default, Settings → General → AI agent access). Any MCP client — Claude, Cursor, whatever — connects with a bearer token and gets 34 tools: data lake, transforming functions, actions, views, widgets, DIY widgets, points of interest, screenshots.
-
-Running code (JavaScript actions, DIY widgets) needs a second opt-in toggle.
-
-The pitch for THIS room: every door I just showed you, an agent can walk through for you. 'Make me a view for my sonar payload' is now a sentence, not an afternoon.
-
-Bridge to the AI lightning talk if that slot exists.">
-  <div class="kicker">Bonus door · new in v1.19</div>
-  <h2>Or let an agent walk through them</h2>
-  <div class="cols wide-left">
-    <div>
-      <p>Cockpit Standalone runs a <strong>local MCP server</strong>. Point any MCP client at it and the agent gets
-         the same doors you do — as tools.</p>
-      <div class="filename">a few of the 34 tools</div>
-      <pre class="xs"><code data-lang="txt">list_data_lake_variables   save_transforming_function
-save_http_request_action   execute_action
-add_view                   add_widget
-add_diy_widget             add_point_of_interest
-evaluate_expression        take_screenshot</code></pre>
-    </div>
-    <div>
-      <div class="panel">
-        <h3>Off by default</h3>
-        <ul style="gap:8px">
-          <li>Localhost only, bearer token</li>
-          <li>Creating or running code is a <strong>second</strong> opt-in</li>
-          <li>Standalone only — the browser can't host a server</li>
-        </ul>
-      </div>
-      <div class="callout good after"><p>"Build me a view for my sonar payload" is now a sentence, not an afternoon.</p></div>
-    </div>
-  </div>
-</section>
-
-<!-- ============================================================ 35c · DEMO 4 -->
-<section data-secs="90" class="slide demo" data-notes="LIVE DEMO, about ninety seconds. Rough is fine, that's the point.
-
-Have ready BEFORE you start:
-  · Cockpit Standalone with AI agent access on, and the code opt-in on
-  · an MCP client already connected to it, with a big font
-  · feed.py still running, so there's live data to build on
-
-Ask for a DIY widget in one sentence. Let the agent build it, take a screenshot of its own work and fix what it sees.
-
-If it fails: say so and move on within 10 seconds. Do not debug on stage.">
-  <div class="badge">Live demo</div>
-  <h1>Describe it instead</h1>
-  <div class="steps">
-    <div><b>1</b> Settings → General → AI agent access, on</div>
-    <div><b>2</b> Ask an agent for a DIY widget that shows the water temperature</div>
-    <div><b>3</b> It builds the widget, then takes a screenshot to check its own work</div>
-    <div><b>4</b> One more sentence to change it. Done.</div>
-  </div>
-  <div class="fallback">If it fails: no debugging on stage. Ten seconds, then move on.</div>
 </section>
 
 <!-- ============================================================ 36 · CHOOSING -->
