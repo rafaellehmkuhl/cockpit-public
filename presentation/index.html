@@ -334,7 +334,7 @@
 
 Target: off this slide by 0:45.
 
-The slot is 30 minutes. The plan runs ~22:15, leaving the rest as slack for demos that run long. The pace indicator follows that plan, not an even split.">
+The slot is 30 minutes. The plan runs ~22:00, leaving the rest as slack for demos that run long. The pace indicator follows that plan, not an even split.">
   <div class="kicker">ArduPilot Developer Conference · Ottawa 2026</div>
   <h1>Cockpit:<br>build on it</h1>
   <div class="title-rule"></div>
@@ -873,18 +873,17 @@ If it fails: say so and move on within 10 seconds. Do not debug on stage.">
 </section>
 
 <!-- ============================================================ 29 · IFRAME -->
-<section data-secs="50" class="slide" data-notes="For teams who already built a payload UI. Don't rewrite it — embed it. It can run on the companion computer, on the topside machine, anywhere.
+<section data-secs="60" class="slide" data-notes="For teams who already built a payload UI. Don't rewrite it — embed it. It can run on the companion computer, on the topside machine, anywhere.
 
-The page can stay completely separate from Cockpit, or talk to it over postMessage. That API is badly documented today, and we know it.
+The page can stay completely separate from Cockpit, or talk to it over postMessage, which works cross-origin. That API is badly documented today, and we know it.
 
-useVehicleAddressAsBase is the killer option: your widget URL resolves against whatever vehicle the operator is connected to. No hardcoded IPs.
+The options on the right are the small things that save hours. useVehicleAddressAsBase is the killer one: your widget URL resolves against whatever vehicle the operator is connected to, so no hardcoded IPs.
 
-The bridge is postMessage, so it works cross-origin.
-
-New since September: the child can WRITE points of interest — add, update, remove. Built for sonar or vision pipelines that drop a marker per detection. Each iframe widget only applies its own iframe's commands, so two widgets don't duplicate them. Coordinates must be numbers; icon is an mdi class, colour a hex code. The same JSON works over the WebSocket door.">
+New since September: the child can WRITE points of interest — add, update, remove. Built for sonar or vision pipelines that drop a marker per detection. Each iframe widget only applies its own iframe's commands, so two widgets don't duplicate them. The same JSON works over the WebSocket door.">
   <div class="kicker">Door 4</div>
   <h2>Your existing UI, as a widget</h2>
   <div class="cols">
+    <div class="ph" style="min-height:430px"><b>Placeholder · Screenshot</b><span>An iframe widget on a view, showing an external page inside Cockpit, such as a camera control page served by the companion computer.</span></div>
     <div>
       <div class="filename">in your page</div>
       <pre class="sm"><code data-lang="js">CockpitAPI.listenToDatalakeVariable(
@@ -892,37 +891,16 @@ New since September: the child can WRITE points of interest — add, update, rem
   (value) =&gt; render(value),
   10 // max Hz
 )</code></pre>
-      <p class="after muted" style="font-size:17px">Ships as a browser bundle:
-         <code>yarn build:lib</code> → <code>cockpit-external-api.browser.js</code></p>
-    </div>
-    <div>
-      <div class="filename">under the hood · postMessage</div>
-      <pre class="xs"><code data-lang="js">// child → Cockpit
-{ type: 'cockpit:listenToDatalakeVariables',
-  variable: 'external/watertemp', maxRateHz: 10 }
-
-// Cockpit → child
-{ type: 'cockpit:datalakeVariable',
-  variable: 'external/watertemp', value: 23.5 }</code></pre>
+      <ul class="after" style="gap:10px">
+        <li><code>useVehicleAddressAsBase</code>
+          <small>The URL follows the connected vehicle, no hardcoded IPs</small></li>
+        <li><code>contentZoom</code>, <code>scaleContentWithWidget</code>
+          <small>The page stays legible as the widget is resized</small></li>
+        <li><code>collapsibleContainerName</code>, <code>startCollapsed</code>
+          <small>Dock it in a collapsible drawer instead of taking canvas</small></li>
+      </ul>
     </div>
   </div>
-  <div class="ph short after"><b>Placeholder · Screenshot</b><span>An iframe widget on a view, showing an external page inside Cockpit, such as a camera control page served by the companion computer.</span></div>
-</section>
-
-<!-- ============================================================ 30 · IFRAME OPTS -->
-<section data-secs="25" class="slide" data-notes="Quick slide, 30 seconds. The options that matter for integrators.
-
-useVehicleAddressAsBase is the one to emphasise again.">
-  <div class="kicker">Door 4 · options worth knowing</div>
-  <h2>Small things that save you hours</h2>
-  <ul>
-    <li><code>useVehicleAddressAsBase</code> — your URL resolves against the connected vehicle
-      <small>No hardcoded IPs, and it follows the operator when they switch vehicles</small></li>
-    <li><code>contentZoom</code> and <code>scaleContentWithWidget</code>
-      <small>Your page stays legible when the operator resizes the widget</small></li>
-    <li><code>collapsibleContainerName</code> and <code>startCollapsed</code>
-      <small>Dock the widget into a collapsible drawer instead of eating canvas</small></li>
-  </ul>
 </section>
 
 <!-- ============================================================ 36 · CHOOSING -->
