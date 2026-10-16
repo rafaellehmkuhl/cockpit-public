@@ -334,7 +334,7 @@
 
 Target: off this slide by 0:45.
 
-The slot is 30 minutes. The plan runs ~24:30, leaving the rest as slack for demos that run long. The pace indicator follows that plan, not an even split.">
+The slot is 30 minutes. The plan runs ~23:45, leaving the rest as slack for demos that run long. The pace indicator follows that plan, not an even split.">
   <div class="kicker">ArduPilot Developer Conference · Ottawa 2026</div>
   <h1>Cockpit:<br>build on it</h1>
   <div class="title-rule"></div>
@@ -354,39 +354,20 @@ Let the video run while you say it; don't narrate every feature. Then move on to
   <div class="ph" style="min-height:470px"><b>Placeholder · Video / GIF</b><span>A quick pass over Cockpit doing what a ground station does: the map, mission planning, geofences, video, vehicle commands, the joystick and so on.</span></div>
 </section>
 
-<!-- ============================================================ 2a · SINCE KAGA -->
-<section data-secs="60" class="slide" data-notes="Where we left off. v1.3.2 was the version live during the Kaga talk in October 2024; v1.18.4 is current stable and v1.19 is in beta (beta.18 as of mid-October).
+<!-- ============================================================ 2 · SINCE KAGA -->
+<section data-secs="60" class="slide" data-notes="Start with: this project has been in full development since 2023. We showed a lot at Kaga in 2024, and since then it's been worked on every single day, with two to three people dedicated to it full time.
 
-Then: Cockpit reached the vehicle only through BlueOS, as MAVLink over a WebSocket to mavlink2rest. There were two basic ways to integrate: a plain iframe widget and an HTTP request action. Widget counts are the WidgetType and MiniWidgetType enums in src/types/widgets.ts at each version.
+Then the ask for an open mind: 'I'm about to talk integration, that's our selling point. But give the app itself a chance. I know very few of you flying aerial vehicles use it. Everything on this slide works for any vehicle, so today there's not much reason not to try it. It's a pioneering mission, but the features are there.'
 
-Numbers are measured from upstream master. Re-run them the week of the talk: git rev-list --count --since=2024-11-01 upstream/master, git diff --shortstat v1.3.2 upstream/master, and git ls-tree -r --name-only upstream/master src | wc -l.
-
-Don't read every number. Say: 'the short version is that the thing you saw in 2024 is not the thing running today.'">
-  <div class="kicker">Since Kaga, October 2024</div>
-  <h2>v1.3.2 &nbsp;&rarr;&nbsp; v1.19</h2>
-  <div class="stats five">
-    <div class="stat"><div class="n">1,706</div><div class="l">commits since<br>November 2024</div></div>
-    <div class="stat"><div class="n">27</div><div class="l">stable releases<br>v1.4.0 → v1.18.4</div></div>
-    <div class="stat"><div class="n">126k</div><div class="l">lines added<br>across 596 files</div></div>
-    <div class="stat"><div class="n">167→576</div><div class="l">source files<br>in <code>src/</code></div></div>
-    <div class="stat"><div class="n">11→16</div><div class="l">widgets, plus<br>16→21 mini-widgets</div></div>
+Numbers are measured from upstream master: commits since November 2024, git diff --shortstat v1.3.2 upstream/master for the lines (126k added, 10k removed), and the stable tags from v1.4.0 to v1.18.4. Re-run them the week of the talk.">
+  <div class="kicker">In active development since 2023</div>
+  <h2>Everything a GCS needs, for any vehicle</h2>
+  <div class="stats" style="grid-template-columns:repeat(3,1fr)">
+    <div class="stat"><div class="n">1,713</div><div class="l">commits since Kaga</div></div>
+    <div class="stat"><div class="n">137k</div><div class="l">lines changed</div></div>
+    <div class="stat"><div class="n">27</div><div class="l">stable releases</div></div>
   </div>
-  <div class="panel after">
-    <h3>Where we were, at v1.3.2</h3>
-    <ul style="gap:9px">
-      <li>MAVLink only through BlueOS, over a WebSocket to mavlink2rest</li>
-      <li>Two basic ways to integrate: a plain iframe widget, and an HTTP request action</li>
-    </ul>
-  </div>
-</section>
-
-<!-- ============================================================ 2b · WHAT LANDED -->
-<section data-secs="45" class="slide" data-notes="A sweep, not a tour. Most of these get their own slide later; point at the four groups and move on.
-
-Versions where they matter: serial and USB in 1.16, TCP/UDP and the ffmpeg recording pipeline in 1.17, RTSP, the mission control panel and settings sync in 1.18, and geofences, units, raw data logs, the MAVLink dumper and the MCP server in 1.19.">
-  <div class="kicker">What landed since</div>
-  <h2>Two years in four boxes</h2>
-  <div class="landed">
+  <div class="landed after" style="grid-template-columns:repeat(3,1fr)">
     <div class="panel">
       <h3>Connect</h3>
       <ul>
@@ -396,27 +377,18 @@ Versions where they matter: serial and USB in 1.16, TCP/UDP and the ffmpeg recor
       </ul>
     </div>
     <div class="panel">
-      <h3>Extend</h3>
+      <h3>Operate</h3>
       <ul>
-        <li>WebSocket input, MAVLink and JavaScript actions</li>
-        <li>DIY widget, and an API for iframes</li>
-        <li>Extension manifests, and an MCP server</li>
+        <li>Command waypoints, mission control panel, geofences</li>
+        <li>Video recording that runs for hours</li>
       </ul>
     </div>
     <div class="panel">
       <h3>Data</h3>
       <ul>
-        <li>The data lake as the app's spine, with compound variables</li>
-        <li>Units, and a plotter widget</li>
+        <li>Units for every MAVLink field</li>
+        <li>Plotters</li>
         <li>Raw data logs and a MAVLink dumper</li>
-      </ul>
-    </div>
-    <div class="panel">
-      <h3>Operate</h3>
-      <ul>
-        <li>Command waypoints, mission control panel, geofences</li>
-        <li>Video recording that runs for hours</li>
-        <li>Settings that follow the operator between machines</li>
       </ul>
     </div>
   </div>
@@ -440,7 +412,7 @@ Point out the effort column. ~60 seconds.">
 </section>
 
 <!-- ============================================================ 8 · DIVIDER: DATA LAKE -->
-<section data-secs="5" class="slide divider" data-notes="Section 1 of 7. Budget check: you should be at ~3:30 here.">
+<section data-secs="5" class="slide divider" data-notes="Section 1 of 7. Budget check: you should be at ~2:45 here.">
   <div class="num">00</div>
   <h1>The data lake</h1>
   <p>One bus. Everything on it. Every door leads here.</p>
@@ -562,7 +534,7 @@ The example is a trigger rather than a unit conversion, since units are already 
 </section>
 
 <!-- ============================================================ 14 · DIVIDER: DOOR 1 -->
-<section data-secs="5" class="slide divider" data-notes="Section 2. You should be at roughly 7:15.
+<section data-secs="5" class="slide divider" data-notes="Section 2. You should be at roughly 6:30.
 
 This is the crowd-pleaser. Slow down and enjoy it.">
   <div class="num">01</div>
@@ -672,7 +644,7 @@ If it fails: say so and move on within 10 seconds. Do not debug on stage.">
 </section>
 
 <!-- ============================================================ 21 · DIVIDER: DOOR 2 -->
-<section data-secs="5" class="slide divider" data-notes="Section 3. Target ~10:15.
+<section data-secs="5" class="slide divider" data-notes="Section 3. Target ~9:30.
 
 Getting data IN is half. Now getting Cockpit to DO something.">
   <div class="num">02</div>
@@ -769,7 +741,7 @@ If it fails: say so and move on within 10 seconds. Do not debug on stage.">
 </section>
 
 <!-- ============================================================ 26 · DIVIDER: DOOR 3 -->
-<section data-secs="5" class="slide divider" data-notes="The idea came out of Kaga 2024, inspired by a talk at that conference (fill in the name and credit it). Section 4. Target ~13:15. Pick up the pace slightly from here.">
+<section data-secs="5" class="slide divider" data-notes="The idea came out of Kaga 2024, inspired by a talk at that conference (fill in the name and credit it). Section 4. Target ~12:30. Pick up the pace slightly from here.">
   <div class="num">03</div>
   <h1>The DIY widget</h1>
   <p>When you need pixels, not just values.</p>
@@ -864,7 +836,7 @@ If it fails: say so and move on within 10 seconds. Do not debug on stage.">
 </section>
 
 <!-- ============================================================ 28 · DIVIDER: DOOR 4 -->
-<section data-secs="5" class="slide divider" data-notes="Section 5. Target ~16:15.">
+<section data-secs="5" class="slide divider" data-notes="Section 5. Target ~15:30.">
   <div class="num">04</div>
   <h1>iframe + CockpitAPI</h1>
   <p>You already have a web app. Bring it.</p>
