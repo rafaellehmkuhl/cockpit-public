@@ -364,16 +364,16 @@ Key sentence: 'If a value is in the data lake, every part of Cockpit can already
 </section>
 
 <!-- ============================================================ 11 · IDS -->
-<section class="slide" data-notes="Important practical detail for integrators: ids are free-form strings. There is NO enforced schema. The /mavlink/ prefix is a convention the MAVLink layer follows, not a rule.
+<section class="slide" data-notes="Important practical detail for integrators: ids are free-form strings. There is NO enforced schema. The mavlink/ prefix is a convention the MAVLink layer follows, not a rule.
 
 Your data lands under external/ automatically if it comes through the WebSocket door.">
   <div class="kicker">Addressing</div>
   <h2>Variable ids are just strings</h2>
   <table>
     <tr><th>Source</th><th>Id format</th></tr>
-    <tr><td class="n">MAVLink field</td><td><code>/mavlink/{sys}/{comp}/ATTITUDE/roll</code></td></tr>
-    <tr><td class="n">Named value</td><td><code>/mavlink/{sys}/{comp}/NAMED_VALUE_FLOAT/{name}</code></td></tr>
-    <tr><td class="n">Another vehicle (mirrored)</td><td><code>/mavlink/{its sys}/{comp}/GLOBAL_POSITION_INT/lat</code></td></tr>
+    <tr><td class="n">MAVLink field</td><td><code>mavlink/{sys}/{comp}/ATTITUDE/roll</code></td></tr>
+    <tr><td class="n">Named value</td><td><code>mavlink/{sys}/{comp}/NAMED_VALUE_FLOAT/{name}</code></td></tr>
+    <tr><td class="n">Another vehicle (mirrored)</td><td><code>mavlink/{its sys}/{comp}/GLOBAL_POSITION_INT/lat</code></td></tr>
     <tr><td class="n">Generic WebSocket</td><td><code>external/{key}/{nested-key}</code></td></tr>
     <tr><td class="n">USB GNSS</td><td><code>external/positioning/gnss/{device}/{field}</code></td></tr>
     <tr><td class="n">Point of interest</td><td><code>cockpit/pois/{id}/latitude</code></td></tr>
@@ -395,11 +395,11 @@ In compound variables the value goes in as a JavaScript literal, so a string can
   <h2><code style="font-size:.8em">{{ id }}</code> reads any value, anywhere</h2>
   <div class="cols wide-left">
     <div>
-      <pre class="sm"><code data-lang="txt">{{ external/watertemp }}                                       → 18.4
+      <pre class="sm"><code data-lang="txt">{{ external/watertemp }}                                      → 18.4
 
-{{ /mavlink/1/1/GLOBAL_POSITION_INT/relative_alt }}            → 12500 (mm)
-{{ /mavlink/1/1/GLOBAL_POSITION_INT/relative_alt : metric }}   → 12.5  (m)
-{{ /mavlink/1/1/GLOBAL_POSITION_INT/relative_alt : imperial }} → 41.0  (ft)</code></pre>
+{{ mavlink/1/1/GLOBAL_POSITION_INT/relative_alt }}            → 12500 (mm)
+{{ mavlink/1/1/GLOBAL_POSITION_INT/relative_alt : metric }}   → 12.5  (m)
+{{ mavlink/1/1/GLOBAL_POSITION_INT/relative_alt : imperial }} → 41.0  (ft)</code></pre>
       <p class="after muted" style="font-size:18px">The suffix is <code>metric</code>, <code>imperial</code> or
          <code>nautical</code>. Leave it off and you get the value as stored.</p>
     </div>
@@ -603,7 +603,7 @@ Headers used to be the gotcha — they weren't interpolated. That was fixed in O
   "vehicle": "{{ vehicle-address }}",
   "temp_c":  {{ external/watertemp }},
   "alt_m":   {{ external/sonar/altitude }},
-  "depth":   {{ /mavlink/1/1/VFR_HUD/alt }}
+  "depth":   {{ mavlink/1/1/VFR_HUD/alt }}
 }</code></pre>
       <p class="after muted" style="font-size:18px">Same <code>{{ }}</code> syntax in the URL, in query
          parameters, and in MAVLink message fields.</p>
