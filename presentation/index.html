@@ -329,7 +329,7 @@ The plan runs ~36:30, leaving the rest of the 40 minutes as slack for demos that
   <div class="title-rule"></div>
   <div class="byline">
     <b>Rafael Lehmkuhl</b> · Blue Robotics<br>
-    <span class="dim">Five ways to put your own hardware, service or extension inside the ground station</span>
+    <span class="dim">Four ways to put your own hardware, service or code inside the ground station</span>
   </div>
   <div class="venue">Brookstreet Hotel · 23–25 October 2026<br>github.com/bluerobotics/cockpit</div>
 </section>
@@ -402,22 +402,21 @@ Versions where they matter: serial and USB in 1.16, TCP/UDP and the ffmpeg recor
   </div>
 </section>
 
-<!-- ============================================================ 7 · FIVE DOORS -->
+<!-- ============================================================ 7 · FOUR DOORS -->
 <section data-secs="60" class="slide" data-notes="THE ROADMAP SLIDE. Come back to it between sections.
 
-'Five doors. They go from zero code to a full extension. Pick the lowest one that solves your problem — that's the whole advice of this talk.'
+'Four doors. They go from zero code to your own web app. Pick the lowest one that solves your problem — that's the whole advice of this talk.'
 
 Point out the effort column. ~60 seconds.">
   <div class="kicker">What this talk is</div>
-  <h2>Five doors into Cockpit</h2>
+  <h2>Four doors into Cockpit</h2>
   <div class="doors">
     <div class="door"><div class="d">1</div><div class="t">Generic WebSocket<small>Send JSON or <code>name=value</code>. No code inside Cockpit at all.</small></div><div class="e">~5 minutes</div></div>
     <div class="door"><div class="d">2</div><div class="t">Actions<small>HTTP, MAVLink or JavaScript — triggered by buttons, data or time</small></div><div class="e">~15 minutes</div></div>
     <div class="door"><div class="d">3</div><div class="t">DIY widget<small>Your HTML/CSS/JS, typed into the app</small></div><div class="e">~30 minutes</div></div>
     <div class="door"><div class="d">4</div><div class="t">iframe widget + CockpitAPI<small>Your own web app, hosted anywhere</small></div><div class="e">~1 hour</div></div>
-    <div class="door"><div class="d">5</div><div class="t">BlueOS extension manifest<small>Ship widgets, actions <em>and</em> joystick mappings together</small></div><div class="e">~half a day</div></div>
   </div>
-  <p class="after muted">All five reach the same place. Let me show you that place first.</p>
+  <p class="after muted">All four reach the same place. Let me show you that place first.</p>
 </section>
 
 <!-- ============================================================ 8 · DIVIDER: DATA LAKE -->
@@ -894,118 +893,8 @@ useVehicleAddressAsBase is the one to emphasise again.">
   </ul>
 </section>
 
-<!-- ============================================================ 31 · DIVIDER: DOOR 5 -->
-<section data-secs="10" class="slide divider" data-notes="Section 6. Target ~24:30. This is the richest door — give it time.">
-  <div class="num">05</div>
-  <h1>The extension manifest</h1>
-  <p>Ship the widgets, the actions and the controls together.</p>
-</section>
-
-<!-- ============================================================ 32 · DISCOVERY -->
-<section data-secs="60" class="slide" data-notes="Walk the discovery chain left to right. Key point: there is NO fixed path. Your extension declares the relative path in its own BlueOS metadata under extras.cockpit.
-
-This is the bit that isn't documented anywhere outside the Zod types.">
-  <div class="kicker">Door 5 · discovery</div>
-  <h2>How Cockpit finds you</h2>
-  <div class="flow">
-    <div class="step">GET /helper/v1.0/web_services</div>
-    <div class="arw">→</div>
-    <div class="step">metadata.extras.cockpit</div>
-    <div class="arw">→</div>
-    <div class="step">fetch that path</div>
-    <div class="arw">→</div>
-    <div class="step">ExtrasJson</div>
-  </div>
-  <p class="after">Cockpit asks BlueOS what services are running. Any service that declares
-     <code>extras.cockpit</code> in its metadata gets fetched at <strong>whatever relative path it names</strong>.</p>
-  <div class="callout"><p>There is <strong>no fixed endpoint</strong> like <code>/cockpit-widgets</code>.
-     You choose the path; Cockpit follows it.</p></div>
-</section>
-
-<!-- ============================================================ 33 · MANIFEST -->
-<section data-secs="60" class="slide" data-notes="The whole contract on one slide. Three arrays.
-
-Read the shape, don't read every field. Say: 'widgets, actions, and joystick suggestions — in one file that you serve yourself.'">
-  <div class="kicker">Door 5 · the contract</div>
-  <h2>One file, three arrays</h2>
-  <pre class="sm"><code data-lang="json">{
-  "targetSystem": "cockpit",
-  "targetCockpitApiVersion": "1.0.0",
-
-  "widgets": [
-    { "name": "Sonar Payload",
-      "iframeUrl": "/ui/panel.html",
-      "iconUrl": "/ui/icon.svg",
-      "useExtensionPathAsBaseUrl": true,
-      "collapsibleContainerName": "Payload" }
-  ],
-
-  "actions": [
-    { "id": "payload-ping", "name": "Ping payload", "type": "http-request",
-      "config": { "url": "http://{{ vehicle-address }}:9000/ping", "method": "POST" } }
-  ],
-
-  "joystickSuggestions": [ /* ... */ ]
-}</code></pre>
-</section>
-
-<!-- ============================================================ 34 · JOYSTICK -->
-<section data-secs="75" class="slide" data-notes="THE SURPRISE. Land this one properly — pause before it.
-
-'Your extension can propose joystick button mappings. I have not seen another ground station do this.'
-
-Then immediately reassure: it's a SUGGESTION. The operator reviews and accepts. You cannot silently rebind someone's controller mid-dive.">
-  <div class="kicker">Door 5 · the one nobody expects</div>
-  <h2>Your extension can propose button mappings</h2>
-  <div class="cols wide-left">
-    <div>
-      <pre class="sm"><code data-lang="json">{
-  "id": "sonar-payload-map",
-  "name": "Sonar payload controls",
-  "targetVehicleTypes": ["sub", "rover"],
-  "buttonMappingSuggestions": [
-    { "actionProtocol": "cockpit-action",
-      "actionId": "payload-ping",
-      "actionName": "Ping payload",
-      "button": 3,
-      "modifierKey": "shift" }
-  ]
-}</code></pre>
-    </div>
-    <div>
-      <p>Ship a payload, and ship <strong>the controls for it</strong> — so the operator doesn't have to read your
-         manual to find out that shift+Y pings the sonar.</p>
-      <div class="callout good"><p>It's a <em>suggestion</em>. The operator sees a review dialog and accepts or
-         ignores it. You cannot silently rebind someone's controller.</p></div>
-      <p class="after muted" style="font-size:17px">Keys may be snake_case — the schema normalises them.</p>
-    </div>
-  </div>
-</section>
-
-<!-- ============================================================ 35 · CONSENT -->
-<section data-secs="45" class="slide" data-notes="Say the rule plainly: nothing from an extension applies itself. It limits what an extension can do, and it's the reason an operator can trust installing one.">
-  <div class="kicker">Door 5 · the rule that makes it safe</div>
-  <h2>Nothing applies itself</h2>
-  <div class="cols">
-    <div>
-      <p>Every suggested widget, action and mapping goes through a review dialog. The operator accepts, ignores,
-         or restores it later.</p>
-      <p class="after">This is why an operator can install your extension the morning of a dive without reading
-         the source.</p>
-    </div>
-    <div class="panel">
-      <h3>Which also means</h3>
-      <ul style="gap:9px">
-        <li>Your integration is <strong>discoverable</strong>, not imposed</li>
-        <li>Uninstalling your extension doesn't wreck their layout</li>
-        <li>Several payload extensions can run side by side</li>
-      </ul>
-    </div>
-  </div>
-</section>
-
 <!-- ============================================================ 35b · BONUS: MCP -->
-<section data-secs="75" class="slide" data-notes="BONUS DOOR — landed in October, after the five-door structure was set. ~75 seconds, take it out of the recap slide if you're behind.
+<section data-secs="75" class="slide" data-notes="BONUS DOOR — landed in October, after the four-door structure was set. ~75 seconds, take it out of the recap slide if you're behind.
 
 Cockpit Standalone runs a local MCP server (off by default, Settings → General → AI agent access). Any MCP client — Claude, Cursor, whatever — connects with a bearer token and gets 34 tools: data lake, transforming functions, actions, views, widgets, DIY widgets, points of interest, screenshots.
 
@@ -1044,7 +933,7 @@ evaluate_expression        take_screenshot</code></pre>
 <!-- ============================================================ 36 · CHOOSING -->
 <section data-secs="60" class="slide" data-notes="The practical summary. If someone remembers one slide, make it this one.
 
-Say the advice out loud: 'pick the lowest row that solves your problem.' Most people over-build — they reach for door 5 when door 1 would do.">
+Say the advice out loud: 'pick the lowest row that solves your problem.' Most people over-build — they reach for door 4 when door 1 would do.">
   <div class="kicker">Recap</div>
   <h2>Pick the lowest door that works</h2>
   <table>
@@ -1053,19 +942,18 @@ Say the advice out loud: 'pick the lowest row that solves your problem.' Most pe
     <tr><td><strong>2 · Actions</strong></td><td>You need Cockpit to call you, or the vehicle to react</td><td class="n">~15 minutes</td></tr>
     <tr><td><strong>3 · DIY widget</strong></td><td>You need a custom display and don't want to host anything</td><td class="n">~30 minutes</td></tr>
     <tr><td><strong>4 · iframe</strong></td><td>You already have a web UI worth keeping</td><td class="n">~1 hour, plus your app</td></tr>
-    <tr><td><strong>5 · Manifest</strong></td><td>You ship a product and want it to configure itself</td><td class="n">~half a day</td></tr>
     <tr><td><strong>+ · MCP</strong></td><td>You'd rather describe it than build it</td><td class="n">a sentence</td></tr>
   </table>
-  <div class="callout"><p>Most people reach for door 5 when door 1 would have done. Don't.</p></div>
+  <div class="callout"><p>Most people reach for door 4 when door 1 would have done. Don't.</p></div>
 </section>
 
 <!-- ============================================================ 4 · THE OBJECTION -->
 <section data-secs="30" class="slide center" data-notes="Say it plainly and let it sit.
 
-'In 2024 a lot of you looked at Cockpit and thought: nice, but that's the Blue Robotics ROV thing. It never needed one of our vehicles, but it did need BlueOS. Today BlueOS still adds things, like extension discovery and door 5, but you don't need it.'
+'In 2024 a lot of you looked at Cockpit and thought: nice, but that's the Blue Robotics ROV thing. It never needed one of our vehicles, but it did need BlueOS. Today BlueOS still adds things, and the next slides show them, but you don't need it.'
 
 Beat. Then next slide.">
-  <div class="kicker">What changed since 2024</div>
+  <div class="kicker">BlueOS, optional</div>
   <h1 style="font-size:52px; max-width:24ch">Better with BlueOS.<br>Works great without it.</h1>
   <p class="lead muted after">In 2024 you needed BlueOS. Not anymore.</p>
 </section>
@@ -1094,6 +982,111 @@ The fourth is not shipped: raw RTP over UDP is a draft PR, #2961. Say it's in pr
         <h3>No BlueOS required.</h3>
         <p style="font-size:18px">A Pixhawk, a telemetry link, and Cockpit.</p>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 32 · DISCOVERY -->
+<section data-secs="60" class="slide" data-notes="This is what BlueOS adds: an extension can set Cockpit up for the operator, with widgets, actions and joystick mappings in one file it serves itself.
+
+Walk the discovery chain left to right. Key point: there is NO fixed path. Your extension declares the relative path in its own BlueOS metadata under extras.cockpit.
+
+This is the bit that isn't documented anywhere outside the Zod types.">
+  <div class="kicker">With BlueOS · discovery</div>
+  <h2>How Cockpit finds you</h2>
+  <div class="flow">
+    <div class="step">GET /helper/v1.0/web_services</div>
+    <div class="arw">→</div>
+    <div class="step">metadata.extras.cockpit</div>
+    <div class="arw">→</div>
+    <div class="step">fetch that path</div>
+    <div class="arw">→</div>
+    <div class="step">ExtrasJson</div>
+  </div>
+  <p class="after">Cockpit asks BlueOS what services are running. Any service that declares
+     <code>extras.cockpit</code> in its metadata gets fetched at <strong>whatever relative path it names</strong>.</p>
+  <div class="callout"><p>There is <strong>no fixed endpoint</strong> like <code>/cockpit-widgets</code>.
+     You choose the path; Cockpit follows it.</p></div>
+</section>
+
+<!-- ============================================================ 33 · MANIFEST -->
+<section data-secs="60" class="slide" data-notes="The whole contract on one slide. Three arrays.
+
+Read the shape, don't read every field. Say: 'widgets, actions, and joystick suggestions — in one file that you serve yourself.'">
+  <div class="kicker">With BlueOS · the contract</div>
+  <h2>One file, three arrays</h2>
+  <pre class="sm"><code data-lang="json">{
+  "targetSystem": "cockpit",
+  "targetCockpitApiVersion": "1.0.0",
+
+  "widgets": [
+    { "name": "Sonar Payload",
+      "iframeUrl": "/ui/panel.html",
+      "iconUrl": "/ui/icon.svg",
+      "useExtensionPathAsBaseUrl": true,
+      "collapsibleContainerName": "Payload" }
+  ],
+
+  "actions": [
+    { "id": "payload-ping", "name": "Ping payload", "type": "http-request",
+      "config": { "url": "http://{{ vehicle-address }}:9000/ping", "method": "POST" } }
+  ],
+
+  "joystickSuggestions": [ /* ... */ ]
+}</code></pre>
+</section>
+
+<!-- ============================================================ 34 · JOYSTICK -->
+<section data-secs="75" class="slide" data-notes="THE SURPRISE. Land this one properly — pause before it.
+
+'Your extension can propose joystick button mappings. I have not seen another ground station do this.'
+
+Then immediately reassure: it's a SUGGESTION. The operator reviews and accepts. You cannot silently rebind someone's controller mid-dive.">
+  <div class="kicker">With BlueOS · the one nobody expects</div>
+  <h2>Your extension can propose button mappings</h2>
+  <div class="cols wide-left">
+    <div>
+      <pre class="sm"><code data-lang="json">{
+  "id": "sonar-payload-map",
+  "name": "Sonar payload controls",
+  "targetVehicleTypes": ["sub", "rover"],
+  "buttonMappingSuggestions": [
+    { "actionProtocol": "cockpit-action",
+      "actionId": "payload-ping",
+      "actionName": "Ping payload",
+      "button": 3,
+      "modifierKey": "shift" }
+  ]
+}</code></pre>
+    </div>
+    <div>
+      <p>Ship a payload, and ship <strong>the controls for it</strong> — so the operator doesn't have to read your
+         manual to find out that shift+Y pings the sonar.</p>
+      <div class="callout good"><p>It's a <em>suggestion</em>. The operator sees a review dialog and accepts or
+         ignores it. You cannot silently rebind someone's controller.</p></div>
+      <p class="after muted" style="font-size:17px">Keys may be snake_case — the schema normalises them.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 35 · CONSENT -->
+<section data-secs="45" class="slide" data-notes="Say the rule plainly: nothing from an extension applies itself. It limits what an extension can do, and it's the reason an operator can trust installing one.">
+  <div class="kicker">With BlueOS · the rule that makes it safe</div>
+  <h2>Nothing applies itself</h2>
+  <div class="cols">
+    <div>
+      <p>Every suggested widget, action and mapping goes through a review dialog. The operator accepts, ignores,
+         or restores it later.</p>
+      <p class="after">This is why an operator can install your extension the morning of a dive without reading
+         the source.</p>
+    </div>
+    <div class="panel">
+      <h3>Which also means</h3>
+      <ul style="gap:9px">
+        <li>Your integration is <strong>discoverable</strong>, not imposed</li>
+        <li>Uninstalling your extension doesn't wreck their layout</li>
+        <li>Several payload extensions can run side by side</li>
+      </ul>
     </div>
   </div>
 </section>
@@ -1133,7 +1126,7 @@ Then: pause. Actually ask. Look at people.">
 <!-- ============================================================ 41 · WHAT'S NEXT -->
 <section data-secs="90" class="slide" data-notes="Forward look, ~90 seconds. Don't read every line; pick the two or three this room cares about (3D maps and measuring, for anyone flying).
 
-Record and replay: the 1.18 release notes promised the data lake would become the de-facto pipeline, and 1.19 shipped raw CSV/JSON logs and a MAVLink dumper with a live plotter. The same five doors that feed live telemetry will feed the recording, so your payload data replays alongside the vehicle's.
+Record and replay: the 1.18 release notes promised the data lake would become the de-facto pipeline, and 1.19 shipped raw CSV/JSON logs and a MAVLink dumper with a live plotter. The same four doors that feed live telemetry will feed the recording, so your payload data replays alongside the vehicle's.
 
 3D maps: two draft PRs replace Leaflet across the map widget, the minimap and mission planning, one with MapLibre GL (#3120) and one with CesiumJS (#3122). We're testing both before picking one. Ask the room to try them.
 
@@ -1186,7 +1179,7 @@ Mention the monthly developer calls on Discord — that's the lowest-friction wa
            start — turn up and say so.</p>
       </div>
       <div class="callout good after"><p>Try it with nothing installed: the live demo at docs.bluerobotics.com/cockpit
-         runs in the browser with no vehicle. The data lake, DIY and iframe widgets work there; door 5 needs BlueOS.</p></div>
+         runs in the browser with no vehicle. The data lake, DIY and iframe widgets work there; extensions need BlueOS.</p></div>
     </div>
   </div>
 </section>
@@ -1194,15 +1187,14 @@ Mention the monthly developer calls on Discord — that's the lowest-friction wa
 <!-- ============================================================ 43 · CLOSE -->
 <section data-secs="20" class="slide center" data-notes="Land it and stop talking. Q&A is a separate slot, so don't invite questions here — just stop.
 
-'Five doors. Pick the lowest one. And if you fly, please come find me.'">
-  <h1 style="font-size:58px; max-width:22ch">Five doors.<br>Pick the lowest one that works.</h1>
+'Four doors. Pick the lowest one. And if you fly, please come find me.'">
+  <h1 style="font-size:58px; max-width:22ch">Four doors.<br>Pick the lowest one that works.</h1>
   <p class="lead muted after">And if you fly copters or planes — please come and find me.</p>
   <div style="margin-top:34px">
     <span class="pill on">ws://</span>
     <span class="pill on">actions</span>
     <span class="pill on">DIY</span>
     <span class="pill on">iframe</span>
-    <span class="pill on">manifest</span>
   </div>
   <p class="after dim" style="font-size:17px">Rafael Lehmkuhl · Blue Robotics · github.com/bluerobotics/cockpit</p>
 </section>
