@@ -512,8 +512,6 @@ Your data lands under external/ automatically if it comes through the WebSocket 
 <!-- ============================================================ 12 · WINDOW.COCKPIT -->
 <section class="slide" data-notes="This is the API that doors 3 and 4 are built on. It's global, no import, available to any JS running in the page.
 
-Mention: it's assigned in src/libs/cosmos.ts.
-
 Don't read the list. Point at the two halves: read/write data, and fire actions.">
   <div class="kicker">The public API</div>
   <h2><code style="font-size:.8em">window.cockpit</code></h2>
@@ -540,7 +538,7 @@ window.cockpit.deleteAction(id)</code></pre>
 </section>
 
 <!-- ============================================================ 13 · TRANSFORMS -->
-<section class="slide" data-notes="Compound variables. This is how you avoid writing code for 80% of derived values.
+<section class="slide" data-notes="Compound variables: derived values without writing a widget or a service.
 
 Expression is plain JS with {{ }} substitution. It creates a real data-lake variable, so everything downstream just works.
 
@@ -756,8 +754,8 @@ Headers used to be the gotcha — they weren't interpolated. That was fixed in O
          so a rotating auth token can live in the lake too. Headers joined in v1.19.</p></div>
       <div class="panel after">
         <h3>MAVLink message action</h3>
-        <p style="font-size:18px">Compose any MAVLink message, fill fields from the lake, send it. No firmware
-           knowledge of Cockpit required.</p>
+        <p style="font-size:18px">Compose any MAVLink message, fill fields from the lake, send it. The autopilot
+           needs nothing Cockpit-specific.</p>
       </div>
     </div>
   </div>
@@ -923,7 +921,7 @@ useVehicleAddressAsBase is the one to emphasise again.">
 <section class="slide divider" data-notes="Section 6. Target ~28:00. This is the richest door — give it time.">
   <div class="num">05</div>
   <h1>The extension manifest</h1>
-  <p>Ship the whole experience, not just a page.</p>
+  <p>Ship the widgets, the actions and the controls together.</p>
 </section>
 
 <!-- ============================================================ 32 · DISCOVERY -->
@@ -1008,9 +1006,7 @@ Then immediately reassure: it's a SUGGESTION. The operator reviews and accepts. 
 </section>
 
 <!-- ============================================================ 35 · CONSENT -->
-<section class="slide" data-notes="Design principle worth stating explicitly to a developer audience, because it constrains what they can do — and it's why operators will trust installing their extension.
-
-Nothing from an extension applies itself.">
+<section class="slide" data-notes="Say the rule plainly: nothing from an extension applies itself. It limits what an extension can do, and it's the reason an operator can trust installing one.">
   <div class="kicker">Door 5 · the rule that makes it safe</div>
   <h2>Nothing applies itself</h2>
   <div class="cols">
@@ -1089,7 +1085,7 @@ Say the advice out loud: 'pick the lowest row that solves your problem.' Most pe
 <!-- ============================================================ 37 · DIVIDER: ROUGH EDGES -->
 <section class="slide divider" data-notes="Section 7. Target ~33:00.
 
-This section is why the room will trust you. Do not soften it.">
+Don't soften this section.">
   <div class="num">06</div>
   <h1>Rough edges</h1>
   <p>The things I'd rather you heard from me than found at 2am.</p>
@@ -1100,9 +1096,7 @@ This section is why the room will trust you. Do not soften it.">
 
 Each has an open issue: DIY sandbox #3040, iframe bridge docs #3044 and writes #3217, manifest docs #3041.
 
-Then the punchline: 'every one of these is a small, well-scoped contribution. That's my ask.'
-
-This slide earns more credibility than any feature slide in the deck.">
+Then the punchline: 'every one of these is a small, well-scoped contribution. That's my ask.'">
   <div class="kicker">Known, current, in v1.19</div>
   <h2>What's still wrong</h2>
   <div class="cols">
@@ -1119,12 +1113,12 @@ This slide earns more credibility than any feature slide in the deck.">
         <small>The Zod types in the repo are the only spec — this slide is closer to docs than anything we ship</small></li>
     </ul>
   </div>
-  <div class="callout good"><p>Every one of these is small, well-scoped, and genuinely useful. If you want a way in,
-     this is the list. <span class="muted">(It had six items when I drafted it. HTTP headers and JSON over the WebSocket got fixed before I got on the plane.)</span></p></div>
+  <div class="callout good"><p>Each of these is a small, self-contained fix. If you want a way in,
+     start here. <span class="muted">(It had six items when I drafted it. HTTP headers and JSON over the WebSocket got fixed before I got on the plane.)</span></p></div>
 </section>
 
 <!-- ============================================================ 39 · AERIAL -->
-<section class="slide" data-notes="THE ASK. This is the most important slide for THIS audience. Say it plainly, no hedging.
+<section class="slide" data-notes="THE ASK. Say it plainly, no hedging.
 
 Quote our own README out loud — it's more credible coming from you than from a critic.
 
@@ -1136,12 +1130,12 @@ Then: pause. Actually ask. Look at people.">
   <div class="cols wide-left">
     <div>
       <p>Blue Robotics builds submarines and boats. We test <strong>ArduSub</strong> and <strong>ArduRover</strong>
-         every single day, against real hardware.</p>
+         every day, against real hardware.</p>
       <div class="callout">
         <p>Straight from our own README: aerial support is <em>initial</em>. ArduCopter has been physically tested,
            but the core team doesn't fly regularly — <em>"use it at your own risk."</em></p>
       </div>
-      <p class="after">That is not false modesty. It's a gap, and it's the gap that matters most to this room.</p>
+      <p class="after">For this room, that's the gap that matters most.</p>
     </div>
     <div class="panel">
       <h3>What I'm asking for</h3>
@@ -1158,7 +1152,7 @@ Then: pause. Actually ask. Look at people.">
 </section>
 
 <!-- ============================================================ 40 · 2024 QUESTIONS -->
-<section class="slide" data-notes="Close the loop on Kaga. This is a credibility move — you remembered their questions two years later.
+<section class="slide" data-notes="Close the loop on Kaga: these are the questions they asked two years ago.
 
 Be straight about 3D: still not there, still want it, not promising a date. Saying 'no' to one of four is what makes the other three believable.">
   <div class="kicker">Kaga, answered</div>
