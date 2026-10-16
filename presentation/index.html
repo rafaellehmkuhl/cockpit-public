@@ -383,6 +383,39 @@ Your data lands under external/ automatically if it comes through the WebSocket 
      flattener in <code>src/libs/vehicle/common/data-flattener.ts</code> — never special-case a widget.</p></div>
 </section>
 
+<!-- ============================================================ 11b · MUSTACHE -->
+<section class="slide" data-notes="This syntax shows up in every door, so teach it once here.
+
+Wrap an id in double braces and Cockpit puts the current value there: in action URLs, headers and bodies, MAVLink message fields, compound variable expressions, WebSocket URLs, indicator text and the video telemetry overlay.
+
+New in 1.19: add a unit system after a colon. MAVLink fields carry their units from the message definitions, so relative_alt, stored in millimetres, reads as metres with : metric and feet with : imperial. Without a suffix you get the raw stored value. A misspelled system or a variable with no unit also gives the raw value instead of breaking the expression.
+
+In compound variables the value goes in as a JavaScript literal, so a string can't turn into code.">
+  <div class="kicker">Reading the lake</div>
+  <h2><code style="font-size:.8em">{{ id }}</code> reads any value, anywhere</h2>
+  <div class="cols wide-left">
+    <div>
+      <pre class="sm"><code data-lang="txt">{{ external/watertemp }}                                       → 18.4
+
+{{ /mavlink/1/1/GLOBAL_POSITION_INT/relative_alt }}            → 12500 (mm)
+{{ /mavlink/1/1/GLOBAL_POSITION_INT/relative_alt : metric }}   → 12.5  (m)
+{{ /mavlink/1/1/GLOBAL_POSITION_INT/relative_alt : imperial }} → 41.0  (ft)</code></pre>
+      <p class="after muted" style="font-size:18px">The suffix is <code>metric</code>, <code>imperial</code> or
+         <code>nautical</code>. Leave it off and you get the value as stored.</p>
+    </div>
+    <div class="panel">
+      <h3>Works in</h3>
+      <ul style="gap:8px">
+        <li>HTTP actions: URL, query, headers, body</li>
+        <li>MAVLink message fields</li>
+        <li>Compound variable expressions</li>
+        <li>WebSocket URLs</li>
+        <li>Indicator text and the video telemetry overlay</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <!-- ============================================================ 12 · WINDOW.COCKPIT -->
 <section class="slide" data-notes="This is the API that doors 3 and 4 are built on. It's global, no import, available to any JS running in the page. It's window.cockpit underneath, but every script in Cockpit just writes cockpit.
 
