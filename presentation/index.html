@@ -613,7 +613,7 @@ An object whose type starts with cockpit: is a COMMAND, not data. Today that's p
 </section>
 
 <!-- ============================================================ 16 · THE SERVER -->
-<section class="slide" data-notes="This is the actual server used to produce the screenshots in this deck. Not a mock-up.
+<section class="slide" data-notes="This runs as-is: pip install websockets, then python feed.py.
 
 'That's the integration. That's all of it.'
 
@@ -745,7 +745,7 @@ Headers used to be the gotcha — they weren't interpolated. That was fixed in O
       <pre class="sm"><code data-lang="json">{
   "vehicle": "{{ vehicle-address }}",
   "temp_c":  {{ external/watertemp }},
-  "alt_m":   {{ external/sonaraltitude }},
+  "alt_m":   {{ external/sonar/altitude }},
   "depth":   {{ /mavlink/1/1/VFR_HUD/alt }}
 }</code></pre>
       <p class="after muted" style="font-size:18px">Same <code>{{ }}</code> syntax in the URL, in query
