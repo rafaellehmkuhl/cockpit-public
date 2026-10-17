@@ -143,16 +143,6 @@
   .act-triggers .lake-h{grid-column:1 / -1;}
   .lake-core small{display:block; font-size:15px; font-weight:400; color:var(--muted); margin-top:6px; font-family:var(--mono);}
 
-  /* ---------------------------------------------------------------- placeholders for media still to capture */
-  .ph{
-    border:2px dashed rgba(143,167,162,.45); border-radius:14px; background:rgba(255,255,255,.025);
-    display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
-    padding:20px; min-height:220px;
-  }
-  .ph b{display:block; font-size:13px; letter-spacing:2px; text-transform:uppercase; color:var(--kelp); margin-bottom:10px;}
-  .ph span{font-size:17px; color:var(--muted); max-width:52ch; line-height:1.45;}
-  .ph.tall{min-height:380px;}
-  .ph.short{min-height:150px;}
   .stats.five{grid-template-columns:repeat(5,1fr);}
   .stats.five .stat .n{font-size:40px;}
 
@@ -214,6 +204,9 @@
     border-radius:12px; border:1px solid var(--line); background:#000;
     min-height:0;
   }
+  /* Recorded flows: the box hugs the 16:9 frame instead of letterboxing it. */
+  figure.clip{align-items:center;}
+  figure.clip video, figure.clip img{width:auto; height:auto; max-width:100%; max-height:100%; aspect-ratio:16/9; background:none;}
   figcaption{font-size:15px; color:var(--dim); margin-top:11px; text-align:center;}
   .media-slide{padding:52px 60px 46px;}
   .media-slide h2{font-size:33px; margin-bottom:18px;}
@@ -348,10 +341,12 @@ The slot is 30 minutes. The plan runs ~21:30, leaving the rest as slack for demo
 <!-- ============================================================ 1b · THIS IS COCKPIT -->
 <section data-secs="30" class="slide" data-notes="For anyone who hasn't seen it: this is Cockpit. It's a ground control station, one of several out there, and it does what a GCS does.
 
-Let the video run while you say it; don't narrate every feature. Then move on to what changed since Kaga.">
+Let the video run while you say it; don't narrate every feature. Then move on to what changed since Kaga.
+
+If asked: the boat is an ArduRover SITL on Lagoa da Conceição, and the camera is public-domain NPS footage from the Colorado River, fed to Cockpit as a WebRTC stream.">
   <div class="kicker">For anyone who hasn't seen it</div>
   <h2>This is Cockpit</h2>
-  <div class="ph" style="min-height:470px"><b>Placeholder · Video / GIF</b><span>A quick pass over Cockpit doing what a ground station does: the map, mission planning, geofences, video, vehicle commands, the joystick and so on.</span></div>
+  <figure class="grow clip"><video src="media/clips/this-is-cockpit.mp4" data-poster="media/clips/this-is-cockpit.jpg" muted playsinline preload="auto" aria-label="Cockpit commanding a boat from the map, planning a survey and a geofence, streaming and recording video, and building a view from widgets"></video></figure>
 </section>
 
 <!-- ============================================================ 2 · SINCE KAGA -->
@@ -517,7 +512,7 @@ The example is a trigger rather than a unit conversion, since units are already 
       <p class="after muted" style="font-size:17px">Any variable you create can also persist across reboots:
          the definition, the last value, or both.</p>
     </div>
-    <div class="ph tall"><b>Placeholder · GIF</b><span>Two plotters side by side: external/pressure moving over time, and pressure-limit-reached flipping between false and true as it crosses 250000.</span></div>
+    <figure class="grow clip"><video src="media/clips/compound.mp4" data-poster="media/clips/compound.jpg" muted playsinline preload="auto" aria-label="Creating the pressure-limit-reached compound variable, then plotting pressure and the flag side by side"></video></figure>
   </div>
 </section>
 
@@ -774,7 +769,7 @@ If it fails: say so and move on within 10 seconds. Do not debug on stage.">
 There's no public gallery of DIY widgets yet. A public repository where people can post theirs would be a good thing to have.">
   <div class="kicker">Door 3</div>
   <h2>None of these ship with Cockpit</h2>
-  <div class="ph tall"><b>Placeholder · Screenshot</b><span>A view full of DIY widgets built for this talk: a few different ones side by side, to show how far a widget typed into the app can go.</span></div>
+  <figure class="grow clip"><video src="media/clips/diy-gallery.mp4" data-poster="media/clips/diy-gallery.jpg" muted playsinline preload="auto" aria-label="A view of DIY widgets on live data: speed gauge, heading tape, propulsion, water temperature, echo sounder and a lights slider"></video></figure>
 </section>
 
 <!-- ============================================================ 27 · DIY -->
@@ -790,7 +785,7 @@ Be honest: scoped is NOT sandboxed. Same document, same privileges.">
   <div class="kicker">Door 3</div>
   <h2>Write a widget without leaving the app</h2>
   <div class="cols">
-    <div class="ph tall"><b>Placeholder · Screenshot</b><span>The DIY widget editor open: the HTML, CSS and JS panes in the Monaco editor, with autocomplete over variable ids.</span></div>
+    <figure class="grow clip"><video src="media/clips/diy-editor.mp4" data-poster="media/clips/diy-editor.jpg" muted playsinline preload="auto" aria-label="Writing a DIY widget script in the in-app editor, with data-lake autocomplete, and applying it"></video></figure>
     <div>
       <div class="filename">the cockpit. API · data</div>
       <pre class="xs"><code data-lang="js">cockpit.getDataLakeVariableData(id)
@@ -885,11 +880,13 @@ The page can stay completely separate from Cockpit, or talk to it over postMessa
 
 The options on the right are the small things that save hours. useVehicleAddressAsBase is the killer one: your widget URL resolves against whatever vehicle the operator is connected to, so no hardcoded IPs.
 
-New since September: the child can WRITE points of interest — add, update, remove. Built for sonar or vision pipelines that drop a marker per detection. Each iframe widget only applies its own iframe's commands, so two widgets don't duplicate them. The same JSON works over the WebSocket door.">
+New since September: the child can WRITE points of interest — add, update, remove. Built for sonar or vision pipelines that drop a marker per detection. Each iframe widget only applies its own iframe's commands, so two widgets don't duplicate them. The same JSON works over the WebSocket door.
+
+The clip drops an IFrame widget onto a view and points it at a Windy wind map of the same lagoon.">
   <div class="kicker">Door 4</div>
   <h2>Your existing UI, as a widget</h2>
   <div class="cols">
-    <div class="ph" style="min-height:430px"><b>Placeholder · Screenshot</b><span>An iframe widget on a view, showing an external page inside Cockpit, such as a camera control page served by the companion computer.</span></div>
+    <figure class="grow clip"><video src="media/clips/iframe.mp4" data-poster="media/clips/iframe.jpg" muted playsinline preload="auto" aria-label="Dropping an IFrame widget on a view and pointing it at a weather map"></video></figure>
     <div>
       <div class="filename">in your page</div>
       <pre class="sm"><code data-lang="js">CockpitAPI.listenToDatalakeVariable(
