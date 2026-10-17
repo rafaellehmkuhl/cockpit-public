@@ -343,7 +343,7 @@ The slot is 30 minutes. The plan runs ~21:30, leaving the rest as slack for demo
 
 Let the video run while you say it; don't narrate every feature. Then move on to what changed since Kaga.
 
-If asked: the boat is an ArduRover SITL on Lagoa da Conceição, and the camera is public-domain NPS footage from the Colorado River, fed to Cockpit as a WebRTC stream.">
+If asked: the boat is an ArduRover SITL on Lagoa da Conceição, and the camera is public-domain BlueROV2 footage from a Blue Robotics survey in Elliott Bay, Seattle, fed to Cockpit as a WebRTC stream.">
   <div class="kicker">For anyone who hasn't seen it</div>
   <h2>This is Cockpit</h2>
   <figure class="grow clip"><video src="media/clips/this-is-cockpit.mp4" data-poster="media/clips/this-is-cockpit.jpg" muted playsinline preload="auto" aria-label="Cockpit commanding a boat from the map, planning a survey and a geofence, streaming and recording video, and building a view from widgets"></video></figure>
@@ -882,11 +882,11 @@ The options on the right are the small things that save hours. useVehicleAddress
 
 New since September: the child can WRITE points of interest — add, update, remove. Built for sonar or vision pipelines that drop a marker per detection. Each iframe widget only applies its own iframe's commands, so two widgets don't duplicate them. The same JSON works over the WebSocket door.
 
-The clip drops an IFrame widget onto a view and points it at a Windy wind map of the same lagoon.">
+The clip drops an IFrame widget onto the camera view and points it at the 4K Cam Manager extension's own page. Dragging its zoom and tilt sliders moves the picture: that's an extension's UI running inside Cockpit, unchanged.">
   <div class="kicker">Door 4</div>
   <h2>Your existing UI, as a widget</h2>
   <div class="cols">
-    <figure class="grow clip"><video src="media/clips/iframe.mp4" data-poster="media/clips/iframe.jpg" muted playsinline preload="auto" aria-label="Dropping an IFrame widget on a view and pointing it at a weather map"></video></figure>
+    <figure class="grow clip"><video src="media/clips/iframe.mp4" data-poster="media/clips/iframe.jpg" muted playsinline preload="auto" aria-label="Dropping an IFrame widget on the camera view, pointing it at the 4K Cam Manager, and zooming and tilting the camera from it"></video></figure>
     <div>
       <div class="filename">in your page</div>
       <pre class="sm"><code data-lang="js">CockpitAPI.listenToDatalakeVariable(
