@@ -546,7 +546,7 @@ This is the crowd-pleaser. Slow down and enjoy it.">
 <section data-secs="50" class="slide" data-notes="Deliberately, almost insultingly simple. That's the design point — say that.
 
 Walk the rules:
-- send a JSON object: every key is a variable, and nested keys and array indexes become path segments, so Sonar.Altitude lands at external/sonar/altitude
+- send a JSON object: every key is a variable, and nested keys and array indexes become path segments, so Sonar.Ping.Distance lands at external/sonar/ping/distance, three levels deep
 - the type comes from the JSON value itself: a number stays a number, true is a boolean, &quot;12&quot; stays a string
 - a plain name=value line also works, one variable per message, type guessed from the text, quote it to force a string
 - either way the type locks on the first value it sees; null values are skipped with a warning
@@ -554,25 +554,31 @@ Walk the rules:
 An object whose type starts with cockpit: is a COMMAND, not data. Today that's point-of-interest add/update/remove.">
   <div class="kicker">Door 1 · the protocol</div>
   <h2>The entire wire format</h2>
-  <div class="cols">
+  <div class="cols wide-right">
     <div>
-      <div class="filename">one message</div>
+      <div class="filename">one message, over the WebSocket</div>
       <pre class="sm"><code data-lang="json">{
   "WaterTemp": 18.4,
-  "Sonar": { "Altitude": 12.3 },
+  "Sonar": {
+    "Ping": { "Distance": 12.3 }
+  },
   "Winch": { "Locked": false },
   "PayloadStatus": "Logging"
 }</code></pre>
     </div>
-    <ul>
-      <li><strong>Every key is a variable.</strong> Nesting and array indexes become the path.</li>
-      <li><strong>Typed by JSON:</strong> numbers, booleans and strings stay what they are.</li>
-      <li><strong>Plain text also works:</strong> <code>WaterTemp=18.4</code>, one variable per message.</li>
-      <li><strong>Lands at</strong> <code>external/</code> + a machinized path.</li>
-    </ul>
+    <div>
+      <div class="filename">what lands in the data lake</div>
+      <table>
+        <tr><th>Id</th><th>Value</th><th>Type</th></tr>
+        <tr><td><code>external/watertemp</code></td><td>18.4</td><td class="n">number</td></tr>
+        <tr><td><code>external/sonar/ping/distance</code></td><td>12.3</td><td class="n">number</td></tr>
+        <tr><td><code>external/winch/locked</code></td><td>false</td><td class="n">boolean</td></tr>
+        <tr><td><code>external/payloadstatus</code></td><td>Logging</td><td class="n">string</td></tr>
+      </table>
+    </div>
   </div>
-  <div class="callout"><p><code>"Sonar": { "Altitude": 12.3 }</code> &nbsp;→&nbsp; <code>external/sonar/altitude</code>, typed <em>number</em>.
-     An object whose <code>type</code> starts with <code>cockpit:</code> is a <em>command</em> instead, such as adding a point of interest.</p></div>
+  <div class="callout"><p><strong>Every key is a variable</strong>, nesting becomes the path, and the JSON value sets the type.
+     Plain text also works: <code>WaterTemp=18.4</code>. An object whose <code>type</code> starts with <code>cockpit:</code> is a <em>command</em> instead.</p></div>
 </section>
 
 <!-- ============================================================ 16 · THE SERVER -->
