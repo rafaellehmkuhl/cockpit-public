@@ -468,29 +468,24 @@ Wrap an id in double braces and Cockpit puts the current value there: in action 
 
 New in 1.19: add a unit system after a colon. MAVLink fields carry their units from the message definitions, so relative_alt, stored in millimetres, reads as metres with : metric and feet with : imperial. Without a suffix you get the raw stored value. A misspelled system or a variable with no unit also gives the raw value instead of breaking the expression.
 
-In compound variables the value goes in as a JavaScript literal, so a string can't turn into code.">
+In compound variables the value goes in as a JavaScript literal, so a string can't turn into code.
+
+The clip: a MAVLink action sends MAV_CMD_DO_CHANGE_SPEED with {{ external/survey/speed }} as parameter 2, a value the survey payload publishes. A button on the bottom bar runs it and the boat drops from 5 to 2.5 m/s. The system ID field already ships with {{autopilotSystemId}}.">
   <div class="kicker">Reading the lake</div>
   <h2><code style="font-size:.8em">{{ id }}</code> reads any value, anywhere</h2>
-  <div class="cols wide-left">
+  <div class="cols">
     <div>
-      <pre class="sm"><code data-lang="txt">{{ external/watertemp }}                                      → 18.4
+      <pre class="xs"><code data-lang="txt">{{ external/watertemp }}                                      → 18.4
 
 {{ mavlink/1/1/GLOBAL_POSITION_INT/relative_alt }}            → 12500 (mm)
 {{ mavlink/1/1/GLOBAL_POSITION_INT/relative_alt : metric }}   → 12.5  (m)
 {{ mavlink/1/1/GLOBAL_POSITION_INT/relative_alt : imperial }} → 41.0  (ft)</code></pre>
       <p class="after muted" style="font-size:18px">The suffix is <code>metric</code>, <code>imperial</code> or
          <code>nautical</code>. Leave it off and you get the value as stored.</p>
+      <p class="after muted" style="font-size:18px">Works in HTTP actions (URL, query, headers, body), MAVLink message
+         fields, compound variables, WebSocket URLs, indicator text and the video telemetry overlay.</p>
     </div>
-    <div class="panel">
-      <h3>Works in</h3>
-      <ul style="gap:8px">
-        <li>HTTP actions: URL, query, headers, body</li>
-        <li>MAVLink message fields</li>
-        <li>Compound variable expressions</li>
-        <li>WebSocket URLs</li>
-        <li>Indicator text and the video telemetry overlay</li>
-      </ul>
-    </div>
+    <figure class="grow clip"><video src="media/clips/mavlink-action.mp4" data-poster="media/clips/mavlink-action.jpg" muted playsinline preload="auto" aria-label="Creating a MAVLink action that sends MAV_CMD_DO_CHANGE_SPEED with {{ external/survey/speed }} as the speed, then running it from a button: the boat slows from 5.0 to 2.5 m/s"></video></figure>
   </div>
 </section>
 
