@@ -332,13 +332,13 @@
 
 Target: off this slide by 0:45.
 
-The slot is 30 minutes. The plan runs ~21:30, leaving the rest as slack for demos that run long. The pace indicator follows that plan, not an even split.">
+The slot is 30 minutes. The plan runs ~20:30, leaving the rest as slack for demos that run long. The pace indicator follows that plan, not an even split.">
   <div class="kicker">ArduPilot Developer Conference · Ottawa 2026</div>
   <h1>Cockpit:<br>build on it</h1>
   <div class="title-rule"></div>
   <div class="byline">
     <b>Rafael Lehmkuhl</b> · Blue Robotics<br>
-    <span class="dim">Four ways to put your own hardware, service or code inside the ground station</span>
+    <span class="dim">Three ways to put your own hardware, service or code inside the ground station</span>
   </div>
   <div class="venue">Brookstreet Hotel · 23–25 October 2026<br>github.com/bluerobotics/cockpit</div>
 </section>
@@ -397,18 +397,17 @@ Numbers are measured from upstream master: commits since November 2024, git diff
 <!-- ============================================================ 7 · FOUR DOORS -->
 <section data-secs="40" class="slide" data-notes="THE ROADMAP SLIDE. Come back to it between sections.
 
-'Four doors. They go from zero code to your own web app. Pick the lowest one that solves your problem — that's the whole advice of this talk.'
+'Three doors. They go from zero code to your own widget. Pick the lowest one that solves your problem — that's the whole advice of this talk.'
 
 Point out the effort column. ~60 seconds.">
   <div class="kicker">What this talk is</div>
-  <h2>Four doors into Cockpit</h2>
+  <h2>Three doors into Cockpit</h2>
   <div class="doors">
     <div class="door"><div class="d">1</div><div class="t">Generic WebSocket<small>Send JSON or <code>name=value</code>. No code inside Cockpit at all.</small></div><div class="e">~5 minutes</div></div>
     <div class="door"><div class="d">2</div><div class="t">Actions<small>HTTP, MAVLink or JavaScript — triggered by buttons, data or time</small></div><div class="e">~15 minutes</div></div>
     <div class="door"><div class="d">3</div><div class="t">DIY widget<small>Your HTML/CSS/JS, typed into the app</small></div><div class="e">~30 minutes</div></div>
-    <div class="door"><div class="d">4</div><div class="t">iframe widget + CockpitAPI<small>Your own web app, hosted anywhere</small></div><div class="e">~1 hour</div></div>
   </div>
-  <p class="after muted">All four reach the same place. Let me show you that place first.</p>
+  <p class="after muted">All three reach the same place. Let me show you that place first.</p>
 </section>
 
 <!-- ============================================================ 8 · DIVIDER: DATA LAKE -->
@@ -519,12 +518,11 @@ The example is a trigger rather than a unit conversion, since units are already 
 <!-- ============================================================ 13b · IN AND OUT -->
 <section data-secs="20" class="slide center" data-notes="The question someone always asks here: fine, but how do I put my data in there, and get it out? Answer it, then go straight into door 1.">
   <div class="kicker">So how does your data get in, and out?</div>
-  <h1 style="font-size:56px; max-width:22ch">Through four doors.</h1>
+  <h1 style="font-size:56px; max-width:22ch">Through three doors.</h1>
   <div style="margin-top:30px">
     <span class="pill on">ws:// · in</span>
     <span class="pill on">actions · out</span>
     <span class="pill on">DIY · in and out</span>
-    <span class="pill on">iframe · in and out</span>
   </div>
 </section>
 
@@ -866,42 +864,27 @@ If it fails: say so and move on within 10 seconds. Do not debug on stage.">
   <div class="fallback">If it fails: no debugging on stage. Ten seconds, then move on.</div>
 </section>
 
-<!-- ============================================================ 28 · DIVIDER: DOOR 4 -->
-<section data-secs="5" class="slide divider" data-notes="Section 5. Target ~16:15.">
-  <div class="num">04</div>
-  <h1>iframe + CockpitAPI</h1>
-  <p>You already have a web app. Bring it.</p>
-</section>
+<!-- ============================================================ 29 · EXTRAS -->
+<section data-secs="15" class="slide" data-notes="About fifteen seconds. Say these exist and move on; don't teach them.
 
-<!-- ============================================================ 29 · IFRAME -->
-<section data-secs="60" class="slide" data-notes="For teams who already built a payload UI. Don't rewrite it — embed it. It can run on the companion computer, on the topside machine, anywhere.
+iframe widget: embed a web app you already have, hosted anywhere. It has its own API, CockpitAPI, over postMessage, to listen to data-lake values and add points of interest. The clip is the 4K Cam Manager extension's own page running inside Cockpit, its zoom and tilt sliders moving the camera.
 
-The page can stay completely separate from Cockpit, or talk to it over postMessage, which works cross-origin. That API is badly documented today, and we know it.
-
-The options on the right are the small things that save hours. useVehicleAddressAsBase is the killer one: your widget URL resolves against whatever vehicle the operator is connected to, so no hardcoded IPs.
-
-New since September: the child can WRITE points of interest — add, update, remove. Built for sonar or vision pipelines that drop a marker per detection. Each iframe widget only applies its own iframe's commands, so two widgets don't duplicate them. The same JSON works over the WebSocket door.
-
-The clip drops an IFrame widget onto the camera view and points it at the 4K Cam Manager extension's own page. Dragging its zoom and tilt sliders moves the picture: that's an extension's UI running inside Cockpit, unchanged.">
-  <div class="kicker">Door 4</div>
-  <h2>Your existing UI, as a widget</h2>
+BlueOS extension manifest: an extension that declares extras.cockpit can offer Cockpit iframe widgets, actions and joystick button suggestions. The operator reviews each one before it applies.">
+  <div class="kicker">Two more ways in</div>
+  <h2>Extras</h2>
   <div class="cols">
     <figure class="grow clip"><video src="media/clips/iframe.mp4" data-poster="media/clips/iframe.jpg" muted playsinline preload="auto" aria-label="Dropping an IFrame widget on the camera view, pointing it at the 4K Cam Manager, and zooming and tilting the camera from it"></video></figure>
     <div>
-      <div class="filename">in your page</div>
-      <pre class="sm"><code data-lang="js">CockpitAPI.listenToDatalakeVariable(
-  'external/watertemp',
-  (value) =&gt; render(value),
-  10 // max Hz
-)</code></pre>
-      <ul class="after" style="gap:10px">
-        <li><code>useVehicleAddressAsBase</code>
-          <small>The URL follows the connected vehicle, no hardcoded IPs</small></li>
-        <li><code>contentZoom</code>, <code>scaleContentWithWidget</code>
-          <small>The page stays legible as the widget is resized</small></li>
-        <li><code>collapsibleContainerName</code>, <code>startCollapsed</code>
-          <small>Dock it in a collapsible drawer instead of taking canvas</small></li>
-      </ul>
+      <div class="panel">
+        <h3>iframe widget</h3>
+        <p style="font-size:18px">Embed a web app you already have. It gets a dedicated API,
+           <code>CockpitAPI</code>, to read the data lake.</p>
+      </div>
+      <div class="panel after">
+        <h3>BlueOS extension manifest</h3>
+        <p style="font-size:18px">A BlueOS extension can offer Cockpit widgets, actions and joystick button
+           suggestions. The operator reviews each one.</p>
+      </div>
     </div>
   </div>
 </section>
@@ -909,7 +892,7 @@ The clip drops an IFrame widget onto the camera view and points it at the 4K Cam
 <!-- ============================================================ 36 · CHOOSING -->
 <section data-secs="30" class="slide" data-notes="The practical summary. If someone remembers one slide, make it this one.
 
-Say the advice out loud: 'pick the lowest row that solves your problem.' Most people over-build — they reach for door 4 when door 1 would do.
+Say the advice out loud: 'pick the lowest row that solves your problem.' Most people over-build — they reach for door 3 when door 1 would do.
 
 Worth saying: Blue Robotics builds its own product integrations on these same doors, so they get the same care as any first-party feature.">
   <div class="kicker">Recap</div>
@@ -919,10 +902,9 @@ Worth saying: Blue Robotics builds its own product integrations on these same do
     <tr><td><strong>1 · WebSocket</strong></td><td>You have values and want them seen, plotted, logged</td></tr>
     <tr><td><strong>2 · Actions</strong></td><td>You need Cockpit to call you, or the vehicle to react</td></tr>
     <tr><td><strong>3 · DIY widget</strong></td><td>You need a custom display and don't want to host anything</td></tr>
-    <tr><td><strong>4 · iframe</strong></td><td>You already have a web UI worth keeping</td></tr>
     <tr><td><strong>+ · MCP</strong></td><td>You'd rather describe it than build it</td></tr>
   </table>
-  <div class="callout"><p>Most people reach for door 4 when door 1 would have done. Don't.</p></div>
+  <div class="callout"><p>Most people reach for door 3 when door 1 would have done. Don't.</p></div>
 </section>
 
 <!-- ============================================================ 41 · WHAT'S NEXT -->
@@ -1068,14 +1050,13 @@ Mention the monthly developer calls on Discord — that's the lowest-friction wa
 <!-- ============================================================ 43 · CLOSE -->
 <section data-secs="15" class="slide center" data-notes="Land it and stop talking. Q&A is a separate slot, so don't invite questions here — just stop.
 
-'Four doors. Pick the lowest one. And if you fly, please come find me.'">
-  <h1 style="font-size:58px; max-width:22ch">Four doors.<br>Pick the lowest one that works.</h1>
+'Three doors. Pick the lowest one. And if you fly, please come find me.'">
+  <h1 style="font-size:58px; max-width:22ch">Three doors.<br>Pick the lowest one that works.</h1>
   <p class="lead muted after">And if you fly copters or planes — please come and find me.</p>
   <div style="margin-top:34px">
     <span class="pill on">ws://</span>
     <span class="pill on">actions</span>
     <span class="pill on">DIY</span>
-    <span class="pill on">iframe</span>
   </div>
   <p class="after dim" style="font-size:17px">Rafael Lehmkuhl · Blue Robotics · github.com/bluerobotics/cockpit</p>
 </section>
