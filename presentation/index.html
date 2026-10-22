@@ -185,16 +185,15 @@
   /* ---------------------------------------------------------------- doors */
   .doors{display:flex; flex-direction:column; gap:11px; margin-top:4px;}
   .door{
-    display:grid; grid-template-columns:52px 1fr auto; align-items:center; gap:20px;
+    display:grid; grid-template-columns:56px 1fr; align-items:center; gap:20px;
     background:var(--glass); border:1px solid var(--line);
     border-left:3px solid var(--kelp-dim);
-    border-radius:11px; padding:14px 20px;
+    border-radius:11px; padding:20px 26px;
     transition:border-color .2s, background .2s;
   }
-  .door .d{font-size:26px; font-weight:700; color:var(--kelp-dim);}
-  .door .t{font-size:20px; font-weight:600;}
-  .door .t small{display:block; font-size:15px; color:var(--muted); font-weight:400; margin-top:3px;}
-  .door .e{font-size:13px; color:var(--dim); text-align:right; letter-spacing:.4px; white-space:nowrap;}
+  .door .d{font-size:36px; font-weight:700; color:var(--kelp-dim);}
+  .door .t{font-size:30px; font-weight:600;}
+  .door .t small{display:block; font-size:23px; color:var(--muted); font-weight:400; margin-top:5px;}
   .door.hot{border-left-color:var(--kelp); background:rgba(79,164,131,.10);}
   .door.hot .d{color:var(--kelp);}
 
@@ -388,13 +387,13 @@ If asked: the boat is an ArduRover SITL on Lagoa da Conceição, and the camera 
 
 'Three doors. They go from zero code to your own widget. Pick the lowest one that solves your problem — that's the whole advice of this talk.'
 
-Point out the effort column. ~60 seconds.">
+~60 seconds.">
   <div class="kicker">What this talk is</div>
   <h2>Three doors into Cockpit</h2>
   <div class="doors">
-    <div class="door"><div class="d">1</div><div class="t">Generic WebSocket<small>Send JSON or <code>name=value</code>. No code inside Cockpit at all.</small></div><div class="e">~5 minutes</div></div>
-    <div class="door"><div class="d">2</div><div class="t">Actions<small>HTTP, MAVLink or JavaScript — triggered by buttons, data or time</small></div><div class="e">~15 minutes</div></div>
-    <div class="door"><div class="d">3</div><div class="t">DIY widget<small>Your HTML/CSS/JS, typed into the app</small></div><div class="e">~30 minutes</div></div>
+    <div class="door"><div class="d">1</div><div class="t">Generic WebSocket<small>Send JSON directly to Cockpit's data lake</small></div></div>
+    <div class="door"><div class="d">2</div><div class="t">Actions<small>HTTP, MAVLink or JavaScript functions, triggered by buttons, data or time</small></div></div>
+    <div class="door"><div class="d">3</div><div class="t">DIY widget<small>Your HTML/CSS/JS as a widget in the app</small></div></div>
   </div>
   <p class="after muted">All three reach the same place. Let me show you that place first.</p>
 </section>
