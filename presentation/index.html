@@ -148,6 +148,12 @@
   .act-triggers .lake-h{grid-column:1 / -1;}
   .lake-core small{display:block; font-size:15px; font-weight:400; color:var(--muted); margin-top:6px; font-family:var(--mono);}
 
+  .intro{display:grid; grid-template-columns:3fr 1fr; gap:28px; flex:1; min-height:0; align-items:center;}
+  .facts{display:flex; flex-direction:column; gap:12px;}
+  .facts .stat{padding:12px 16px; text-align:left;}
+  .facts .stat .n{font-size:30px;}
+  .facts .stat .l{margin-top:5px;}
+
   .stats.five{grid-template-columns:repeat(5,1fr);}
   .stats.five .stat .n{font-size:40px;}
 
@@ -344,52 +350,25 @@ The slot is 30 minutes. The plan runs ~20:30, leaving the rest as slack for demo
 </section>
 
 <!-- ============================================================ 1b · THIS IS COCKPIT -->
-<section data-secs="30" class="slide" data-notes="For anyone who hasn't seen it: this is Cockpit. It's a ground control station, one of several out there, and it does what a GCS does.
+<section data-secs="60" class="slide" data-notes="For anyone who hasn't seen it: this is Cockpit. It's a ground control station, one of several out there, and it does what a GCS does.
 
-Let the video run while you say it; don't narrate every feature. Then move on to what changed since Kaga.
+Let the video run while you say it; don't narrate every feature. Point at the numbers on the right once: started in 2022, two of us full time plus outside contributors.
+
+Then the ask for an open mind: 'I'm about to talk integration, that's our selling point. But give the app itself a chance. I know very few of you flying aerial vehicles use it. Everything you just saw works for any vehicle, so today there's not much reason not to try it. It's a pioneering mission, but the features are there.'
+
+Numbers: first commit 27 April 2022; commits with git rev-list --count upstream/master; merged pull requests from a GitHub search (is:pr is:merged); vehicles per month from the anonymous Ping events in PostHog, counting distinct connected vehicle ids. Re-run them the week of the talk.
 
 If asked: the boat is an ArduRover SITL on Lagoa da Conceição, and the camera is public-domain BlueROV2 footage from a Blue Robotics survey in Elliott Bay, Seattle, fed to Cockpit as a WebRTC stream.">
   <div class="kicker">For anyone who hasn't seen it</div>
   <h2>This is Cockpit</h2>
-  <figure class="grow clip"><video src="media/clips/this-is-cockpit.mp4" data-poster="media/clips/this-is-cockpit.jpg" muted playsinline preload="auto" aria-label="Cockpit commanding a boat from the map, planning a survey and a geofence, streaming and recording video, and building a view from widgets"></video></figure>
-</section>
-
-<!-- ============================================================ 2 · SINCE KAGA -->
-<section data-secs="60" class="slide" data-notes="Start with: this project has been in full development since 2023. We showed a lot at Kaga in 2024, and since then it's been worked on every single day, with two to three people dedicated to it full time.
-
-Then the ask for an open mind: 'I'm about to talk integration, that's our selling point. But give the app itself a chance. I know very few of you flying aerial vehicles use it. Everything on this slide works for any vehicle, so today there's not much reason not to try it. It's a pioneering mission, but the features are there.'
-
-Numbers are measured from upstream master: commits since November 2024, git diff --shortstat v1.3.2 upstream/master for the lines (126k added, 10k removed), and the stable tags from v1.4.0 to v1.18.4. Re-run them the week of the talk.">
-  <div class="kicker">In active development since 2023</div>
-  <h2>Everything a GCS needs, for any vehicle</h2>
-  <div class="stats" style="grid-template-columns:repeat(3,1fr)">
-    <div class="stat"><div class="n">1,713</div><div class="l">commits since Kaga</div></div>
-    <div class="stat"><div class="n">137k</div><div class="l">lines changed</div></div>
-    <div class="stat"><div class="n">27</div><div class="l">stable releases</div></div>
-  </div>
-  <div class="landed after" style="grid-template-columns:repeat(3,1fr)">
-    <div class="panel">
-      <h3>Connect</h3>
-      <ul>
-        <li>Serial and USB, straight to the autopilot</li>
-        <li>MAVLink over TCP and UDP</li>
-        <li>RTSP video from the camera</li>
-      </ul>
-    </div>
-    <div class="panel">
-      <h3>Operate</h3>
-      <ul>
-        <li>Command waypoints, mission control panel, geofences</li>
-        <li>Video recording that runs for hours</li>
-      </ul>
-    </div>
-    <div class="panel">
-      <h3>Data</h3>
-      <ul>
-        <li>Units for every MAVLink field</li>
-        <li>Plotters</li>
-        <li>Raw data logs and a MAVLink dumper</li>
-      </ul>
+  <div class="intro">
+    <figure class="clip"><video src="media/clips/this-is-cockpit.mp4" data-poster="media/clips/this-is-cockpit.jpg" muted playsinline preload="auto" aria-label="Cockpit commanding a boat from the map, planning a survey and a geofence, streaming and recording video, and building a view from widgets"></video></figure>
+    <div class="facts">
+      <div class="stat"><div class="n">2022</div><div class="l">started, in April</div></div>
+      <div class="stat"><div class="n">3,504</div><div class="l">commits</div></div>
+      <div class="stat"><div class="n">1,413</div><div class="l">merged pull requests</div></div>
+      <div class="stat"><div class="n">2</div><div class="l">full-time developers, plus external contributors</div></div>
+      <div class="stat"><div class="n">TBD</div><div class="l">vehicles connected per month (anonymous data)</div></div>
     </div>
   </div>
 </section>
