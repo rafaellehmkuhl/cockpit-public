@@ -682,6 +682,8 @@ Give the worked example verbally: external/watertemp crosses a threshold, a comp
 - the vehicle query parameter comes from autopilotSystemId, which Cockpit fills in
 - the body has one fixed field and two live values (Cockpit stores the body as a string; it's laid out as JSON here so it reads)
 
+On the right, the MAVLink action from the clip on slide 7, as stored under cockpit-mavlink-message-actions. It's trimmed: every field also stores its type, description and whether it's required, and params 4 to 7 are left out. The system id ships as {{autopilotSystemId}}, and param 2 reads the payload's speed. The autopilot needs nothing Cockpit-specific.
+
 Headers used to be the gotcha — they weren't interpolated. That was fixed in October (v1.19), after this talk was first drafted. Say so: it's a nice 'we listen' moment.">
   <div class="kicker">Door 2 · composing</div>
   <h2>Any action can read the lake</h2>
@@ -707,13 +709,21 @@ Headers used to be the gotcha — they weren't interpolated. That was fixed in O
 }</code></pre>
     </div>
     <div>
-      <div class="callout good"><p><strong>Everywhere:</strong> URL, query parameters, headers and body. The same
-         <code>{{ }}</code> works in MAVLink message fields.</p></div>
-      <div class="panel after">
-        <h3>MAVLink message action</h3>
-        <p style="font-size:18px">Compose any MAVLink message, fill fields from the lake, send it. The autopilot
-           needs nothing Cockpit-specific.</p>
-      </div>
+      <div class="filename">cockpit-mavlink-message-actions · one stored action, trimmed</div>
+      <pre class="sm"><code data-lang="json">{
+  "name": "Survey speed",
+  "messageType": "COMMAND_LONG",
+  "messageConfig": {
+    "target_system": { "value": "{{autopilotSystemId}}" },
+    "target_component": { "value": 1 },
+    "command": { "value": "MAV_CMD_DO_CHANGE_SPEED" },
+    "param1": { "value": 1 },
+    "param2": { "value": "{{ external/survey/speed }}" },
+    "param3": { "value": 0 }
+  }
+}</code></pre>
+      <div class="callout good"><p><strong>Everywhere:</strong> URL, query parameters, headers, body and every
+         MAVLink message field.</p></div>
     </div>
   </div>
 </section>
