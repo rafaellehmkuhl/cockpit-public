@@ -1,4 +1,4 @@
-# The talk's demo server on the VPS: https://apdc.rlehmk.dev, feed at wss://apdc.rlehmk.dev. Deployed by deploy.sh.
+# The talk's demo server on the VPS: https://apdc2026.rlehmk.dev, feed at wss://apdc2026.rlehmk.dev. Deployed by deploy.sh.
 services:
   apdc-demos:
     image: node:22-alpine
@@ -14,7 +14,7 @@ services:
     networks: [my_vps_services_default]
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.apdc-demos-https.rule=Host(`apdc.rlehmk.dev`)"
+      - "traefik.http.routers.apdc-demos-https.rule=Host(`apdc2026.rlehmk.dev`)"
       - "traefik.http.routers.apdc-demos-https.entrypoints=websecure"
       - "traefik.http.routers.apdc-demos-https.tls=true"
       - "traefik.http.routers.apdc-demos-https.tls.certresolver=letsencryptresolver"
