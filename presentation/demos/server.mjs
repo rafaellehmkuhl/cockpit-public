@@ -1,6 +1,6 @@
 // Backend for the talk's live demos. One port does it all: it is the WebSocket feed Cockpit reads (demos 1 and 3),
-// it receives the HTTP requests Cockpit's actions send (demo 2), and it serves the page that shows the audience what
-// this side sees. Plain Node, no dependencies: `node presentation/demos/server.mjs`.
+// it receives the HTTP requests Cockpit's actions send (demo 2), it collects the audience's phones (demo 4), and it
+// serves the page that shows what this side sees. Plain Node, no dependencies: `node presentation/demos/server.mjs`.
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
@@ -8,6 +8,8 @@ import { networkInterfaces } from 'node:os'
 
 const PORT = Number(process.env.PORT ?? 8765)
 const PAGE = new URL('./index.html', import.meta.url)
+const JOIN = new URL('./join.html', import.meta.url)
+const QR = new URL('./vendor/qrcode.js', import.meta.url)
 const MAX_BODY = 64 * 1024
 // On a public host the feed controls need this key (sent by the page as `x-control-key`); locally there is none.
 const CONTROL_KEY = process.env.CONTROL_KEY ?? ''
@@ -37,7 +39,12 @@ const broadcast = (event, data) => {
   const chunk = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
   for (const res of pages) res.write(chunk)
 }
-const state = () => ({ feed, clients: [...sockets.values()].map(({ remote, since }) => ({ remote, since })), locked: Boolean(CONTROL_KEY) })
+const state = () => ({
+  feed,
+  crowd: { on: crowd.on },
+  clients: [...sockets.values()].map(({ remote, since }) => ({ remote, since })),
+  locked: Boolean(CONTROL_KEY),
+})
 
 // Behind Traefik and Cloudflare the socket peer is the proxy, so the client is read from their headers.
 const clientIp = (req) =>
@@ -59,8 +66,8 @@ const frame = (opcode, payload = Buffer.alloc(0)) => {
   return Buffer.concat([header, payload])
 }
 
-// Cockpit never sends data on this connection; only close and ping frames need an answer.
-const readFrames = (socket, info, chunk) => {
+// Cockpit never sends data on its connection; phones send small JSON text frames, each in one frame.
+const readFrames = (socket, info, chunk, onText) => {
   info.pending = Buffer.concat([info.pending, chunk])
   while (info.pending.length >= 2) {
     const opcode = info.pending[0] & 0x0f
@@ -80,16 +87,22 @@ const readFrames = (socket, info, chunk) => {
       return
     }
     if (opcode === 0x9) socket.write(frame(0xa, payload))
+    if (opcode === 0x1 && onText) onText(payload.toString('utf8'))
   }
 }
 
-const acceptSocket = (req, socket) => {
+const handshake = (req, socket) => {
   const key = req.headers['sec-websocket-key']
-  if (!key) return socket.destroy()
+  if (!key) return socket.destroy() && false
   const accept = createHash('sha1').update(`${key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`).digest('base64')
   socket.write(
     `HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`
   )
+  return true
+}
+
+const acceptSocket = (req, socket) => {
+  if (!handshake(req, socket)) return
   const info = { remote: clientIp(req), since: Date.now(), pending: Buffer.alloc(0) }
   sockets.set(socket, info)
   broadcast('state', state())
@@ -100,6 +113,87 @@ const acceptSocket = (req, socket) => {
   socket.on('close', drop)
   socket.on('error', drop)
 }
+
+// --- the audience: phones on /crowd send their tilt and taps, and can be flashed ----------------------
+const phones = new Map()
+const crowd = { on: false, chosen: false, taps: 0 }
+const MAX_PHONES = 2000
+const TAPS_PER_PHONE_PER_S = 15
+const clampDeg = (v) => Math.max(-90, Math.min(90, Math.round(v * 10) / 10))
+const average = (list) => (list.length ? Math.round((list.reduce((a, b) => a + b, 0) / list.length) * 10) / 10 : 0)
+
+const crowdNow = () => {
+  const now = Date.now()
+  const tilted = [...phones.values()].filter((p) => p.roll !== null)
+  let recent = 0
+  for (const p of phones.values()) {
+    p.taps = p.taps.filter((t) => now - t < 2000)
+    recent += p.taps.length
+  }
+  return {
+    Count: phones.size,
+    Roll: average(tilted.map((p) => p.roll)),
+    Pitch: average(tilted.map((p) => p.pitch)),
+    TapsPerSecond: recent / 2,
+    Taps: crowd.taps,
+  }
+}
+
+const sendJson = (socket, data) => socket.write(frame(0x1, Buffer.from(JSON.stringify(data))))
+
+// Phones are untrusted input from a public QR code: only known message shapes, finite numbers and a tap rate cap.
+const onPhoneMessage = (phone, text) => {
+  let msg
+  try {
+    msg = JSON.parse(text)
+  } catch {
+    return
+  }
+  if (Array.isArray(msg?.tilt) && msg.tilt.length === 2 && msg.tilt.every(Number.isFinite)) {
+    phone.roll = clampDeg(msg.tilt[0])
+    phone.pitch = clampDeg(msg.tilt[1])
+  }
+  if (msg?.tap === true) {
+    const now = Date.now()
+    if (phone.taps.filter((t) => now - t < 1000).length < TAPS_PER_PHONE_PER_S) {
+      phone.taps.push(now)
+      crowd.taps++
+    }
+  }
+}
+
+const acceptPhone = (req, socket) => {
+  if (phones.size >= MAX_PHONES) return socket.destroy()
+  if (!handshake(req, socket)) return
+  const phone = { roll: null, pitch: null, taps: [], pending: Buffer.alloc(0) }
+  phones.set(socket, phone)
+  // The first phone puts the crowd in the feed, unless the console already chose.
+  if (!crowd.chosen) crowd.on = true
+  broadcast('state', state())
+  sendJson(socket, { type: 'hello', count: phones.size })
+  socket.on('data', (chunk) => readFrames(socket, phone, chunk, (text) => onPhoneMessage(phone, text)))
+  const drop = () => {
+    if (phones.delete(socket)) broadcast('state', state())
+  }
+  socket.on('close', drop)
+  socket.on('error', drop)
+}
+
+// At most one flash every few seconds, so a public URL can't strobe the room's phones.
+let lastFlash = 0
+const flashPhones = (text) => {
+  if (Date.now() - lastFlash < 3000) return 0
+  lastFlash = Date.now()
+  const message = String(text || 'Cockpit says thanks!').slice(0, 80)
+  for (const socket of phones.keys()) sendJson(socket, { type: 'flash', text: message })
+  broadcast('flash', { at: Date.now(), text: message, phones: phones.size })
+  return phones.size
+}
+
+// Each phone hears how many others are in, once a second.
+setInterval(() => {
+  for (const socket of phones.keys()) sendJson(socket, { type: 'count', count: phones.size })
+}, 1000)
 
 // The temperature drifts on a slow wave so the data lake sees a change every tick: Cockpit only notifies listeners
 // (plots, action links, DIY widgets) when a value changes.
@@ -114,6 +208,7 @@ const reading = () => {
     Sonar: { Ping: { Distance: Math.round(sonar * 100) / 100 } },
     Winch: { Locked: feed.winchLocked },
     PayloadStatus: feed.status,
+    ...(crowd.on ? { Crowd: crowdNow() } : {}),
   }
 }
 
@@ -126,6 +221,7 @@ const messagesFor = (r) =>
         `SonarDistance=${r.Sonar.Ping.Distance}`,
         `WinchLocked=${r.Winch.Locked}`,
         `PayloadStatus="${r.PayloadStatus}"`,
+        ...(r.Crowd ? Object.entries(r.Crowd).map(([k, v]) => `Crowd${k}=${v}`) : []),
       ]
 
 let timer
@@ -135,6 +231,7 @@ const tick = () => {
   const sent = feed.running ? sockets.size : 0
   if (feed.running) for (const socket of sockets.keys()) for (const m of messages) socket.write(frame(0x1, Buffer.from(m)))
   broadcast('feed', { at: Date.now(), reading: r, messages, sent })
+  if (phones.size || crowd.on) broadcast('crowd', { at: Date.now(), ...(r.Crowd ?? crowdNow()) })
 }
 const schedule = () => {
   clearInterval(timer)
@@ -153,6 +250,7 @@ const applyControl = (patch) => {
   if (typeof patch.wave === 'boolean') feed.wave = patch.wave
   if (typeof patch.winchLocked === 'boolean') feed.winchLocked = patch.winchLocked
   if (STATUSES.includes(patch.status)) feed.status = patch.status
+  if (typeof patch.crowd === 'boolean') [crowd.on, crowd.chosen] = [patch.crowd, true]
 }
 
 // --- HTTP ----------------------------------------------------------------------------------------
@@ -187,6 +285,12 @@ const server = createServer(async (req, res) => {
     return res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(readFileSync(PAGE))
   }
   if (url.pathname === '/favicon.ico') return res.writeHead(204).end()
+  if (req.method === 'GET' && url.pathname === '/join') {
+    return res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(readFileSync(JOIN))
+  }
+  if (req.method === 'GET' && url.pathname === '/vendor/qrcode.js') {
+    return res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8' }).end(readFileSync(QR))
+  }
 
   if (req.method === 'GET' && url.pathname === '/events') {
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' })
@@ -196,10 +300,20 @@ const server = createServer(async (req, res) => {
     return
   }
 
-  if (req.method === 'POST' && url.pathname === '/control/feed') {
+  if (req.method === 'POST' && url.pathname.startsWith('/control/')) {
     if (CONTROL_KEY && req.headers['x-control-key'] !== CONTROL_KEY) {
       return res.writeHead(401, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'wrong or missing key' }))
     }
+  }
+  if (req.method === 'POST' && url.pathname === '/control/flash') {
+    const body = await readBody(req).catch(() => '')
+    let text
+    try {
+      text = JSON.parse(body).text
+    } catch {}
+    return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ phones: flashPhones(text) }))
+  }
+  if (req.method === 'POST' && url.pathname === '/control/feed') {
     try {
       applyControl(JSON.parse(await readBody(req)))
       broadcast('state', state())
@@ -234,14 +348,23 @@ const server = createServer(async (req, res) => {
     from: clientIp(req),
   }
   broadcast('request', entry)
-  res.writeHead(200, { ...CORS, 'Content-Type': 'application/json' }).end(JSON.stringify({ ok: true, id: entry.id }))
+  // An action link fires on every change, true and false alike, so `when` lets the action pass its trigger along.
+  let flashed
+  if (url.pathname === '/crowd/flash') {
+    const when = url.searchParams.get('when')
+    // Only the key holder chooses the words on everyone's phone; the public URL always says thanks.
+    const text = !CONTROL_KEY || req.headers['x-control-key'] === CONTROL_KEY ? url.searchParams.get('text') : null
+    flashed = when === null || ['true', '1'].includes(when.trim().toLowerCase()) ? flashPhones(text) : 0
+  }
+  res.writeHead(200, { ...CORS, 'Content-Type': 'application/json' }).end(JSON.stringify({ ok: true, id: entry.id, flashed }))
 })
 
-server.on('upgrade', acceptSocket)
+server.on('upgrade', (req, socket) => (new URL(req.url, 'http://localhost').pathname === '/crowd' ? acceptPhone : acceptSocket)(req, socket))
 server.listen(PORT, () => {
   schedule()
   console.log(`Demo page:      http://localhost:${PORT}/`)
   console.log(`Cockpit feed:   ws://localhost:${PORT}`)
   console.log(`Action target:  http://localhost:${PORT}/axis?v={{ inputs/mavlink/axis-x }}`)
+  console.log(`Audience joins: http://localhost:${PORT}/join`)
   for (const ip of lanUrls()) console.log(`On the network: http://${ip}:${PORT}/`)
 })

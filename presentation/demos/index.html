@@ -114,6 +114,17 @@
   .empty { color: var(--dim); font-size: 16px; padding: 18px 4px; }
   .presets { display: flex; gap: 8px; flex-wrap: wrap; }
 
+  .qr { background: #fff; border-radius: 14px; padding: 14px; width: min(100%, 300px); aspect-ratio: 1; margin: 4px auto 0; }
+  .qr svg { width: 100%; height: 100%; display: block; }
+  .join-url { text-align: center; font-family: var(--mono); font-size: 20px; margin-top: 12px; color: var(--ink); overflow-wrap: anywhere; }
+  .crowd-top { display: grid; grid-template-columns: 220px 1fr; gap: 22px; align-items: center; }
+  .horizon { width: 220px; height: 220px; border-radius: 50%; overflow: hidden; border: 2px solid var(--line); }
+  .horizon canvas { width: 100%; height: 100%; display: block; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 22px; }
+  .stats div { font-size: 14px; color: var(--muted); }
+  .stats b { display: block; font-size: 40px; font-weight: 700; color: var(--ink); letter-spacing: -1px; font-variant-numeric: tabular-nums; }
+  input[type="text"] { background: var(--code); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; flex: 1; min-width: 0; }
+
   @media (max-width: 900px) {
     section[role="tabpanel"] { grid-template-columns: 1fr; height: auto; }
     header { flex-wrap: wrap; }
@@ -129,6 +140,7 @@
     <button role="tab" id="tab-1" aria-controls="panel-1" aria-selected="true"><b>1</b>WebSocket feed</button>
     <button role="tab" id="tab-2" aria-controls="panel-2" aria-selected="false"><b>2</b>Cockpit calls you</button>
     <button role="tab" id="tab-3" aria-controls="panel-3" aria-selected="false"><b>3</b>Agent widget</button>
+    <button role="tab" id="tab-4" aria-controls="panel-4" aria-selected="false"><b>4</b>The audience</button>
   </nav>
   <div class="link"><span class="dot" id="link-dot"></span><span id="link-text">Connecting to the demo server…</span></div>
 </header>
@@ -233,8 +245,52 @@
       </div>
     </div>
   </section>
+  <!-- 4 · the audience as the payload -->
+  <section role="tabpanel" id="panel-4" aria-labelledby="tab-4" hidden>
+    <div class="col">
+      <div class="card">
+        <div class="label">Scan to join</div>
+        <div class="qr" id="qr"></div>
+        <div class="join-url" id="join-url"></div>
+      </div>
+      <div class="card">
+        <div class="controls">
+          <label>In Cockpit's feed</label>
+          <div class="row"><button class="btn ctl" id="crowd-on"></button><span class="hint">as <code>external/crowd/…</code></span></div>
+          <label for="flash-text">Flash phones</label>
+          <div class="row"><input type="text" class="ctl" id="flash-text" value="Cockpit says thanks!" maxlength="80"><button class="btn ctl" id="flash-now">Flash</button></div>
+        </div>
+        <p class="hint" id="flash-last" style="margin-top:12px"></p>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card">
+        <div class="crowd-top">
+          <div class="horizon"><canvas id="horizon" width="440" height="440" aria-label="The room's average tilt as an artificial horizon"></canvas></div>
+          <div class="stats">
+            <div><b id="crowd-count">0</b>phones in</div>
+            <div><b id="crowd-tps">0</b>taps per second</div>
+            <div><b id="crowd-roll">0°</b>average roll</div>
+            <div><b id="crowd-pitch">0°</b>average pitch</div>
+          </div>
+        </div>
+      </div>
+      <div class="card grow">
+        <div class="row" style="justify-content:space-between"><div class="label" style="margin:0">external/crowd/tapspersecond</div><span class="hint"><b id="crowd-taps">0</b> taps in total</span></div>
+        <div class="chart" id="chart-4"></div>
+      </div>
+      <div class="card">
+        <div class="label">Wire it up in Cockpit</div>
+        <p class="hint">Door 2: a compound variable <code>crowd-hype</code> = <code>{{ external/crowd/tapspersecond }} > 20</code>, an action link on it, and this HTTP action:</p>
+        <div class="copy"><code id="flash-url"></code><button class="btn" data-copy="flash-url">Copy</button></div>
+        <div class="row" style="margin-top:12px;justify-content:space-between"><p class="hint">Door 3: ask the agent for a crowd widget.</p><button class="btn" data-copy="crowd-prompt">Copy prompt</button></div>
+        <code id="crowd-prompt" hidden>Create a DIY widget in Cockpit called "The room": an artificial horizon driven by external/crowd/roll and external/crowd/pitch (degrees), with the number of phones from external/crowd/count and a bar that fills with external/crowd/tapspersecond, full at 30. Take a screenshot to check it before you finish.</code>
+      </div>
+    </div>
+  </section>
 </main>
 
+<script src="/vendor/qrcode.js"></script>
 <script>
 (() => {
   'use strict'
@@ -253,7 +309,7 @@
   tabs.forEach((t, i) => t.addEventListener('click', () => select(i)))
   addEventListener('keydown', (e) => {
     if (e.target.closest('input, select, textarea')) return
-    if (['1', '2', '3'].includes(e.key)) select(Number(e.key) - 1)
+    if (['1', '2', '3', '4'].includes(e.key)) select(Number(e.key) - 1)
   })
 
   // ---- a single-series line chart: recessive grid, 2px line, endpoint marker, hover readout
@@ -329,7 +385,7 @@
     const el = $(b.dataset.copy)
     try { await navigator.clipboard.writeText(el.textContent); b.textContent = 'Copied' }
     catch { getSelection().selectAllChildren(el); b.textContent = 'Selected, press ⌘C' }
-    setTimeout(() => (b.textContent = b.dataset.copy === 'prompt' ? 'Copy prompt' : 'Copy'), 1600)
+    setTimeout(() => (b.textContent = b.dataset.copy.endsWith('prompt') ? 'Copy prompt' : 'Copy'), 1600)
   }))
 
   // ---- feed controls
@@ -343,7 +399,7 @@
       .then((r) => { if (r.status === 401) viewOnly(true) })
       .catch(() => {})
   const viewOnly = (on) => {
-    document.querySelectorAll('#panel-1 .controls input, #panel-1 .controls select, #panel-1 .controls button, [data-temp]').forEach((el) => (el.disabled = on))
+    document.querySelectorAll('#panel-1 .controls input, #panel-1 .controls select, #panel-1 .controls button, [data-temp], .ctl').forEach((el) => (el.disabled = on))
     $('locked-note').hidden = !on
   }
   $('temp').addEventListener('input', (e) => { $('temp-v').textContent = Number(e.target.value).toFixed(1) + ' °C'; control({ waterTemp: Number(e.target.value) }) })
@@ -374,6 +430,9 @@
     $('rate').value = String(feed.rateHz)
     $('running').textContent = feed.running ? 'Pause feed' : 'Resume feed'
     document.querySelectorAll('[data-format]').forEach((b) => b.classList.toggle('on', b.dataset.format === feed.format))
+    $('crowd-on').textContent = s.crowd.on ? 'On · click to remove' : 'Off · click to add'
+    $('crowd-on').classList.toggle('on', s.crowd.on)
+    crowdOn = s.crowd.on
     viewOnly(s.locked && !key)
   }
 
@@ -444,6 +503,55 @@
   $('track').addEventListener('change', () => { chart2.clear(); waitHook() })
   $('clear-log').addEventListener('click', () => { $('log').innerHTML = '<div class="empty">Cleared. Waiting for the next request.</div>'; chart2.clear(); waitHook() })
 
+  // ---- the audience
+  let crowdOn = false
+  const chart4 = lineChart($('chart-4'), { windowS: 60, decimals: 1 })
+  charts.push(chart4)
+  const joinUrl = `${location.origin}/join`
+  $('join-url').textContent = joinUrl.replace(/^https?:\/\//, '')
+  try {
+    const qr = qrcode(0, 'M')
+    qr.addData(joinUrl)
+    qr.make()
+    $('qr').innerHTML = qr.createSvgTag({ cellSize: 8, margin: 0, scalable: true })
+  } catch { $('qr').hidden = true }
+  $('flash-url').textContent = `${location.origin}/crowd/flash?when={{ crowd-hype }}&text=Cockpit%20says%20thanks!`
+  $('crowd-on').addEventListener('click', () => control({ crowd: !crowdOn }))
+  $('flash-now').addEventListener('click', () =>
+    fetch('/control/flash', { method: 'POST', headers: key ? { 'x-control-key': key } : {}, body: JSON.stringify({ text: $('flash-text').value }) })
+      .then((r) => { if (r.status === 401) viewOnly(true) }).catch(() => {}))
+
+  const horizon = $('horizon').getContext('2d')
+  const drawHorizon = (roll, pitch) => {
+    const c = horizon, w = 440, h = 440
+    c.save()
+    c.clearRect(0, 0, w, h)
+    c.translate(w / 2, h / 2)
+    c.rotate((-roll * Math.PI) / 180)
+    const shift = Math.max(-1, Math.min(1, pitch / 45)) * (h / 2)
+    c.fillStyle = '#3B78A8'; c.fillRect(-w, -h * 1.5 + shift, w * 2, h * 1.5)
+    c.fillStyle = '#6b4a2e'; c.fillRect(-w, shift, w * 2, h * 1.5)
+    c.strokeStyle = '#e9f2ef'; c.lineWidth = 3
+    c.beginPath(); c.moveTo(-w, shift); c.lineTo(w, shift); c.stroke()
+    c.restore()
+    c.strokeStyle = '#d8a657'; c.lineWidth = 6
+    c.beginPath(); c.moveTo(w / 2 - 90, h / 2); c.lineTo(w / 2 - 30, h / 2); c.moveTo(w / 2 + 30, h / 2); c.lineTo(w / 2 + 90, h / 2); c.stroke()
+    c.fillStyle = '#d8a657'; c.beginPath(); c.arc(w / 2, h / 2, 6, 0, Math.PI * 2); c.fill()
+  }
+  drawHorizon(0, 0)
+  const renderCrowd = (c) => {
+    $('crowd-count').textContent = c.Count
+    $('crowd-tps').textContent = c.TapsPerSecond
+    $('crowd-roll').textContent = `${c.Roll.toFixed(0)}°`
+    $('crowd-pitch').textContent = `${c.Pitch.toFixed(0)}°`
+    $('crowd-taps').textContent = c.Taps
+    drawHorizon(c.Roll, c.Pitch)
+    chart4.push(c.at, c.TapsPerSecond)
+  }
+  const renderFlash = (f) => {
+    $('flash-last').textContent = `Flashed ${f.phones} phone${f.phones === 1 ? '' : 's'} at ${fmtTime(f.at)}: “${f.text}”`
+  }
+
   // ---- link to the demo server (EventSource reconnects on its own)
   const es = new EventSource('/events')
   es.onopen = () => { $('link-dot').classList.add('ok'); $('link-text').textContent = 'Demo server running' }
@@ -451,6 +559,8 @@
   es.addEventListener('state', (e) => renderState(JSON.parse(e.data)))
   es.addEventListener('feed', (e) => renderFeed(JSON.parse(e.data)))
   es.addEventListener('request', (e) => renderRequest(JSON.parse(e.data)))
+  es.addEventListener('crowd', (e) => renderCrowd(JSON.parse(e.data)))
+  es.addEventListener('flash', (e) => renderFlash(JSON.parse(e.data)))
 
   // The addresses to paste follow wherever this page is served from: localhost, or the public host over TLS.
   $('ws-url').textContent = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`

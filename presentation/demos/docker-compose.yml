@@ -11,6 +11,8 @@ services:
     volumes:
       - ./server.mjs:/app/server.mjs:ro
       - ./index.html:/app/index.html:ro
+      - ./join.html:/app/join.html:ro
+      - ./vendor:/app/vendor:ro
     networks: [my_vps_services_default]
     labels:
       - "traefik.enable=true"
