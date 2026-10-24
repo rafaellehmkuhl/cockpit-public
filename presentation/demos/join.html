@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="theme-color" content="#0a1416">
 <title>Get in the way</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="/vendor/maplibre/maplibre-gl.css">
 <style>
   :root {
     --bg: #0a1416; --bg2: #0f1f22; --line: rgba(255,255,255,.12); --ink: #e9f2ef; --muted: #8fa7a2;
@@ -53,8 +53,7 @@
     font: inherit; font-size: 14px; font-weight: 650; color: var(--ink); background: rgba(10,20,22,.86); border: 1px solid var(--line);
     border-radius: 999px; padding: 10px 14px; cursor: pointer;
   }
-  .boat { width: 34px; height: 34px; display: grid; place-items: center; }
-  .boat svg { width: 34px; height: 34px; filter: drop-shadow(0 0 4px rgba(0,0,0,.7)); }
+  .toast.ok { background: rgba(79,164,131,.95); color: #07120f; }
 
   .flash {
     position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 32px;
@@ -83,118 +82,74 @@
 
 <div class="flash" id="flash" hidden></div>
 
-<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-(() => {
-  'use strict'
-  const $ = (id) => document.getElementById(id)
-  let ws = null, retry = 500
-  let minDistance = 10, left = 5, vehicle = null, follow = true, toastTimer
-  let map, boatMarker, boatZone
-  const obstacleLayer = []
+<script type="module">
+import { createObstacleMap, distanceM } from '/obstacle-map.js'
 
-  const statusText = () =>
-    !vehicle ? 'Waiting for the boat…' : left > 0 ? `Tap the map to drop an obstacle · <b>${left}</b> left` : 'All yours are on the map. Watch the boat!'
-  const showStatus = () => {
-    clearTimeout(toastTimer)
-    $('status').classList.remove('toast')
-    $('status').innerHTML = statusText()
+const $ = (id) => document.getElementById(id)
+let ws = null, retry = 500, map
+let minDistance = 10, vehicle = null, toastTimer
+
+const showStatus = () => {
+  clearTimeout(toastTimer)
+  $('status').className = 'pill'
+  $('status').textContent = vehicle ? 'Tap the map to drop an obstacle' : 'Waiting for the boat…'
+}
+const toast = (text, ok = false) => {
+  $('status').textContent = text
+  $('status').className = `pill toast${ok ? ' ok' : ''}`
+  navigator.vibrate?.(ok ? 15 : 40)
+  clearTimeout(toastTimer)
+  toastTimer = setTimeout(showStatus, ok ? 1200 : 2500)
+}
+
+const setVehicle = (v) => {
+  if (!v) return
+  const first = !vehicle
+  vehicle = v
+  map.setVehicle(v)
+  if (first) showStatus()
+}
+
+const flash = (text) => {
+  $('flash').textContent = text
+  $('flash').hidden = false
+  navigator.vibrate?.([120, 60, 120, 60, 240])
+  clearTimeout(flash.t)
+  flash.t = setTimeout(() => ($('flash').hidden = true), 2600)
+}
+
+const connect = () => {
+  ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/crowd`)
+  ws.onopen = () => { retry = 500; $('dot').classList.add('ok') }
+  ws.onclose = () => { $('dot').classList.remove('ok'); setTimeout(connect, retry); retry = Math.min(retry * 2, 8000) }
+  ws.onmessage = (e) => {
+    let msg
+    try { msg = JSON.parse(e.data) } catch { return }
+    if (msg.count) $('people').textContent = msg.count
+    if (msg.type === 'hello') { minDistance = msg.minDistance; setObstacles(msg.obstacles); setVehicle(msg.vehicle); showStatus() }
+    if (msg.type === 'vehicle') setVehicle(msg.vehicle)
+    if (msg.type === 'obstacles') setObstacles(msg.list)
+    if (msg.type === 'placed') toast('Obstacle dropped', true)
+    if (msg.type === 'rejected') toast(msg.reason)
+    if (msg.type === 'flash') flash(msg.text)
   }
-  const toast = (text) => {
-    $('status').textContent = text
-    $('status').classList.add('toast')
-    navigator.vibrate?.(40)
-    clearTimeout(toastTimer)
-    toastTimer = setTimeout(showStatus, 2500)
-  }
+}
+const setObstacles = (list) => { map.setObstacles(list); $('obstacles').textContent = list.length }
 
-  const distanceM = (a, b) => {
-    const rad = Math.PI / 180
-    const dLat = (b.lat - a.lat) * rad, dLon = (b.lon - a.lon) * rad
-    const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLon / 2) ** 2
-    return 2 * 6371000 * Math.asin(Math.sqrt(h))
-  }
+const onTap = (spot) => {
+  if (!vehicle) return toast('Waiting for the boat to report where it is.')
+  if (distanceM(vehicle, spot) < minDistance) return toast(`Too close to the boat: keep at least ${minDistance} m away.`)
+  ws?.readyState === 1 ? ws.send(JSON.stringify({ poi: spot })) : toast('Reconnecting, try again in a second.')
+}
 
-  const boatIcon = (hdg) => L.divIcon({
-    className: 'boat', iconSize: [34, 34],
-    html: `<svg viewBox="0 0 24 24" style="transform: rotate(${hdg ?? 0}deg)"><path d="M12 2 L19 21 L12 17 L5 21 Z" fill="#4fa483" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>`,
-  })
-
-  const setVehicle = (v) => {
-    if (!v) return
-    const first = !vehicle
-    vehicle = v
-    const at = [v.lat, v.lon]
-    if (!boatMarker) {
-      boatZone = L.circle(at, { radius: minDistance, color: '#d2686a', weight: 2, dashArray: '4 4', fillOpacity: 0.12, interactive: false }).addTo(map)
-      boatMarker = L.marker(at, { icon: boatIcon(v.hdg), interactive: false, zIndexOffset: 1000 }).addTo(map)
-    } else {
-      boatZone.setLatLng(at)
-      boatMarker.setLatLng(at).setIcon(boatIcon(v.hdg))
-    }
-    if (first) map.setView(at, 18)
-    else if (follow) map.panTo(at, { animate: true, duration: 0.25 })
-    if (first || !$('status').classList.contains('toast')) showStatus()
-  }
-
-  const setObstacles = (list) => {
-    obstacleLayer.splice(0).forEach((m) => m.remove())
-    for (const o of list) {
-      obstacleLayer.push(L.circleMarker([o.lat, o.lon], { radius: 9, color: '#fff', weight: 2, fillColor: '#d2686a', fillOpacity: 1, interactive: false }).addTo(map))
-    }
-    $('obstacles').textContent = list.length
-  }
-
-  const connect = () => {
-    ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/crowd`)
-    ws.onopen = () => { retry = 500; $('dot').classList.add('ok') }
-    ws.onclose = () => { $('dot').classList.remove('ok'); setTimeout(connect, retry); retry = Math.min(retry * 2, 8000) }
-    ws.onmessage = (e) => {
-      let msg
-      try { msg = JSON.parse(e.data) } catch { return }
-      if (msg.count) $('people').textContent = msg.count
-      if (msg.type === 'hello') { minDistance = msg.minDistance; left = msg.left; setObstacles(msg.obstacles); setVehicle(msg.vehicle); showStatus() }
-      if (msg.type === 'vehicle') setVehicle(msg.vehicle)
-      if (msg.type === 'obstacles') setObstacles(msg.list)
-      if (msg.type === 'placed') { left = msg.left; showStatus() }
-      if (msg.type === 'rejected') toast(msg.reason)
-      if (msg.type === 'flash') flash(msg.text)
-    }
-  }
-
-  const flash = (text) => {
-    $('flash').textContent = text
-    $('flash').hidden = false
-    navigator.vibrate?.([120, 60, 120, 60, 240])
-    clearTimeout(flash.t)
-    flash.t = setTimeout(() => ($('flash').hidden = true), 2600)
-  }
-
-  const start = () => {
-    map = L.map('map', { zoomControl: false, attributionControl: true }).setView([-27.5935, -48.4525], 17)
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 19, attribution: 'Imagery © Esri',
-    }).addTo(map)
-    // Panning by hand stops the map from following the boat until "Boat" is pressed again.
-    map.on('dragstart', () => (follow = false))
-    map.on('click', (e) => {
-      const spot = { lat: e.latlng.lat, lon: e.latlng.lng }
-      if (!vehicle) return toast('Waiting for the boat to report where it is.')
-      if (distanceM(vehicle, spot) < minDistance) return toast(`Too close to the boat: keep at least ${minDistance} m away.`)
-      if (left <= 0) return toast('All yours are on the map already.')
-      ws?.readyState === 1 ? ws.send(JSON.stringify({ poi: spot })) : toast('Reconnecting, try again in a second.')
-    })
-    $('recenter').addEventListener('click', () => { follow = true; if (vehicle) map.setView([vehicle.lat, vehicle.lon], Math.max(map.getZoom(), 17)) })
-  }
-
-  $('join').addEventListener('click', async () => {
-    try { await navigator.wakeLock?.request('screen') } catch {}
-    $('intro').hidden = true
-    $('live').hidden = false
-    start()
-    connect()
-  })
-})()
+$('join').addEventListener('click', async () => {
+  try { await navigator.wakeLock?.request('screen') } catch {}
+  $('intro').hidden = true
+  $('live').hidden = false
+  map = createObstacleMap($('map'), { minDistance, onTap })
+  $('recenter').addEventListener('click', () => map.recenter())
+  connect()
+})
 </script>
 </body>
 </html>

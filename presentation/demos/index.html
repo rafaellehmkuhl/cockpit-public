@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Payload Console</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="/vendor/maplibre/maplibre-gl.css">
 <style>
   /* The other side of each live demo: what a payload service sees while Cockpit talks to it. Deck palette. */
   :root {
@@ -122,7 +122,6 @@
   .stats div { font-size: 14px; color: var(--muted); }
   .stats b { display: block; font-size: 36px; font-weight: 700; color: var(--ink); letter-spacing: -1px; font-variant-numeric: tabular-nums; }
   .crowd-map { flex: 1; min-height: 240px; margin-top: 14px; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--code); }
-  .boat-icon svg { width: 30px; height: 30px; filter: drop-shadow(0 0 4px rgba(0,0,0,.7)); }
   input[type="text"] { background: var(--code); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; flex: 1; min-width: 0; }
 
   @media (max-width: 900px) {
@@ -286,7 +285,6 @@
 </main>
 
 <script src="/vendor/qrcode.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 (() => {
   'use strict'
@@ -521,44 +519,24 @@
   $('flash-now').addEventListener('click', () => withKey('/control/flash', { text: $('flash-text').value }))
   $('clear-obstacles').addEventListener('click', () => withKey('/control/obstacles/clear'))
 
-  // Leaflet only measures its container once it is visible, so the map is built the first time tab 4 opens.
-  let crowdMap, boatMarker, boatZone, followBoat = true, vehicle = null, obstacles = []
-  const obstacleMarkers = []
-  const boatIcon = (hdg) => L.divIcon({ className: 'boat-icon', iconSize: [30, 30],
-    html: `<svg viewBox="0 0 24 24" style="transform: rotate(${hdg ?? 0}deg)"><path d="M12 2 L19 21 L12 17 L5 21 Z" fill="#4fa483" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>` })
-  const drawCrowdMap = () => {
-    if (!crowdMap) return
-    obstacleMarkers.splice(0).forEach((m) => m.remove())
-    for (const o of obstacles) obstacleMarkers.push(L.circleMarker([o.lat, o.lon], { radius: 8, color: '#fff', weight: 2, fillColor: '#d2686a', fillOpacity: 1 }).addTo(crowdMap))
-    if (!vehicle) return
-    const at = [vehicle.lat, vehicle.lon]
-    if (!boatMarker) {
-      boatZone = L.circle(at, { radius: 10, color: '#d2686a', weight: 2, dashArray: '4 4', fillOpacity: 0.12 }).addTo(crowdMap)
-      boatMarker = L.marker(at, { icon: boatIcon(vehicle.hdg), zIndexOffset: 1000 }).addTo(crowdMap)
-      crowdMap.setView(at, 17)
-    } else {
-      boatZone.setLatLng(at)
-      boatMarker.setLatLng(at).setIcon(boatIcon(vehicle.hdg))
-      if (followBoat) crowdMap.panTo(at, { animate: false })
-    }
+  // MapLibre sizes itself from its container, so the map is built the first time tab 4 is shown.
+  let crowdMap, vehicle = null, obstacles = []
+  const ensureCrowdMap = async () => {
+    if (crowdMap || $('panel-4').hidden) return crowdMap?.resize()
+    const { createObstacleMap } = await import('/obstacle-map.js')
+    crowdMap ??= createObstacleMap($('crowd-map'), { minDistance: 10, zoomButtons: true })
+    crowdMap.setObstacles(obstacles)
+    crowdMap.setVehicle(vehicle)
   }
-  const ensureCrowdMap = () => {
-    if (crowdMap || typeof L === 'undefined' || $('panel-4').hidden) return
-    crowdMap = L.map('crowd-map', { zoomControl: true }).setView([-27.5935, -48.4525], 16)
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Imagery © Esri' }).addTo(crowdMap)
-    crowdMap.on('dragstart', () => (followBoat = false))
-    crowdMap.on('dblclick', () => (followBoat = true))
-    drawCrowdMap()
-  }
-  tabs[3].addEventListener('click', () => setTimeout(() => { ensureCrowdMap(); crowdMap?.invalidateSize() }, 50))
-  addEventListener('keydown', (e) => { if (e.key === '4') setTimeout(() => { ensureCrowdMap(); crowdMap?.invalidateSize() }, 50) })
+  tabs[3].addEventListener('click', () => setTimeout(ensureCrowdMap, 50))
+  addEventListener('keydown', (e) => { if (e.key === '4') setTimeout(ensureCrowdMap, 50) })
   setTimeout(ensureCrowdMap, 200)
   setInterval(() => {
     $('boat-age').textContent = vehicle ? `${Math.max(0, Math.round((Date.now() - vehicle.at) / 1000))} s` : '—'
   }, 500)
 
-  const renderObstacles = (list) => { obstacles = list; $('obstacle-count').textContent = list.length; drawCrowdMap() }
-  const renderVehicle = (v) => { if (!v) return; vehicle = v; drawCrowdMap() }
+  const renderObstacles = (list) => { obstacles = list; $('obstacle-count').textContent = list.length; crowdMap?.setObstacles(list) }
+  const renderVehicle = (v) => { if (!v) return; vehicle = v; crowdMap?.setVehicle(v) }
   const renderCrowd = (c) => { $('crowd-count').textContent = c.Count }
   const renderFlash = (f) => {
     $('flash-last').textContent = `Flashed ${f.phones} phone${f.phones === 1 ? '' : 's'} at ${fmtTime(f.at)}: “${f.text}”`

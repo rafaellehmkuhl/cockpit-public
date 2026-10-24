@@ -2,14 +2,18 @@
 // it receives the HTTP requests Cockpit's actions send (demo 2), it collects the audience's phones (demo 4), and it
 // serves the page that shows what this side sees. Plain Node, no dependencies: `node presentation/demos/server.mjs`.
 import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { networkInterfaces } from 'node:os'
+import { extname, resolve, sep } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const PORT = Number(process.env.PORT ?? 8765)
 const PAGE = new URL('./index.html', import.meta.url)
 const JOIN = new URL('./join.html', import.meta.url)
-const QR = new URL('./vendor/qrcode.js', import.meta.url)
+const VENDOR = fileURLToPath(new URL('./vendor/', import.meta.url))
+const OBSTACLE_MAP = new URL('./obstacle-map.js', import.meta.url)
+const TYPES = { '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.txt': 'text/plain' }
 const MAX_BODY = 64 * 1024
 // On a public host the feed controls need this key (sent by the page as `x-control-key`); locally there is none.
 const CONTROL_KEY = process.env.CONTROL_KEY ?? ''
@@ -135,9 +139,8 @@ const obstacles = new Map()
 const vehicle = { lat: null, lon: null, hdg: null, at: 0 }
 let obstacleCount = 0
 const MAX_PHONES = 2000
-const MAX_OBSTACLES = 150
-const OBSTACLES_PER_PHONE = 5
-const OBSTACLE_COOLDOWN_MS = 2000
+// No limit per person; this only stops a script from burying Cockpit's map in points of interest.
+const MAX_OBSTACLES = 1000
 const MIN_DISTANCE_M = 10
 const MAX_DISTANCE_M = 1500
 
@@ -179,17 +182,13 @@ const obstaclesChanged = () => {
 }
 
 // Phones are untrusted input from a public QR code, so every rule the page shows is enforced again here.
-const placeObstacle = (phone, lat, lon) => {
+const placeObstacle = (lat, lon) => {
   if (![lat, lon].every(Number.isFinite) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return 'That spot is off the map.'
   if (vehicle.lat === null) return 'Waiting for the boat to report where it is.'
   const distance = distanceM(vehicle, { lat, lon })
   if (distance < MIN_DISTANCE_M) return `Too close to the boat: keep at least ${MIN_DISTANCE_M} m away.`
   if (distance > MAX_DISTANCE_M) return 'Too far from the boat to matter.'
   if (obstacles.size >= MAX_OBSTACLES) return 'The map is full.'
-  if (phone.placed >= OBSTACLES_PER_PHONE) return `You have placed all ${OBSTACLES_PER_PHONE} of yours.`
-  if (Date.now() - phone.lastPlaced < OBSTACLE_COOLDOWN_MS) return 'One every two seconds.'
-  phone.placed++
-  phone.lastPlaced = Date.now()
   const n = ++obstacleCount
   const round = (v) => Math.round(v * 1e6) / 1e6
   const obstacle = { id: `audience-obstacle-${n}`, name: `Obstacle ${n}`, lat: round(lat), lon: round(lon) }
@@ -202,12 +201,10 @@ const placeObstacle = (phone, lat, lon) => {
 const clearObstacles = () => {
   for (const id of obstacles.keys()) toCockpit({ type: 'cockpit:removePointOfInterest', id })
   obstacles.clear()
-  for (const phone of phones.values()) phone.placed = 0
   obstaclesChanged()
-  toPhones({ type: 'placed', left: OBSTACLES_PER_PHONE })
 }
 
-const onPhoneMessage = (socket, phone, text) => {
+const onPhoneMessage = (socket, text) => {
   let msg
   try {
     msg = JSON.parse(text)
@@ -215,14 +212,14 @@ const onPhoneMessage = (socket, phone, text) => {
     return
   }
   if (typeof msg?.poi !== 'object' || msg.poi === null) return
-  const reason = placeObstacle(phone, Number(msg.poi.lat), Number(msg.poi.lon))
-  sendJson(socket, reason ? { type: 'rejected', reason } : { type: 'placed', left: OBSTACLES_PER_PHONE - phone.placed })
+  const reason = placeObstacle(Number(msg.poi.lat), Number(msg.poi.lon))
+  sendJson(socket, reason ? { type: 'rejected', reason } : { type: 'placed' })
 }
 
 const acceptPhone = (req, socket) => {
   if (phones.size >= MAX_PHONES) return socket.destroy()
   if (!handshake(req, socket)) return
-  const phone = { placed: 0, lastPlaced: 0, pending: Buffer.alloc(0) }
+  const phone = { pending: Buffer.alloc(0) }
   phones.set(socket, phone)
   // The first phone puts the crowd in the feed, unless the console already chose.
   if (!crowd.chosen) crowd.on = true
@@ -232,10 +229,9 @@ const acceptPhone = (req, socket) => {
     count: phones.size,
     obstacles: obstacleList(),
     vehicle: vehicleNow(),
-    left: OBSTACLES_PER_PHONE,
     minDistance: MIN_DISTANCE_M,
   })
-  socket.on('data', (chunk) => readFrames(socket, phone, chunk, (text) => onPhoneMessage(socket, phone, text)))
+  socket.on('data', (chunk) => readFrames(socket, phone, chunk, (text) => onPhoneMessage(socket, text)))
   const drop = () => {
     if (phones.delete(socket)) broadcast('state', state())
   }
@@ -371,8 +367,15 @@ const server = createServer(async (req, res) => {
   if (req.method === 'GET' && url.pathname === '/join') {
     return res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(readFileSync(JOIN))
   }
-  if (req.method === 'GET' && url.pathname === '/vendor/qrcode.js') {
-    return res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8' }).end(readFileSync(QR))
+  if (req.method === 'GET' && url.pathname === '/obstacle-map.js') {
+    return res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8' }).end(readFileSync(OBSTACLE_MAP))
+  }
+  if (req.method === 'GET' && url.pathname.startsWith('/vendor/')) {
+    const file = resolve(VENDOR, decodeURIComponent(url.pathname.slice('/vendor/'.length)))
+    if (!file.startsWith(VENDOR.endsWith(sep) ? VENDOR : VENDOR + sep) || !existsSync(file) || !TYPES[extname(file)]) {
+      return res.writeHead(404).end()
+    }
+    return res.writeHead(200, { 'Content-Type': `${TYPES[extname(file)]}; charset=utf-8`, 'Cache-Control': 'max-age=3600' }).end(readFileSync(file))
   }
 
   if (req.method === 'GET' && url.pathname === '/events') {

@@ -12,6 +12,7 @@ services:
       - ./server.mjs:/app/server.mjs:ro
       - ./index.html:/app/index.html:ro
       - ./join.html:/app/join.html:ro
+      - ./obstacle-map.js:/app/obstacle-map.js:ro
       - ./vendor:/app/vendor:ro
     networks: [my_vps_services_default]
     labels:
