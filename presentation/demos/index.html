@@ -144,6 +144,7 @@
       </div>
       <div class="card">
         <div class="label">What the payload sends</div>
+        <p class="hint" id="locked-note" hidden style="margin-bottom:12px">View only. Open this page with <code>?key=…</code> to change the feed.</p>
         <div class="controls">
           <label for="temp">Water temp</label>
           <div class="row"><input type="range" id="temp" min="-5" max="45" step="0.5"><span class="num" id="temp-v"></span>
@@ -333,7 +334,18 @@
 
   // ---- feed controls
   let feed = null
-  const control = (patch) => fetch('/control/feed', { method: 'POST', body: JSON.stringify(patch) }).catch(() => {})
+  // A public deployment locks the controls; open the page once with ?key=… and the key is kept in this browser.
+  let key = new URLSearchParams(location.search).get('key')
+  try { if (key) localStorage.setItem('payload-console-key', key); else key = localStorage.getItem('payload-console-key') } catch {}
+  if (new URLSearchParams(location.search).has('key')) history.replaceState(null, '', location.pathname)
+  const control = (patch) =>
+    fetch('/control/feed', { method: 'POST', headers: key ? { 'x-control-key': key } : {}, body: JSON.stringify(patch) })
+      .then((r) => { if (r.status === 401) viewOnly(true) })
+      .catch(() => {})
+  const viewOnly = (on) => {
+    document.querySelectorAll('#panel-1 .controls input, #panel-1 .controls select, #panel-1 .controls button, [data-temp]').forEach((el) => (el.disabled = on))
+    $('locked-note').hidden = !on
+  }
   $('temp').addEventListener('input', (e) => { $('temp-v').textContent = Number(e.target.value).toFixed(1) + ' °C'; control({ waterTemp: Number(e.target.value) }) })
   $('wave').addEventListener('change', (e) => control({ wave: e.target.checked }))
   $('locked').addEventListener('click', () => control({ winchLocked: !feed?.winchLocked }))
@@ -362,8 +374,7 @@
     $('rate').value = String(feed.rateHz)
     $('running').textContent = feed.running ? 'Pause feed' : 'Resume feed'
     document.querySelectorAll('[data-format]').forEach((b) => b.classList.toggle('on', b.dataset.format === feed.format))
-    $('ws-url').textContent = `ws://localhost:${s.port}`
-    $('hook-url').textContent = `http://localhost:${s.port}/axis?v={{ inputs/mavlink/axis-x }}`
+    viewOnly(s.locked && !key)
   }
 
   const highlight = (json) => esc(json)
@@ -440,6 +451,10 @@
   es.addEventListener('state', (e) => renderState(JSON.parse(e.data)))
   es.addEventListener('feed', (e) => renderFeed(JSON.parse(e.data)))
   es.addEventListener('request', (e) => renderRequest(JSON.parse(e.data)))
+
+  // The addresses to paste follow wherever this page is served from: localhost, or the public host over TLS.
+  $('ws-url').textContent = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`
+  $('hook-url').textContent = `${location.origin}/axis?v={{ inputs/mavlink/axis-x }}`
 
   let start = 0
   try { start = Number(localStorage.getItem('payload-console-tab')) || 0 } catch {}

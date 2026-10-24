@@ -1,0 +1,25 @@
+# The talk's demo server on the VPS: https://apdc.rlehmk.dev, feed at wss://apdc.rlehmk.dev. Deployed by deploy.sh.
+services:
+  apdc-demos:
+    image: node:22-alpine
+    container_name: apdc-demos
+    restart: unless-stopped
+    working_dir: /app
+    command: node server.mjs
+    # CONTROL_KEY lives only in the VPS's .env.
+    env_file: .env
+    volumes:
+      - ./server.mjs:/app/server.mjs:ro
+      - ./index.html:/app/index.html:ro
+    networks: [my_vps_services_default]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.apdc-demos-https.rule=Host(`apdc.rlehmk.dev`)"
+      - "traefik.http.routers.apdc-demos-https.entrypoints=websecure"
+      - "traefik.http.routers.apdc-demos-https.tls=true"
+      - "traefik.http.routers.apdc-demos-https.tls.certresolver=letsencryptresolver"
+      - "traefik.http.services.apdc-demos-service.loadbalancer.server.port=8765"
+
+networks:
+  my_vps_services_default:
+    external: true

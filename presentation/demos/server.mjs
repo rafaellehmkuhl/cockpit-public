@@ -9,6 +9,8 @@ import { networkInterfaces } from 'node:os'
 const PORT = Number(process.env.PORT ?? 8765)
 const PAGE = new URL('./index.html', import.meta.url)
 const MAX_BODY = 64 * 1024
+// On a public host the feed controls need this key (sent by the page as `x-control-key`); locally there is none.
+const CONTROL_KEY = process.env.CONTROL_KEY ?? ''
 
 // What the feed sends; the page edits it through POST /control/feed.
 const feed = {
@@ -35,7 +37,13 @@ const broadcast = (event, data) => {
   const chunk = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
   for (const res of pages) res.write(chunk)
 }
-const state = () => ({ feed, clients: [...sockets.values()].map(({ remote, since }) => ({ remote, since })), port: PORT, lan: lanUrls() })
+const state = () => ({ feed, clients: [...sockets.values()].map(({ remote, since }) => ({ remote, since })), locked: Boolean(CONTROL_KEY) })
+
+// Behind Traefik and Cloudflare the socket peer is the proxy, so the client is read from their headers.
+const clientIp = (req) =>
+  (req.headers['cf-connecting-ip'] ?? req.headers['x-forwarded-for']?.split(',')[0] ?? req.socket.remoteAddress ?? '?')
+    .trim()
+    .replace('::ffff:', '')
 
 // --- the WebSocket feed --------------------------------------------------------------------
 const sockets = new Map()
@@ -82,7 +90,7 @@ const acceptSocket = (req, socket) => {
   socket.write(
     `HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`
   )
-  const info = { remote: req.socket.remoteAddress?.replace('::ffff:', '') ?? '?', since: Date.now(), pending: Buffer.alloc(0) }
+  const info = { remote: clientIp(req), since: Date.now(), pending: Buffer.alloc(0) }
   sockets.set(socket, info)
   broadcast('state', state())
   socket.on('data', (chunk) => readFrames(socket, info, chunk))
@@ -181,7 +189,7 @@ const server = createServer(async (req, res) => {
   if (url.pathname === '/favicon.ico') return res.writeHead(204).end()
 
   if (req.method === 'GET' && url.pathname === '/events') {
-    res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' })
+    res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' })
     res.write(`event: state\ndata: ${JSON.stringify(state())}\n\n`)
     pages.add(res)
     req.on('close', () => pages.delete(res))
@@ -189,6 +197,9 @@ const server = createServer(async (req, res) => {
   }
 
   if (req.method === 'POST' && url.pathname === '/control/feed') {
+    if (CONTROL_KEY && req.headers['x-control-key'] !== CONTROL_KEY) {
+      return res.writeHead(401, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'wrong or missing key' }))
+    }
     try {
       applyControl(JSON.parse(await readBody(req)))
       broadcast('state', state())
@@ -220,7 +231,7 @@ const server = createServer(async (req, res) => {
     ),
     body,
     json,
-    from: req.socket.remoteAddress?.replace('::ffff:', '') ?? '?',
+    from: clientIp(req),
   }
   broadcast('request', entry)
   res.writeHead(200, { ...CORS, 'Content-Type': 'application/json' }).end(JSON.stringify({ ok: true, id: entry.id }))
