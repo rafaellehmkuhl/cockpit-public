@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Payload Console</title>
+<style>
+  /* The other side of each live demo: what a payload service sees while Cockpit talks to it. Deck palette. */
+  :root {
+    --bg: #0a1416;
+    --bg2: #0f1f22;
+    --panel: rgba(255, 255, 255, .045);
+    --line: rgba(255, 255, 255, .10);
+    --ink: #e9f2ef;
+    --muted: #8fa7a2;
+    --dim: #6a827e;
+    --kelp: #4fa483;
+    --kelp-dim: #2c614c;
+    --amber: #d8a657;
+    --red: #d2686a;
+    --code: #071012;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: radial-gradient(1100px 620px at 85% -10%, rgba(79,164,131,.12), transparent 60%), linear-gradient(160deg, var(--bg2), var(--bg));
+    color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column;
+  }
+  button, select, input { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--kelp); outline-offset: 2px; }
+
+  header {
+    display: flex; align-items: center; gap: 28px; padding: 18px 28px;
+    border-bottom: 1px solid var(--line); background: rgba(0,0,0,.18);
+  }
+  header h1 { font-size: 20px; font-weight: 680; letter-spacing: -.2px; }
+  header h1 span { color: var(--muted); font-weight: 450; }
+  nav { display: flex; gap: 8px; }
+  nav button {
+    background: none; border: 1px solid var(--line); border-radius: 999px; padding: 9px 18px;
+    font-size: 16px; color: var(--muted); cursor: pointer;
+  }
+  nav button b { color: var(--kelp); margin-right: 8px; font-family: var(--mono); }
+  nav button[aria-selected="true"] { color: var(--ink); background: rgba(79,164,131,.16); border-color: var(--kelp); }
+  .link { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 15px; color: var(--muted); }
+
+  main { flex: 1; min-height: 0; padding: 24px 28px 28px; }
+  section[role="tabpanel"] { height: 100%; display: grid; gap: 22px; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); }
+  section[hidden] { display: none; }
+  .col { display: flex; flex-direction: column; gap: 18px; min-width: 0; min-height: 0; }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; min-width: 0; }
+  .card.grow { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .label { font-size: 12px; letter-spacing: 2.2px; text-transform: uppercase; color: var(--kelp); font-weight: 700; margin-bottom: 12px; }
+  .hint { font-size: 15px; color: var(--muted); line-height: 1.5; }
+  .hint code, .chip { font-family: var(--mono); font-size: .92em; color: #bfe6d5; background: rgba(79,164,131,.12); padding: 1px 6px; border-radius: 4px; }
+
+  .status { display: flex; align-items: center; gap: 12px; font-size: 20px; font-weight: 620; }
+  .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 0 4px rgba(216,166,87,.18); flex: none; }
+  .status.ok .dot, .dot.ok { background: var(--kelp); box-shadow: 0 0 0 4px rgba(79,164,131,.22); }
+  .status small { display: block; font-size: 14px; color: var(--muted); font-weight: 400; margin-top: 2px; }
+
+  .copy { display: flex; align-items: stretch; gap: 8px; margin-top: 10px; }
+  .copy code {
+    flex: 1; min-width: 0; font-family: var(--mono); font-size: 16px; padding: 10px 12px; border-radius: 8px;
+    background: var(--code); border: 1px solid var(--line); overflow-wrap: anywhere; color: #cfe3de;
+  }
+  .btn {
+    background: rgba(255,255,255,.08); border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px;
+    font-size: 15px; cursor: pointer; white-space: nowrap;
+  }
+  .btn:hover { background: rgba(255,255,255,.14); }
+  .btn.on { background: rgba(79,164,131,.2); border-color: var(--kelp); }
+
+  .controls { display: grid; grid-template-columns: auto 1fr; gap: 14px 18px; align-items: center; font-size: 16px; }
+  .controls label { color: var(--muted); }
+  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  input[type="range"] { flex: 1; min-width: 140px; accent-color: var(--kelp); }
+  select { background: var(--code); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; min-width: 72px; }
+
+  pre {
+    font-family: var(--mono); font-size: 18px; line-height: 1.55; background: var(--code); border: 1px solid var(--line);
+    border-radius: 10px; padding: 16px 18px; overflow: auto; color: #cfe3de; white-space: pre;
+  }
+  .k { color: #8fc7e8; } .s { color: #9fd8b4; } .n { color: #e0b884; } .b { color: #7fb2d8; }
+  .flash { animation: flash .6s ease-out; }
+  @keyframes flash { from { border-color: var(--kelp); } to { border-color: var(--line); } }
+  .meta { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; color: var(--dim); margin-top: 10px; font-variant-numeric: tabular-nums; }
+
+  .hero { display: flex; align-items: baseline; gap: 10px; }
+  .hero .v { font-size: 96px; font-weight: 720; letter-spacing: -3px; line-height: 1; font-variant-numeric: tabular-nums; }
+  .hero .u { font-size: 28px; color: var(--muted); }
+  .hero .v.wait { font-size: 32px; font-weight: 500; letter-spacing: 0; color: var(--dim); }
+  .chart { position: relative; flex: 1; min-height: 160px; margin-top: 12px; }
+  .chart canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .tip {
+    position: absolute; pointer-events: none; background: #0b1719; border: 1px solid var(--line); border-radius: 8px;
+    padding: 6px 10px; font-size: 14px; font-family: var(--mono); white-space: nowrap; transform: translate(-50%, -120%);
+  }
+
+  .log { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+  .req { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: rgba(0,0,0,.18); }
+  .req.new { animation: flash .8s ease-out; }
+  .req .top { display: flex; gap: 10px; align-items: baseline; font-family: var(--mono); font-size: 15px; }
+  .req .m { color: var(--kelp); font-weight: 700; }
+  .req .t { margin-left: auto; color: var(--dim); font-size: 13px; }
+  .req .q { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; font-size: 14px; }
+  .req pre { font-size: 13px; padding: 8px 10px; margin-top: 6px; max-height: 120px; }
+  .empty { color: var(--dim); font-size: 16px; padding: 18px 4px; }
+  .presets { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  @media (max-width: 900px) {
+    section[role="tabpanel"] { grid-template-columns: 1fr; height: auto; }
+    header { flex-wrap: wrap; }
+    .link { margin-left: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) { .flash, .req.new { animation: none; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Payload Console <span>· what the other side sees</span></h1>
+  <nav role="tablist">
+    <button role="tab" id="tab-1" aria-controls="panel-1" aria-selected="true"><b>1</b>WebSocket feed</button>
+    <button role="tab" id="tab-2" aria-controls="panel-2" aria-selected="false"><b>2</b>Cockpit calls you</button>
+    <button role="tab" id="tab-3" aria-controls="panel-3" aria-selected="false"><b>3</b>Agent widget</button>
+  </nav>
+  <div class="link"><span class="dot" id="link-dot"></span><span id="link-text">Connecting to the demo server…</span></div>
+</header>
+
+<main>
+  <!-- 1 · the feed Cockpit reads -->
+  <section role="tabpanel" id="panel-1" aria-labelledby="tab-1">
+    <div class="col">
+      <div class="card">
+        <div class="status" id="feed-status"><span class="dot"></span><div>Waiting for Cockpit<small>Nothing connected to the feed yet</small></div></div>
+        <p class="hint" style="margin-top:14px">In Cockpit: Settings → General → Generic WebSocket connections, then paste</p>
+        <div class="copy"><code id="ws-url">ws://localhost:8765</code><button class="btn" data-copy="ws-url">Copy</button></div>
+      </div>
+      <div class="card">
+        <div class="label">What the payload sends</div>
+        <div class="controls">
+          <label for="temp">Water temp</label>
+          <div class="row"><input type="range" id="temp" min="-5" max="45" step="0.5"><span class="num" id="temp-v"></span>
+            <label class="row" style="color:var(--ink)"><input type="checkbox" id="wave"> drift</label></div>
+          <label for="locked">Winch</label>
+          <div class="row"><button class="btn" id="locked" aria-pressed="false"></button></div>
+          <label for="status">Status</label>
+          <div class="row"><select id="status"><option>Logging</option><option>Idle</option><option>Recovering</option></select></div>
+          <label>Format</label>
+          <div class="row"><button class="btn" data-format="json">JSON</button><button class="btn" data-format="text">name=value</button></div>
+          <label for="rate">Rate</label>
+          <div class="row"><select id="rate"><option value="1">1 per second</option><option value="2">2 per second</option><option value="5">5 per second</option></select>
+            <button class="btn" id="running"></button></div>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card">
+        <div class="label">Last message on the wire</div>
+        <pre id="wire">—</pre>
+        <div class="meta"><span id="wire-meta"></span><span id="wire-count"></span></div>
+      </div>
+      <div class="card grow">
+        <div class="label">external/watertemp, as sent</div>
+        <div class="chart" id="chart-1"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 · Cockpit's actions calling in -->
+  <section role="tabpanel" id="panel-2" aria-labelledby="tab-2" hidden>
+    <div class="col">
+      <div class="card">
+        <div class="label">Point an HTTP request action here</div>
+        <div class="copy"><code id="hook-url">http://localhost:8765/axis?v={{ inputs/mavlink/axis-x }}</code><button class="btn" data-copy="hook-url">Copy</button></div>
+        <p class="hint" style="margin-top:12px">Any path and method works, and every request shows up on the right. Add an
+          automatic trigger on the axis, no faster than 10 per second.</p>
+      </div>
+      <div class="card grow">
+        <div class="row" style="justify-content:space-between">
+          <div class="label" style="margin:0">Value received</div>
+          <label class="row hint" for="track">from <select id="track"><option value="">first number</option></select></label>
+        </div>
+        <div class="hero" style="margin-top:12px"><span class="v wait" id="hook-v">Waiting for a request</span></div>
+        <div class="meta"><span id="hook-rate">No requests yet</span><span id="hook-count"></span></div>
+        <div class="chart" id="chart-2"></div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card grow">
+        <div class="row" style="justify-content:space-between;margin-bottom:12px">
+          <div class="label" style="margin:0">Requests from Cockpit</div>
+          <button class="btn" id="clear-log">Clear</button>
+        </div>
+        <div class="log" id="log"><div class="empty">Waiting for Cockpit to call. Run the action, or move the stick once the trigger is set.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 · the source of truth for the agent-built widget -->
+  <section role="tabpanel" id="panel-3" aria-labelledby="tab-3" hidden>
+    <div class="col">
+      <div class="card">
+        <div class="status" id="feed-status-3"><span class="dot"></span><div>Waiting for Cockpit<small></small></div></div>
+      </div>
+      <div class="card">
+        <div class="label">Ask the agent</div>
+        <pre id="prompt" style="font-size:16px;white-space:pre-wrap">Create a DIY widget in Cockpit that shows the water temperature from external/watertemp as a large number in °C. Colour the number by temperature: white below 0 °C, blue at 15, yellow at 30 and red from 40. Take a screenshot to check it before you finish.</pre>
+        <div class="row" style="margin-top:10px"><button class="btn" data-copy="prompt">Copy prompt</button></div>
+      </div>
+      <div class="card">
+        <div class="label">Push the reading</div>
+        <div class="presets">
+          <button class="btn" data-temp="-2">Ice · −2 °C</button>
+          <button class="btn" data-temp="15">Cool · 15 °C</button>
+          <button class="btn" data-temp="30">Warm · 30 °C</button>
+          <button class="btn" data-temp="42">Hot · 42 °C</button>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card grow">
+        <div class="label">What the payload is sending now</div>
+        <div class="hero"><span class="v wait" id="temp-3">Waiting</span><span class="u">°C</span></div>
+        <div class="chart" id="chart-3"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  'use strict'
+  const $ = (id) => document.getElementById(id)
+  const fmtTime = (t) => new Date(t).toLocaleTimeString([], { hour12: false })
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+  // ---- tabs (keys 1-3 too, remembered per browser)
+  const tabs = [...document.querySelectorAll('[role="tab"]')]
+  const select = (n) => {
+    tabs.forEach((t, i) => t.setAttribute('aria-selected', String(i === n)))
+    document.querySelectorAll('[role="tabpanel"]').forEach((p, i) => (p.hidden = i !== n))
+    try { localStorage.setItem('payload-console-tab', String(n)) } catch {}
+    requestAnimationFrame(() => charts.forEach((c) => c.draw()))
+  }
+  tabs.forEach((t, i) => t.addEventListener('click', () => select(i)))
+  addEventListener('keydown', (e) => {
+    if (e.target.closest('input, select, textarea')) return
+    if (['1', '2', '3'].includes(e.key)) select(Number(e.key) - 1)
+  })
+
+  // ---- a single-series line chart: recessive grid, 2px line, endpoint marker, hover readout
+  const css = getComputedStyle(document.documentElement)
+  const color = (v) => css.getPropertyValue(v).trim()
+  function lineChart(host, { windowS, unit = '', decimals = 1 }) {
+    const canvas = document.createElement('canvas')
+    const tip = document.createElement('div')
+    tip.className = 'tip'
+    tip.hidden = true
+    host.append(canvas, tip)
+    const points = []
+    let hover = null
+    const draw = () => {
+      const w = host.clientWidth, h = host.clientHeight
+      if (!w || !h) return
+      const dpr = devicePixelRatio || 1
+      canvas.width = w * dpr; canvas.height = h * dpr
+      const g = canvas.getContext('2d')
+      g.setTransform(dpr, 0, 0, dpr, 0, 0)
+      g.clearRect(0, 0, w, h)
+      const now = Date.now(), t0 = now - windowS * 1000
+      const shown = points.filter((p) => p.t >= t0)
+      const pad = { l: 52, r: 16, t: 10, b: 24 }
+      let lo = Math.min(...shown.map((p) => p.v)), hi = Math.max(...shown.map((p) => p.v))
+      if (!shown.length) { lo = 0; hi = 1 }
+      if (hi - lo < 1) { const m = (hi + lo) / 2; lo = m - .5; hi = m + .5 }
+      const span = hi - lo; lo -= span * .12; hi += span * .12
+      const x = (t) => pad.l + ((t - t0) / (windowS * 1000)) * (w - pad.l - pad.r)
+      const y = (v) => pad.t + (1 - (v - lo) / (hi - lo)) * (h - pad.t - pad.b)
+      g.font = '13px ' + color('--mono'); g.fillStyle = color('--dim'); g.strokeStyle = color('--line'); g.lineWidth = 1
+      for (let i = 0; i <= 3; i++) {
+        const v = lo + ((hi - lo) * i) / 3, yy = Math.round(y(v)) + .5
+        g.beginPath(); g.moveTo(pad.l, yy); g.lineTo(w - pad.r, yy); g.stroke()
+        g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText(v.toFixed(decimals), pad.l - 8, yy)
+      }
+      g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.fillText(`−${windowS}s`, pad.l, h - 6)
+      g.textAlign = 'right'; g.fillText('now', w - pad.r, h - 6)
+      if (!shown.length) return
+      g.strokeStyle = color('--kelp'); g.lineWidth = 2; g.lineJoin = 'round'; g.beginPath()
+      shown.forEach((p, i) => (i ? g.lineTo(x(p.t), y(p.v)) : g.moveTo(x(p.t), y(p.v))))
+      g.stroke()
+      const last = shown.at(-1)
+      g.fillStyle = color('--kelp'); g.beginPath(); g.arc(x(last.t), y(last.v), 4.5, 0, Math.PI * 2); g.fill()
+      g.strokeStyle = color('--bg'); g.lineWidth = 2; g.stroke()
+      if (hover !== null) {
+        const near = shown.reduce((a, p) => (Math.abs(x(p.t) - hover) < Math.abs(x(a.t) - hover) ? p : a))
+        const hx = x(near.t)
+        g.strokeStyle = color('--muted'); g.lineWidth = 1; g.setLineDash([3, 3])
+        g.beginPath(); g.moveTo(hx, pad.t); g.lineTo(hx, h - pad.b); g.stroke(); g.setLineDash([])
+        tip.hidden = false
+        tip.style.left = hx + 'px'; tip.style.top = y(near.v) + 'px'
+        tip.textContent = `${near.v.toFixed(decimals)}${unit} · ${fmtTime(near.t)}`
+      } else tip.hidden = true
+    }
+    canvas.addEventListener('mousemove', (e) => { hover = e.offsetX; draw() })
+    canvas.addEventListener('mouseleave', () => { hover = null; draw() })
+    return {
+      draw,
+      push(t, v) { points.push({ t, v }); while (points.length && points[0].t < Date.now() - windowS * 2000) points.shift(); draw() },
+      clear() { points.length = 0; draw() },
+    }
+  }
+  const chart1 = lineChart($('chart-1'), { windowS: 60, unit: ' °C' })
+  const chart2 = lineChart($('chart-2'), { windowS: 30, decimals: 2 })
+  const chart3 = lineChart($('chart-3'), { windowS: 120, unit: ' °C' })
+  const charts = [chart1, chart2, chart3]
+  addEventListener('resize', () => charts.forEach((c) => c.draw()))
+  setInterval(() => charts.forEach((c) => c.draw()), 1000)
+
+  // ---- copy buttons
+  document.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', async () => {
+    const el = $(b.dataset.copy)
+    try { await navigator.clipboard.writeText(el.textContent); b.textContent = 'Copied' }
+    catch { getSelection().selectAllChildren(el); b.textContent = 'Selected, press ⌘C' }
+    setTimeout(() => (b.textContent = b.dataset.copy === 'prompt' ? 'Copy prompt' : 'Copy'), 1600)
+  }))
+
+  // ---- feed controls
+  let feed = null
+  const control = (patch) => fetch('/control/feed', { method: 'POST', body: JSON.stringify(patch) }).catch(() => {})
+  $('temp').addEventListener('input', (e) => { $('temp-v').textContent = Number(e.target.value).toFixed(1) + ' °C'; control({ waterTemp: Number(e.target.value) }) })
+  $('wave').addEventListener('change', (e) => control({ wave: e.target.checked }))
+  $('locked').addEventListener('click', () => control({ winchLocked: !feed?.winchLocked }))
+  $('status').addEventListener('change', (e) => control({ status: e.target.value }))
+  $('rate').addEventListener('change', (e) => control({ rateHz: Number(e.target.value) }))
+  $('running').addEventListener('click', () => control({ running: !feed?.running }))
+  document.querySelectorAll('[data-format]').forEach((b) => b.addEventListener('click', () => control({ format: b.dataset.format })))
+  document.querySelectorAll('[data-temp]').forEach((b) => b.addEventListener('click', () => control({ waterTemp: Number(b.dataset.temp), wave: true })))
+
+  const renderState = (s) => {
+    feed = s.feed
+    const n = s.clients.length
+    const label = n ? `Cockpit connected${n > 1 ? ` (${n})` : ''}` : 'Waiting for Cockpit'
+    const where = (ip) => (['::1', '127.0.0.1'].includes(ip) ? 'this computer' : ip)
+    const detail = n ? `from ${[...new Set(s.clients.map((c) => where(c.remote)))].join(', ')} · since ${fmtTime(Math.min(...s.clients.map((c) => c.since)))}` : 'Nothing connected to the feed yet'
+    for (const id of ['feed-status', 'feed-status-3']) {
+      $(id).classList.toggle('ok', n > 0)
+      $(id).querySelector('div').innerHTML = `${esc(label)}<small>${esc(detail)}</small>`
+    }
+    if (document.activeElement !== $('temp')) { $('temp').value = feed.waterTemp; $('temp-v').textContent = feed.waterTemp.toFixed(1) + ' °C' }
+    $('wave').checked = feed.wave
+    $('locked').textContent = feed.winchLocked ? 'Locked' : 'Free'
+    $('locked').setAttribute('aria-pressed', String(feed.winchLocked))
+    $('locked').classList.toggle('on', feed.winchLocked)
+    $('status').value = feed.status
+    $('rate').value = String(feed.rateHz)
+    $('running').textContent = feed.running ? 'Pause feed' : 'Resume feed'
+    document.querySelectorAll('[data-format]').forEach((b) => b.classList.toggle('on', b.dataset.format === feed.format))
+    $('ws-url').textContent = `ws://localhost:${s.port}`
+    $('hook-url').textContent = `http://localhost:${s.port}/axis?v={{ inputs/mavlink/axis-x }}`
+  }
+
+  const highlight = (json) => esc(json)
+    .replace(/(&quot;|")([^"]+)\1(\s*:)/g, '<span class="k">"$2"</span>$3')
+    .replace(/: ("[^"]*")/g, ': <span class="s">$1</span>')
+    .replace(/: (-?\d+(\.\d+)?)/g, ': <span class="n">$1</span>')
+    .replace(/: (true|false)/g, ': <span class="b">$1</span>')
+
+  let sentCount = 0
+  const renderFeed = (f) => {
+    const wire = $('wire')
+    wire.innerHTML = feed?.format === 'text' ? esc(f.messages.join('\n')) : highlight(JSON.stringify(f.reading, null, 2))
+    wire.classList.remove('flash'); void wire.offsetWidth; if (f.sent) wire.classList.add('flash')
+    if (f.sent) sentCount += f.messages.length
+    $('wire-meta').textContent = !feed?.running ? `Paused · not sent (${fmtTime(f.at)})` : f.sent ? `Sent to ${f.sent === 1 ? 'Cockpit' : f.sent + ' clients'} at ${fmtTime(f.at)}` : `Not sent: no one connected (${fmtTime(f.at)})`
+    $('wire-count').textContent = `${sentCount} message${sentCount === 1 ? '' : 's'} sent`
+    chart1.push(f.at, f.reading.WaterTemp)
+    chart3.push(f.at, f.reading.WaterTemp)
+    $('temp-3').textContent = f.reading.WaterTemp.toFixed(1)
+    $('temp-3').classList.remove('wait')
+  }
+
+  // ---- requests from Cockpit's actions
+  const numbers = (req) => {
+    const out = {}
+    for (const [k, v] of Object.entries(req.query)) if (v !== '' && Number.isFinite(Number(v))) out['?' + k] = Number(v)
+    const walk = (o, path) => {
+      if (typeof o === 'number') out[path] = o
+      else if (o && typeof o === 'object') for (const [k, v] of Object.entries(o)) walk(v, path ? `${path}.${k}` : k)
+    }
+    walk(req.json, '')
+    return out
+  }
+  const waitHook = () => { $('hook-v').textContent = 'Waiting for a request'; $('hook-v').classList.add('wait') }
+  const seenKeys = new Set()
+  let requests = []
+  const renderRequest = (req) => {
+    requests.push(req.at)
+    const nums = numbers(req)
+    for (const k of Object.keys(nums)) if (!seenKeys.has(k)) {
+      seenKeys.add(k)
+      $('track').append(new Option(k, k))
+    }
+    const key = $('track').value || Object.keys(nums)[0]
+    if (key in nums) {
+      $('hook-v').textContent = Number.isInteger(nums[key]) ? nums[key] : nums[key].toFixed(3)
+      $('hook-v').classList.remove('wait')
+      chart2.push(req.at, nums[key])
+    }
+    const log = $('log')
+    log.querySelector('.empty')?.remove()
+    const el = document.createElement('div')
+    el.className = 'req new'
+    const query = Object.entries(req.query).map(([k, v]) => `<span class="chip">${esc(k)}=${esc(v)}</span>`).join('')
+    const body = req.body ? `<pre>${req.json ? highlight(JSON.stringify(req.json, null, 2)) : esc(req.body)}</pre>` : ''
+    el.innerHTML = `<div class="top"><span class="m">${esc(req.method)}</span><span>${esc(req.path)}</span><span class="t">#${req.id} · ${fmtTime(req.at)}</span></div>${query ? `<div class="q">${query}</div>` : ''}${body}`
+    log.prepend(el)
+    while (log.children.length > 40) log.lastChild.remove()
+    $('hook-count').textContent = `${req.id} received`
+  }
+  setInterval(() => {
+    const now = Date.now()
+    requests = requests.filter((t) => t > now - 2000)
+    if (seenKeys.size || requests.length) $('hook-rate').textContent = `${(requests.length / 2).toFixed(1)} requests per second`
+  }, 500)
+  $('track').addEventListener('change', () => { chart2.clear(); waitHook() })
+  $('clear-log').addEventListener('click', () => { $('log').innerHTML = '<div class="empty">Cleared. Waiting for the next request.</div>'; chart2.clear(); waitHook() })
+
+  // ---- link to the demo server (EventSource reconnects on its own)
+  const es = new EventSource('/events')
+  es.onopen = () => { $('link-dot').classList.add('ok'); $('link-text').textContent = 'Demo server running' }
+  es.onerror = () => { $('link-dot').classList.remove('ok'); $('link-text').textContent = 'Demo server unreachable, retrying…' }
+  es.addEventListener('state', (e) => renderState(JSON.parse(e.data)))
+  es.addEventListener('feed', (e) => renderFeed(JSON.parse(e.data)))
+  es.addEventListener('request', (e) => renderRequest(JSON.parse(e.data)))
+
+  let start = 0
+  try { start = Number(localStorage.getItem('payload-console-tab')) || 0 } catch {}
+  select(start)
+})()
+</script>
+</body>
+</html>
