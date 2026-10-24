@@ -878,18 +878,20 @@ If it fails: say so and move on within 10 seconds. Do not debug on stage.">
 
 Have ready BEFORE you start:
   · the payload console on tab 4, with the QR code; Clear all if a rehearsal left obstacles behind
-  · Cockpit (the presentation build) connected to the feed's WebSocket at least a minute earlier: without BlueOS it only accepts points of interest once its vehicle sync gives up, about 30 s after connecting
-  · the HTTP request action that reports the boat: URL from the console's tab 4, header x-control-key set to the console key, automatic trigger on mavlink/1/1/GLOBAL_POSITION_INT/lat, at most 4 per second
+  · Cockpit (the presentation build) connected to the boat, the SITL on the VPS at wss://apdc2026-sitl.rlehmk.dev/<secret path>/ws/mavlink
+  · Cockpit connected to the feed's WebSocket at least a minute earlier: without BlueOS it only accepts points of interest once its vehicle sync gives up, about 30 s after connecting
   · the boat in MANUAL with the joystick, on the map view
 
-Leave this slide up while people scan. Each tap on their map drops an obstacle; it lands in Cockpit as a point of interest over the WebSocket (door 1). Their phones show the boat because Cockpit sends its position out through the HTTP action (door 2), with no code inside Cockpit.
+The boat on the phones comes straight from that SITL, which runs next to the demo server. On the laptop fallback (local server and local SITL), Cockpit reports it through the HTTP action shown on the console's tab 4 instead.
+
+Leave this slide up while people scan. Each tap on their map drops an obstacle; it lands in Cockpit as a point of interest over the WebSocket (door 1), with no code inside Cockpit.
 
 The one rule, enforced by the phones and again by the server: nothing within 10 m of the boat. No limit on how many each person drops.
 
 Then drive through the field without hitting anything. Flash the phones from the console at the end.
 
 If the venue network is bad, skip it: the local server only reaches phones on the same Wi-Fi.">
-  <div class="badge">Live demo · doors 1 and 2</div>
+  <div class="badge">Live demo · door 1</div>
   <h1>Get in the boat's way</h1>
   <div class="join">
     <div>
@@ -899,7 +901,7 @@ If the venue network is bad, skip it: the local server only reaches phones on th
     <div class="steps">
       <div><b>1</b> Scan, press Join, tap the map to drop an obstacle</div>
       <div><b>2</b> Door 1 · each one lands in Cockpit as a point of interest</div>
-      <div><b>3</b> Door 2 · Cockpit sends the boat out, so every phone sees it</div>
+      <div><b>3</b> Every phone sees the boat move, live</div>
       <div><b>4</b> I steer the boat through without hitting any</div>
     </div>
   </div>
