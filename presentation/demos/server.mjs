@@ -42,6 +42,8 @@ const broadcast = (event, data) => {
 const state = () => ({
   feed,
   crowd: { on: crowd.on },
+  obstacles: obstacleList(),
+  vehicle: vehicleNow(),
   clients: [...sockets.values()].map(({ remote, since }) => ({ remote, since })),
   locked: Boolean(CONTROL_KEY),
 })
@@ -106,6 +108,17 @@ const acceptSocket = (req, socket) => {
   const info = { remote: clientIp(req), since: Date.now(), pending: Buffer.alloc(0) }
   sockets.set(socket, info)
   broadcast('state', state())
+  // A Cockpit that connects after the audience started gets every obstacle already placed. Cockpit drops external
+  // points of interest until it has synced with the vehicle, up to 30 s without BlueOS, so the list is sent again for
+  // a while; a repeat of one it already has is only a warning on its side.
+  const replay = () => {
+    if (!sockets.has(socket)) return
+    for (const obstacle of obstacles.values()) sendJson(socket, addPoiCommand(obstacle))
+  }
+  replay()
+  const replays = setInterval(replay, 10000)
+  setTimeout(() => clearInterval(replays), 90000)
+  socket.on('close', () => clearInterval(replays))
   socket.on('data', (chunk) => readFrames(socket, info, chunk))
   const drop = () => {
     if (sockets.delete(socket)) broadcast('state', state())
@@ -114,69 +127,141 @@ const acceptSocket = (req, socket) => {
   socket.on('error', drop)
 }
 
-// --- the audience: phones on /crowd send their tilt and taps, and can be flashed ----------------------
+// --- the audience: phones on /crowd drop obstacles on the map, which reach Cockpit as points of interest -----------
 const phones = new Map()
-const crowd = { on: false, chosen: false, taps: 0 }
+const crowd = { on: false, chosen: false }
+const obstacles = new Map()
+// Where the presenter's boat is, as Cockpit reports it through an HTTP action (GET /vehicle).
+const vehicle = { lat: null, lon: null, hdg: null, at: 0 }
+let obstacleCount = 0
 const MAX_PHONES = 2000
-const TAPS_PER_PHONE_PER_S = 15
-const clampDeg = (v) => Math.max(-90, Math.min(90, Math.round(v * 10) / 10))
-const average = (list) => (list.length ? Math.round((list.reduce((a, b) => a + b, 0) / list.length) * 10) / 10 : 0)
+const MAX_OBSTACLES = 150
+const OBSTACLES_PER_PHONE = 5
+const OBSTACLE_COOLDOWN_MS = 2000
+const MIN_DISTANCE_M = 10
+const MAX_DISTANCE_M = 1500
 
-const crowdNow = () => {
-  const now = Date.now()
-  const tilted = [...phones.values()].filter((p) => p.roll !== null)
-  let recent = 0
-  for (const p of phones.values()) {
-    p.taps = p.taps.filter((t) => now - t < 2000)
-    recent += p.taps.length
-  }
-  return {
-    Count: phones.size,
-    Roll: average(tilted.map((p) => p.roll)),
-    Pitch: average(tilted.map((p) => p.pitch)),
-    TapsPerSecond: recent / 2,
-    Taps: crowd.taps,
-  }
+const distanceM = (a, b) => {
+  const rad = Math.PI / 180
+  const dLat = (b.lat - a.lat) * rad
+  const dLon = (b.lon - a.lon) * rad
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLon / 2) ** 2
+  return 2 * 6371000 * Math.asin(Math.sqrt(h))
 }
 
-const sendJson = (socket, data) => socket.write(frame(0x1, Buffer.from(JSON.stringify(data))))
+const obstacleList = () => [...obstacles.values()].map(({ id, lat, lon }) => ({ id, lat, lon }))
+const crowdNow = () => ({ Count: phones.size, Obstacles: obstacles.size })
+const vehicleNow = () => (vehicle.lat === null ? null : { lat: vehicle.lat, lon: vehicle.lon, hdg: vehicle.hdg, at: vehicle.at })
 
-// Phones are untrusted input from a public QR code: only known message shapes, finite numbers and a tap rate cap.
-const onPhoneMessage = (phone, text) => {
+const sendJson = (socket, data) => socket.write(frame(0x1, Buffer.from(JSON.stringify(data))))
+const toPhones = (data) => {
+  for (const socket of phones.keys()) sendJson(socket, data)
+}
+const toCockpit = (data) => {
+  for (const socket of sockets.keys()) sendJson(socket, data)
+}
+const addPoiCommand = (obstacle) => ({
+  type: 'cockpit:addPointOfInterest',
+  poi: {
+    id: obstacle.id,
+    name: obstacle.name,
+    description: 'Dropped by the audience',
+    latitude: obstacle.lat,
+    longitude: obstacle.lon,
+    icon: 'mdi-alert-octagon',
+    color: '#D2686A',
+  },
+})
+
+const obstaclesChanged = () => {
+  toPhones({ type: 'obstacles', list: obstacleList() })
+  broadcast('obstacles', { list: obstacleList() })
+}
+
+// Phones are untrusted input from a public QR code, so every rule the page shows is enforced again here.
+const placeObstacle = (phone, lat, lon) => {
+  if (![lat, lon].every(Number.isFinite) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return 'That spot is off the map.'
+  if (vehicle.lat === null) return 'Waiting for the boat to report where it is.'
+  const distance = distanceM(vehicle, { lat, lon })
+  if (distance < MIN_DISTANCE_M) return `Too close to the boat: keep at least ${MIN_DISTANCE_M} m away.`
+  if (distance > MAX_DISTANCE_M) return 'Too far from the boat to matter.'
+  if (obstacles.size >= MAX_OBSTACLES) return 'The map is full.'
+  if (phone.placed >= OBSTACLES_PER_PHONE) return `You have placed all ${OBSTACLES_PER_PHONE} of yours.`
+  if (Date.now() - phone.lastPlaced < OBSTACLE_COOLDOWN_MS) return 'One every two seconds.'
+  phone.placed++
+  phone.lastPlaced = Date.now()
+  const n = ++obstacleCount
+  const round = (v) => Math.round(v * 1e6) / 1e6
+  const obstacle = { id: `audience-obstacle-${n}`, name: `Obstacle ${n}`, lat: round(lat), lon: round(lon) }
+  obstacles.set(obstacle.id, obstacle)
+  toCockpit(addPoiCommand(obstacle))
+  obstaclesChanged()
+  return null
+}
+
+const clearObstacles = () => {
+  for (const id of obstacles.keys()) toCockpit({ type: 'cockpit:removePointOfInterest', id })
+  obstacles.clear()
+  for (const phone of phones.values()) phone.placed = 0
+  obstaclesChanged()
+  toPhones({ type: 'placed', left: OBSTACLES_PER_PHONE })
+}
+
+const onPhoneMessage = (socket, phone, text) => {
   let msg
   try {
     msg = JSON.parse(text)
   } catch {
     return
   }
-  if (Array.isArray(msg?.tilt) && msg.tilt.length === 2 && msg.tilt.every(Number.isFinite)) {
-    phone.roll = clampDeg(msg.tilt[0])
-    phone.pitch = clampDeg(msg.tilt[1])
-  }
-  if (msg?.tap === true) {
-    const now = Date.now()
-    if (phone.taps.filter((t) => now - t < 1000).length < TAPS_PER_PHONE_PER_S) {
-      phone.taps.push(now)
-      crowd.taps++
-    }
-  }
+  if (typeof msg?.poi !== 'object' || msg.poi === null) return
+  const reason = placeObstacle(phone, Number(msg.poi.lat), Number(msg.poi.lon))
+  sendJson(socket, reason ? { type: 'rejected', reason } : { type: 'placed', left: OBSTACLES_PER_PHONE - phone.placed })
 }
 
 const acceptPhone = (req, socket) => {
   if (phones.size >= MAX_PHONES) return socket.destroy()
   if (!handshake(req, socket)) return
-  const phone = { roll: null, pitch: null, taps: [], pending: Buffer.alloc(0) }
+  const phone = { placed: 0, lastPlaced: 0, pending: Buffer.alloc(0) }
   phones.set(socket, phone)
   // The first phone puts the crowd in the feed, unless the console already chose.
   if (!crowd.chosen) crowd.on = true
   broadcast('state', state())
-  sendJson(socket, { type: 'hello', count: phones.size })
-  socket.on('data', (chunk) => readFrames(socket, phone, chunk, (text) => onPhoneMessage(phone, text)))
+  sendJson(socket, {
+    type: 'hello',
+    count: phones.size,
+    obstacles: obstacleList(),
+    vehicle: vehicleNow(),
+    left: OBSTACLES_PER_PHONE,
+    minDistance: MIN_DISTANCE_M,
+  })
+  socket.on('data', (chunk) => readFrames(socket, phone, chunk, (text) => onPhoneMessage(socket, phone, text)))
   const drop = () => {
     if (phones.delete(socket)) broadcast('state', state())
   }
   socket.on('close', drop)
   socket.on('error', drop)
+}
+
+// MAVLink sends GLOBAL_POSITION_INT in 1e7 degrees and centidegrees; plain degrees work too.
+let lastVehicleSent = 0
+const setVehicle = (lat, lon, hdg) => {
+  if (![lat, lon].every(Number.isFinite)) return false
+  if (Math.abs(lat) > 90 || Math.abs(lon) > 180) [lat, lon] = [lat / 1e7, lon / 1e7]
+  if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return false
+  Object.assign(vehicle, {
+    lat,
+    lon,
+    hdg: Number.isFinite(hdg) && hdg !== 65535 ? (hdg > 360 ? hdg / 100 : hdg) : vehicle.hdg,
+    at: Date.now(),
+  })
+  // Cockpit can report many times a second; phones on a conference network only need a few.
+  if (Date.now() - lastVehicleSent > 250) {
+    lastVehicleSent = Date.now()
+    toPhones({ type: 'vehicle', vehicle: vehicleNow() })
+  }
+  broadcast('vehicle', vehicleNow())
+  return true
 }
 
 // At most one flash every few seconds, so a public URL can't strobe the room's phones.
@@ -191,9 +276,7 @@ const flashPhones = (text) => {
 }
 
 // Each phone hears how many others are in, once a second.
-setInterval(() => {
-  for (const socket of phones.keys()) sendJson(socket, { type: 'count', count: phones.size })
-}, 1000)
+setInterval(() => toPhones({ type: 'count', count: phones.size }), 1000)
 
 // The temperature drifts on a slow wave so the data lake sees a change every tick: Cockpit only notifies listeners
 // (plots, action links, DIY widgets) when a value changes.
@@ -304,6 +387,17 @@ const server = createServer(async (req, res) => {
     if (CONTROL_KEY && req.headers['x-control-key'] !== CONTROL_KEY) {
       return res.writeHead(401, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'wrong or missing key' }))
     }
+  }
+  if (req.method === 'POST' && url.pathname === '/control/obstacles/clear') {
+    clearObstacles()
+    return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ obstacles: 0 }))
+  }
+  // The presenter's Cockpit reports the boat here from an HTTP action; on a public host it sends the key as a header.
+  if (url.pathname === '/vehicle') {
+    if (CONTROL_KEY && req.headers['x-control-key'] !== CONTROL_KEY) return res.writeHead(401, CORS).end()
+    const q = url.searchParams
+    const ok = setVehicle(Number(q.get('lat')), Number(q.get('lon')), Number(q.get('hdg')))
+    return res.writeHead(ok ? 200 : 400, { ...CORS, 'Content-Type': 'application/json' }).end(JSON.stringify({ ok }))
   }
   if (req.method === 'POST' && url.pathname === '/control/flash') {
     const body = await readBody(req).catch(() => '')

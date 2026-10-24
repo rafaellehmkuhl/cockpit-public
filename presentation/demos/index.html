@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Payload Console</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 <style>
   /* The other side of each live demo: what a payload service sees while Cockpit talks to it. Deck palette. */
   :root {
@@ -117,12 +118,11 @@
   .qr { background: #fff; border-radius: 14px; padding: 14px; width: min(100%, 300px); aspect-ratio: 1; margin: 4px auto 0; }
   .qr svg { width: 100%; height: 100%; display: block; }
   .join-url { text-align: center; font-family: var(--mono); font-size: 20px; margin-top: 12px; color: var(--ink); overflow-wrap: anywhere; }
-  .crowd-top { display: grid; grid-template-columns: 220px 1fr; gap: 22px; align-items: center; }
-  .horizon { width: 220px; height: 220px; border-radius: 50%; overflow: hidden; border: 2px solid var(--line); }
-  .horizon canvas { width: 100%; height: 100%; display: block; }
-  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 22px; }
+  .stats { display: flex; gap: 28px; flex-wrap: wrap; }
   .stats div { font-size: 14px; color: var(--muted); }
-  .stats b { display: block; font-size: 40px; font-weight: 700; color: var(--ink); letter-spacing: -1px; font-variant-numeric: tabular-nums; }
+  .stats b { display: block; font-size: 36px; font-weight: 700; color: var(--ink); letter-spacing: -1px; font-variant-numeric: tabular-nums; }
+  .crowd-map { flex: 1; min-height: 240px; margin-top: 14px; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--code); }
+  .boat-icon svg { width: 30px; height: 30px; filter: drop-shadow(0 0 4px rgba(0,0,0,.7)); }
   input[type="text"] { background: var(--code); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; flex: 1; min-width: 0; }
 
   @media (max-width: 900px) {
@@ -140,7 +140,7 @@
     <button role="tab" id="tab-1" aria-controls="panel-1" aria-selected="true"><b>1</b>WebSocket feed</button>
     <button role="tab" id="tab-2" aria-controls="panel-2" aria-selected="false"><b>2</b>Cockpit calls you</button>
     <button role="tab" id="tab-3" aria-controls="panel-3" aria-selected="false"><b>3</b>Agent widget</button>
-    <button role="tab" id="tab-4" aria-controls="panel-4" aria-selected="false"><b>4</b>The audience</button>
+    <button role="tab" id="tab-4" aria-controls="panel-4" aria-selected="false"><b>4</b>Get in the way</button>
   </nav>
   <div class="link"><span class="dot" id="link-dot"></span><span id="link-text">Connecting to the demo server…</span></div>
 </header>
@@ -245,7 +245,7 @@
       </div>
     </div>
   </section>
-  <!-- 4 · the audience as the payload -->
+  <!-- 4 · the audience drops obstacles in the boat's way -->
   <section role="tabpanel" id="panel-4" aria-labelledby="tab-4" hidden>
     <div class="col">
       <div class="card">
@@ -255,6 +255,8 @@
       </div>
       <div class="card">
         <div class="controls">
+          <label>Obstacles</label>
+          <div class="row"><button class="btn ctl" id="clear-obstacles">Clear all</button><span class="hint">also removes them from Cockpit</span></div>
           <label>In Cockpit's feed</label>
           <div class="row"><button class="btn ctl" id="crowd-on"></button><span class="hint">as <code>external/crowd/…</code></span></div>
           <label for="flash-text">Flash phones</label>
@@ -264,33 +266,27 @@
       </div>
     </div>
     <div class="col">
-      <div class="card">
-        <div class="crowd-top">
-          <div class="horizon"><canvas id="horizon" width="440" height="440" aria-label="The room's average tilt as an artificial horizon"></canvas></div>
-          <div class="stats">
-            <div><b id="crowd-count">0</b>phones in</div>
-            <div><b id="crowd-tps">0</b>taps per second</div>
-            <div><b id="crowd-roll">0°</b>average roll</div>
-            <div><b id="crowd-pitch">0°</b>average pitch</div>
-          </div>
-        </div>
-      </div>
       <div class="card grow">
-        <div class="row" style="justify-content:space-between"><div class="label" style="margin:0">external/crowd/tapspersecond</div><span class="hint"><b id="crowd-taps">0</b> taps in total</span></div>
-        <div class="chart" id="chart-4"></div>
+        <div class="stats">
+          <div><b id="crowd-count">0</b>phones in</div>
+          <div><b id="obstacle-count">0</b>obstacles</div>
+          <div><b id="boat-age">—</b>since the boat reported</div>
+        </div>
+        <div class="crowd-map" id="crowd-map"></div>
       </div>
       <div class="card">
         <div class="label">Wire it up in Cockpit</div>
-        <p class="hint">Door 2: a compound variable <code>crowd-hype</code> = <code>{{ external/crowd/tapspersecond }} > 20</code>, an action link on it, and this HTTP action:</p>
-        <div class="copy"><code id="flash-url"></code><button class="btn" data-copy="flash-url">Copy</button></div>
-        <div class="row" style="margin-top:12px;justify-content:space-between"><p class="hint">Door 3: ask the agent for a crowd widget.</p><button class="btn" data-copy="crowd-prompt">Copy prompt</button></div>
-        <code id="crowd-prompt" hidden>Create a DIY widget in Cockpit called "The room": an artificial horizon driven by external/crowd/roll and external/crowd/pitch (degrees), with the number of phones from external/crowd/count and a bar that fills with external/crowd/tapspersecond, full at 30. Take a screenshot to check it before you finish.</code>
+        <p class="hint">Obstacles reach Cockpit as points of interest over the WebSocket from tab 1. For the boat, add an HTTP
+          request action with this URL<span id="key-hint">, the header <code>x-control-key</code> set to the console key,</span> and an
+          automatic trigger on <code>mavlink/1/1/GLOBAL_POSITION_INT/lat</code>, at most 4 per second:</p>
+        <div class="copy"><code id="vehicle-url"></code><button class="btn" data-copy="vehicle-url">Copy</button></div>
       </div>
     </div>
   </section>
 </main>
 
 <script src="/vendor/qrcode.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 (() => {
   'use strict'
@@ -433,6 +429,9 @@
     $('crowd-on').textContent = s.crowd.on ? 'On · click to remove' : 'Off · click to add'
     $('crowd-on').classList.toggle('on', s.crowd.on)
     crowdOn = s.crowd.on
+    renderObstacles(s.obstacles)
+    renderVehicle(s.vehicle)
+    $('key-hint').hidden = !s.locked
     viewOnly(s.locked && !key)
   }
 
@@ -505,8 +504,6 @@
 
   // ---- the audience
   let crowdOn = false
-  const chart4 = lineChart($('chart-4'), { windowS: 60, decimals: 1 })
-  charts.push(chart4)
   const joinUrl = `${location.origin}/join`
   $('join-url').textContent = joinUrl.replace(/^https?:\/\//, '')
   try {
@@ -515,39 +512,54 @@
     qr.make()
     $('qr').innerHTML = qr.createSvgTag({ cellSize: 8, margin: 0, scalable: true })
   } catch { $('qr').hidden = true }
-  $('flash-url').textContent = `${location.origin}/crowd/flash?when={{ crowd-hype }}&text=Cockpit%20says%20thanks!`
+  const pos = 'mavlink/1/1/GLOBAL_POSITION_INT'
+  $('vehicle-url').textContent = `${location.origin}/vehicle?lat={{ ${pos}/lat }}&lon={{ ${pos}/lon }}&hdg={{ ${pos}/hdg }}`
   $('crowd-on').addEventListener('click', () => control({ crowd: !crowdOn }))
-  $('flash-now').addEventListener('click', () =>
-    fetch('/control/flash', { method: 'POST', headers: key ? { 'x-control-key': key } : {}, body: JSON.stringify({ text: $('flash-text').value }) })
-      .then((r) => { if (r.status === 401) viewOnly(true) }).catch(() => {}))
+  const withKey = (path, body) =>
+    fetch(path, { method: 'POST', headers: key ? { 'x-control-key': key } : {}, body: JSON.stringify(body ?? {}) })
+      .then((r) => { if (r.status === 401) viewOnly(true) }).catch(() => {})
+  $('flash-now').addEventListener('click', () => withKey('/control/flash', { text: $('flash-text').value }))
+  $('clear-obstacles').addEventListener('click', () => withKey('/control/obstacles/clear'))
 
-  const horizon = $('horizon').getContext('2d')
-  const drawHorizon = (roll, pitch) => {
-    const c = horizon, w = 440, h = 440
-    c.save()
-    c.clearRect(0, 0, w, h)
-    c.translate(w / 2, h / 2)
-    c.rotate((-roll * Math.PI) / 180)
-    const shift = Math.max(-1, Math.min(1, pitch / 45)) * (h / 2)
-    c.fillStyle = '#3B78A8'; c.fillRect(-w, -h * 1.5 + shift, w * 2, h * 1.5)
-    c.fillStyle = '#6b4a2e'; c.fillRect(-w, shift, w * 2, h * 1.5)
-    c.strokeStyle = '#e9f2ef'; c.lineWidth = 3
-    c.beginPath(); c.moveTo(-w, shift); c.lineTo(w, shift); c.stroke()
-    c.restore()
-    c.strokeStyle = '#d8a657'; c.lineWidth = 6
-    c.beginPath(); c.moveTo(w / 2 - 90, h / 2); c.lineTo(w / 2 - 30, h / 2); c.moveTo(w / 2 + 30, h / 2); c.lineTo(w / 2 + 90, h / 2); c.stroke()
-    c.fillStyle = '#d8a657'; c.beginPath(); c.arc(w / 2, h / 2, 6, 0, Math.PI * 2); c.fill()
+  // Leaflet only measures its container once it is visible, so the map is built the first time tab 4 opens.
+  let crowdMap, boatMarker, boatZone, followBoat = true, vehicle = null, obstacles = []
+  const obstacleMarkers = []
+  const boatIcon = (hdg) => L.divIcon({ className: 'boat-icon', iconSize: [30, 30],
+    html: `<svg viewBox="0 0 24 24" style="transform: rotate(${hdg ?? 0}deg)"><path d="M12 2 L19 21 L12 17 L5 21 Z" fill="#4fa483" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>` })
+  const drawCrowdMap = () => {
+    if (!crowdMap) return
+    obstacleMarkers.splice(0).forEach((m) => m.remove())
+    for (const o of obstacles) obstacleMarkers.push(L.circleMarker([o.lat, o.lon], { radius: 8, color: '#fff', weight: 2, fillColor: '#d2686a', fillOpacity: 1 }).addTo(crowdMap))
+    if (!vehicle) return
+    const at = [vehicle.lat, vehicle.lon]
+    if (!boatMarker) {
+      boatZone = L.circle(at, { radius: 10, color: '#d2686a', weight: 2, dashArray: '4 4', fillOpacity: 0.12 }).addTo(crowdMap)
+      boatMarker = L.marker(at, { icon: boatIcon(vehicle.hdg), zIndexOffset: 1000 }).addTo(crowdMap)
+      crowdMap.setView(at, 17)
+    } else {
+      boatZone.setLatLng(at)
+      boatMarker.setLatLng(at).setIcon(boatIcon(vehicle.hdg))
+      if (followBoat) crowdMap.panTo(at, { animate: false })
+    }
   }
-  drawHorizon(0, 0)
-  const renderCrowd = (c) => {
-    $('crowd-count').textContent = c.Count
-    $('crowd-tps').textContent = c.TapsPerSecond
-    $('crowd-roll').textContent = `${c.Roll.toFixed(0)}°`
-    $('crowd-pitch').textContent = `${c.Pitch.toFixed(0)}°`
-    $('crowd-taps').textContent = c.Taps
-    drawHorizon(c.Roll, c.Pitch)
-    chart4.push(c.at, c.TapsPerSecond)
+  const ensureCrowdMap = () => {
+    if (crowdMap || typeof L === 'undefined' || $('panel-4').hidden) return
+    crowdMap = L.map('crowd-map', { zoomControl: true }).setView([-27.5935, -48.4525], 16)
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Imagery © Esri' }).addTo(crowdMap)
+    crowdMap.on('dragstart', () => (followBoat = false))
+    crowdMap.on('dblclick', () => (followBoat = true))
+    drawCrowdMap()
   }
+  tabs[3].addEventListener('click', () => setTimeout(() => { ensureCrowdMap(); crowdMap?.invalidateSize() }, 50))
+  addEventListener('keydown', (e) => { if (e.key === '4') setTimeout(() => { ensureCrowdMap(); crowdMap?.invalidateSize() }, 50) })
+  setTimeout(ensureCrowdMap, 200)
+  setInterval(() => {
+    $('boat-age').textContent = vehicle ? `${Math.max(0, Math.round((Date.now() - vehicle.at) / 1000))} s` : '—'
+  }, 500)
+
+  const renderObstacles = (list) => { obstacles = list; $('obstacle-count').textContent = list.length; drawCrowdMap() }
+  const renderVehicle = (v) => { if (!v) return; vehicle = v; drawCrowdMap() }
+  const renderCrowd = (c) => { $('crowd-count').textContent = c.Count }
   const renderFlash = (f) => {
     $('flash-last').textContent = `Flashed ${f.phones} phone${f.phones === 1 ? '' : 's'} at ${fmtTime(f.at)}: “${f.text}”`
   }
@@ -561,6 +573,8 @@
   es.addEventListener('request', (e) => renderRequest(JSON.parse(e.data)))
   es.addEventListener('crowd', (e) => renderCrowd(JSON.parse(e.data)))
   es.addEventListener('flash', (e) => renderFlash(JSON.parse(e.data)))
+  es.addEventListener('obstacles', (e) => renderObstacles(JSON.parse(e.data).list))
+  es.addEventListener('vehicle', (e) => renderVehicle(JSON.parse(e.data)))
 
   // The addresses to paste follow wherever this page is served from: localhost, or the public host over TLS.
   $('ws-url').textContent = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`
