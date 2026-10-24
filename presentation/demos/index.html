@@ -155,7 +155,7 @@
           <label>Format</label>
           <div class="row"><button class="btn" data-format="json">JSON</button><button class="btn" data-format="text">name=value</button></div>
           <label for="rate">Rate</label>
-          <div class="row"><select id="rate"><option value="1">1 per second</option><option value="2">2 per second</option><option value="5">5 per second</option></select>
+          <div class="row"><select id="rate"><option value="1">1 Hz</option><option value="2">2 Hz</option><option value="5">5 Hz</option><option value="10">10 Hz</option><option value="20">20 Hz</option></select>
             <button class="btn" id="running"></button></div>
         </div>
       </div>
@@ -373,10 +373,11 @@
     .replace(/: (true|false)/g, ': <span class="b">$1</span>')
 
   let sentCount = 0
+  let lastFlash = 0
   const renderFeed = (f) => {
     const wire = $('wire')
     wire.innerHTML = feed?.format === 'text' ? esc(f.messages.join('\n')) : highlight(JSON.stringify(f.reading, null, 2))
-    wire.classList.remove('flash'); void wire.offsetWidth; if (f.sent) wire.classList.add('flash')
+    if (f.sent && f.at - lastFlash > 1000) { lastFlash = f.at; wire.classList.remove('flash'); void wire.offsetWidth; wire.classList.add('flash') }
     if (f.sent) sentCount += f.messages.length
     $('wire-meta').textContent = !feed?.running ? `Paused · not sent (${fmtTime(f.at)})` : f.sent ? `Sent to ${f.sent === 1 ? 'Cockpit' : f.sent + ' clients'} at ${fmtTime(f.at)}` : `Not sent: no one connected (${fmtTime(f.at)})`
     $('wire-count').textContent = `${sentCount} message${sentCount === 1 ? '' : 's'} sent`

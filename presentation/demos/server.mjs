@@ -14,14 +14,14 @@ const MAX_BODY = 64 * 1024
 const feed = {
   running: true,
   format: 'json',
-  rateHz: 1,
+  rateHz: 10,
   waterTemp: 18.4,
   wave: true,
   winchLocked: false,
   status: 'Logging',
 }
 const STATUSES = ['Logging', 'Idle', 'Recovering']
-const RATES = [1, 2, 5]
+const RATES = [1, 2, 5, 10, 20]
 
 const lanUrls = () =>
   Object.values(networkInterfaces())
