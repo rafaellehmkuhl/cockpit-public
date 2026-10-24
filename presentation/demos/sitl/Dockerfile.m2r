@@ -1,0 +1,4 @@
+# mavlink2rest in front of the SITL, so Cockpit reaches the boat over a WebSocket.
+FROM alpine:3.20
+ADD --chmod=755 https://github.com/mavlink/mavlink2rest/releases/download/0.11.28/mavlink2rest-x86_64-unknown-linux-musl /usr/local/bin/mavlink2rest
+CMD ["mavlink2rest", "-c", "tcpout:apdc-sitl:5760", "-s", "0.0.0.0:8088"]

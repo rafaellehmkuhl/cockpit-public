@@ -275,10 +275,12 @@
       </div>
       <div class="card">
         <div class="label">Wire it up in Cockpit</div>
-        <p class="hint">Obstacles reach Cockpit as points of interest over the WebSocket from tab 1. For the boat, add an HTTP
-          request action with this URL<span id="key-hint">, the header <code>x-control-key</code> set to the console key,</span> and an
-          automatic trigger on <code>mavlink/1/1/GLOBAL_POSITION_INT/lat</code>, at most 4 per second:</p>
-        <div class="copy"><code id="vehicle-url"></code><button class="btn" data-copy="vehicle-url">Copy</button></div>
+        <p class="hint">Obstacles reach Cockpit as points of interest over the WebSocket from tab 1.
+          <span id="vehicle-from-sitl" hidden>The boat comes straight from the SITL running next to this server.</span>
+          <span id="vehicle-from-action">For the boat, add an HTTP request action with this URL<span id="key-hint">, the header
+          <code>x-control-key</code> set to the console key,</span> and an automatic trigger on
+          <code>mavlink/1/1/GLOBAL_POSITION_INT/lat</code>, at most 4 per second:</span></p>
+        <div class="copy" id="vehicle-url-row"><code id="vehicle-url"></code><button class="btn" data-copy="vehicle-url">Copy</button></div>
       </div>
     </div>
   </section>
@@ -430,6 +432,9 @@
     renderObstacles(s.obstacles)
     renderVehicle(s.vehicle)
     $('key-hint').hidden = !s.locked
+    $('vehicle-from-sitl').hidden = !s.sitl
+    $('vehicle-from-action').hidden = s.sitl
+    $('vehicle-url-row').hidden = s.sitl
     viewOnly(s.locked && !key)
   }
 

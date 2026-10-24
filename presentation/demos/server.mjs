@@ -50,6 +50,7 @@ const state = () => ({
   vehicle: vehicleNow(),
   clients: [...sockets.values()].map(({ remote, since }) => ({ remote, since })),
   locked: Boolean(CONTROL_KEY),
+  sitl: Boolean(process.env.SITL_M2R),
 })
 
 // Behind Traefik and Cloudflare the socket peer is the proxy, so the client is read from their headers.
@@ -258,6 +259,21 @@ const setVehicle = (lat, lon, hdg) => {
   }
   broadcast('vehicle', vehicleNow())
   return true
+}
+
+// On the VPS the SITL runs next door, so the boat is read straight from its mavlink2rest. A SITL without a GPS fix
+// yet reports 0, 0, which is skipped rather than drawn off the coast of Africa.
+const SITL_M2R = process.env.SITL_M2R
+if (SITL_M2R) {
+  setInterval(async () => {
+    try {
+      const url = `${SITL_M2R}/mavlink/vehicles/1/components/1/messages/GLOBAL_POSITION_INT`
+      const { message } = await (await fetch(url, { signal: AbortSignal.timeout(1000) })).json()
+      if (message.lat !== 0 || message.lon !== 0) setVehicle(message.lat, message.lon, message.hdg)
+    } catch {
+      // The SITL is still starting or restarting; the next poll tries again.
+    }
+  }, 250)
 }
 
 // At most one flash every few seconds, so a public URL can't strobe the room's phones.
