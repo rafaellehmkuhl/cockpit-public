@@ -77,6 +77,8 @@ export const createObstacleMap = (container, { minDistance, zoomButtons = false,
     dragRotate: false,
     pitchWithRotate: false,
     touchPitch: false,
+    // A mouse or trackpad moves a few pixels while clicking, which past the default 3 px counts as a drag.
+    clickTolerance: 10,
   })
   map.touchZoomRotate.disableRotation()
   if (zoomButtons) map.addControl(new NavigationControl({ showCompass: false }), 'top-left')
