@@ -307,6 +307,38 @@
   #pace.ahead{color:var(--blue);}
   #pace.behind{color:var(--amber);}
 
+  /* ---------------------------------------------------------------- presenter view */
+  #presenter{display:none;}
+  body.presenter #stage, body.presenter #hud, body.presenter #meta, body.presenter #notes,
+  body.presenter #overview, body.presenter #help{display:none !important;}
+  body.presenter #presenter{
+    position:fixed; inset:0; display:grid; gap:18px; padding:18px;
+    grid-template-columns:minmax(0, 3fr) minmax(0, 2fr);
+  }
+  /* With a presenter window open, the timer and pace stay on the laptop, off the projector. */
+  body.has-presenter #meta{display:none;}
+  .pv-col{display:flex; flex-direction:column; gap:12px; min-height:0;}
+  .pv-label{font-size:12px; letter-spacing:2.2px; text-transform:uppercase; color:var(--kelp);}
+  .pv-frame{position:relative; aspect-ratio:16/9; overflow:hidden; border:1px solid var(--line); border-radius:10px; background:var(--bg);}
+  .pv-deck{position:absolute; left:0; top:0; width:1280px; height:720px; transform-origin:top left;}
+  .pv-end{position:absolute; inset:0; display:grid; place-items:center; color:var(--dim); font-size:18px;}
+  .pv-bar{display:flex; gap:18px; align-items:baseline; font-family:var(--mono); font-size:15px; color:var(--muted);}
+  #pv-clock{font-size:34px; color:var(--ink);}
+  #pv-clock.run{color:var(--kelp);} #pv-clock.over{color:var(--amber);} #pv-clock.late{color:var(--red);}
+  #pv-pace.ahead{color:var(--blue);} #pv-pace.behind{color:var(--amber);}
+  #pv-count{margin-left:auto;}
+  .pv-buttons{display:flex; gap:10px;}
+  .pv-buttons button{
+    flex:1; font:inherit; font-size:17px; font-weight:650; color:var(--ink); cursor:pointer;
+    background:rgba(255,255,255,.08); border:1px solid var(--line); border-radius:10px; padding:14px;
+  }
+  .pv-buttons button:hover{background:rgba(255,255,255,.14);}
+  .pv-buttons button.go{background:var(--kelp); color:#07120f; border-color:transparent;}
+  #pv-notes{flex:1; min-height:0; overflow-y:auto; white-space:pre-wrap; font-size:16px; line-height:1.6; color:#c3d4d0;
+            background:var(--glass); border:1px solid var(--line); border-radius:10px; padding:16px 18px;}
+  #pv-status{font-size:14px; color:var(--amber);}
+  #pv-status:empty{display:none;}
+
   /* ---------------------------------------------------------------- notes */
   #notes{
     position:fixed; right:0; top:0; bottom:0; width:390px; z-index:60;
@@ -1141,12 +1173,14 @@ Mention the monthly developer calls on Discord — that's the lowest-friction wa
 
 <div id="notes"><h4>Speaker notes</h4><div class="nb"></div></div>
 <div id="overview"><div id="ovgrid"></div></div>
+<div id="presenter"></div>
 <div id="help"><div>
   <b>→ space</b> next slide<br>
   <b>←</b> previous slide<br>
   <b>home / end</b> first / last<br>
   <b>o</b> overview grid<br>
   <b>n</b> speaker notes<br>
+  <b>p</b> presenter view (new window)<br>
   <b>t</b> start / pause timer<br>
   <b>r</b> reset timer<br>
   <b>k</b> play / pause video<br>
@@ -1226,6 +1260,9 @@ Mention the monthly developer calls on Discord — that's the lowest-friction wa
     try { highlight(c); } catch (e) { /* highlighting is cosmetic; never break the deck over it */ }
   });
 
+  // `?presenter` turns this page into the laptop's view of the deck, driving the window on the projector.
+  if (/[?&]presenter\b/.test(location.search)) { startPresenter(); return; }
+
   /* ---------------------------------------------------------- navigation */
   function titleOf(s) {
     var h = s.querySelector('h1, h2');
@@ -1269,13 +1306,14 @@ Mention the monthly developer calls on Discord — that's the lowest-friction wa
       elapsed > TALK_SECONDS + 300 ? 'late' :
       elapsed > TALK_SECONDS ? 'over' : 'run';
 
-    if (!running || cur > LAST_TALK_SLIDE) { paceEl.textContent = ''; paceEl.className = ''; return; }
+    if (!running || cur > LAST_TALK_SLIDE) { paceEl.textContent = ''; paceEl.className = ''; reportToPresenter(); return; }
     var expected = 0;
     while (expected < LAST_TALK_SLIDE && plannedStart[expected + 1] <= elapsed) expected++;
     var delta = cur - expected;
     if (Math.abs(delta) <= 1) { paceEl.textContent = 'on pace'; paceEl.className = ''; }
     else if (delta > 0) { paceEl.textContent = '+' + delta + ' ahead'; paceEl.className = 'ahead'; }
     else { paceEl.textContent = delta + ' behind'; paceEl.className = 'behind'; }
+    reportToPresenter();
   }
 
   function toggleTimer() {
@@ -1298,6 +1336,118 @@ Mention the monthly developer calls on Discord — that's the lowest-friction wa
     ovgrid.appendChild(d);
   });
 
+  /* ---------------------------------------------------------- presenter view */
+  function startPresenter() {
+    document.body.classList.add('presenter');
+    document.title = 'Presenter · ' + document.title;
+    var root = document.getElementById('presenter');
+    root.innerHTML =
+      '<div class="pv-col"><div class="pv-label">Now</div><div class="pv-frame" id="pv-now"></div>' +
+      '<div class="pv-bar"><span id="pv-clock">00:00</span><span id="pv-pace"></span><span id="pv-count"></span></div>' +
+      '<div class="pv-buttons"><button id="pv-prev">&lsaquo; Previous</button><button id="pv-next" class="go">Next &rsaquo;</button></div>' +
+      '<div class="pv-buttons"><button id="pv-timer">Start / pause timer</button><button id="pv-reset">Reset timer</button>' +
+      '<button id="pv-video">Play / pause video</button></div><div id="pv-status"></div></div>' +
+      '<div class="pv-col"><div class="pv-label">Next</div><div class="pv-frame" id="pv-upnext"></div>' +
+      '<div class="pv-label">Notes</div><div id="pv-notes"></div></div>';
+    var $ = function (id) { return document.getElementById(id); };
+    var at = Math.max(0, (parseInt((location.hash || '').replace('#', ''), 10) || 1) - 1);
+    var shown = -1;
+
+    function send(type, extra) {
+      var deckWin = window.opener;
+      if (!deckWin || deckWin.closed) {
+        $('pv-status').textContent = 'The deck window is closed: open the deck and press P there.';
+        return;
+      }
+      deckWin.postMessage(Object.assign({ deck: type }, extra || {}), '*');
+    }
+
+    // A still copy of the slide: videos show their poster instead of playing a second time.
+    function preview(frame, i) {
+      frame.innerHTML = '';
+      if (i >= slides.length) { frame.innerHTML = '<div class="pv-end">End of the deck</div>'; return; }
+      var copy = slides[i].cloneNode(true);
+      copy.classList.add('on');
+      copy.querySelectorAll('video').forEach(function (v) {
+        v.removeAttribute('src'); v.preload = 'none'; v.removeAttribute('autoplay');
+        if (v.dataset.poster) v.poster = v.dataset.poster;
+      });
+      var inner = document.createElement('div');
+      inner.className = 'pv-deck';
+      inner.appendChild(copy);
+      frame.appendChild(inner);
+      inner.style.transform = 'scale(' + frame.clientWidth / 1280 + ')';
+    }
+    function render() {
+      if (shown === at) return;
+      shown = at;
+      preview($('pv-now'), at);
+      preview($('pv-upnext'), at + 1);
+      $('pv-count').textContent = (at + 1) + ' / ' + slides.length;
+      $('pv-notes').textContent = slides[at].dataset.notes || 'No notes for this slide.';
+      if (history.replaceState) history.replaceState(null, '', '?presenter#' + (at + 1));
+    }
+    window.addEventListener('resize', function () { shown = -1; render(); });
+
+    window.addEventListener('message', function (e) {
+      var m = e.data;
+      if (!m || m.deck !== 'state') return;
+      $('pv-status').textContent = '';
+      at = m.cur;
+      $('pv-clock').textContent = m.clock.split(' / ')[0];
+      $('pv-clock').className = m.clockClass;
+      $('pv-pace').textContent = m.pace;
+      $('pv-pace').className = m.paceClass;
+      render();
+    });
+
+    $('pv-prev').addEventListener('click', function () { send('goto', { n: at - 1 }); });
+    $('pv-next').addEventListener('click', function () { send('goto', { n: at + 1 }); });
+    $('pv-timer').addEventListener('click', function () { send('timer'); });
+    $('pv-reset').addEventListener('click', function () { send('reset'); });
+    $('pv-video').addEventListener('click', function () { send('video'); });
+    // The laptop keeps focus, so the arrows and a clicker drive the projector from here.
+    document.addEventListener('keydown', function (e) {
+      switch (e.key) {
+        case 'ArrowRight': case ' ': case 'PageDown': send('goto', { n: at + 1 }); e.preventDefault(); break;
+        case 'ArrowLeft': case 'PageUp': send('goto', { n: at - 1 }); e.preventDefault(); break;
+        case 'Home': send('goto', { n: 0 }); break;
+        case 'End': send('goto', { n: slides.length - 1 }); break;
+        case 't': case 'T': send('timer'); break;
+        case 'r': case 'R': send('reset'); break;
+        case 'k': case 'K': send('video'); break;
+      }
+    });
+
+    render();
+    send('hello');
+    setInterval(function () { send('hello'); }, 3000);
+  }
+
+  /* ---------------------------------------------------------- presenter link */
+  // The presenter window says hello on load and every few seconds, so either window can reload without losing the link.
+  var presenterWin = null;
+  function reportToPresenter() {
+    if (!presenterWin || presenterWin.closed) { document.body.classList.remove('has-presenter'); return; }
+    presenterWin.postMessage({ deck: 'state', cur: cur, clock: clockEl.textContent, clockClass: clockEl.className,
+      pace: paceEl.textContent, paceClass: paceEl.className }, '*');
+  }
+  window.addEventListener('message', function (e) {
+    var m = e.data;
+    if (!m || typeof m.deck !== 'string') return;
+    presenterWin = e.source;
+    document.body.classList.add('has-presenter');
+    if (m.deck === 'goto') show(m.n);
+    if (m.deck === 'timer') toggleTimer();
+    if (m.deck === 'reset') { elapsed = 0; updateClock(); }
+    if (m.deck === 'video') { var v = slides[cur].querySelector('video'); if (v) { v.paused ? v.play() : v.pause(); } }
+    reportToPresenter();
+  });
+  function openPresenter() {
+    var url = location.href.split('#')[0].split('?')[0] + '?presenter#' + (cur + 1);
+    presenterWin = window.open(url, 'deck-presenter', 'popup,width=1400,height=860');
+  }
+
   /* ---------------------------------------------------------- keys */
   document.addEventListener('keydown', function (e) {
     var k = e.key;
@@ -1319,6 +1469,7 @@ Mention the monthly developer calls on Discord — that's the lowest-friction wa
       case 'End':  show(slides.length - 1); break;
       case 'o': case 'O': overview.classList.toggle('on'); break;
       case 'n': case 'N': notesEl.classList.toggle('on'); break;
+      case 'p': case 'P': openPresenter(); break;
       case 't': case 'T': toggleTimer(); break;
       case 'r': case 'R': elapsed = 0; updateClock(); break;
       case 'f': case 'F':
