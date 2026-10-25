@@ -1,14 +1,15 @@
 // Writes the Cockpit settings file for the talk, to import from Settings → General → Manage Cockpit settings:
 // the feed connection, the camera actions, two views (the sensor plotters, and the gimbal widget) and their
 // indicators. The camera key goes into a data lake variable the actions read, so it never shows on screen.
-//   node cockpit-settings.mjs <out.json> [server] [control key] [camera rtsp url]
+//   node cockpit-settings.mjs <out.json> [server] [control key] [camera rtsp url] [boat mavlink url]
 // The server defaults to the VPS; pass http://localhost:8765 and no key for the local fallback. With the camera's RTSP
-// URL, the file also adds that stream and a view showing it beside the gimbal widget (Cockpit standalone only).
+// URL, the file also adds that stream and a view showing it beside the gimbal widget (Cockpit standalone only). With
+// the boat's MAVLink URL, importing the file also connects Cockpit to the SITL boat.
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 
-const [out, server = 'https://apdc2026.rlehmk.dev', controlKey = '', cameraRtspUrl = ''] = process.argv.slice(2)
-if (!out) throw new Error('usage: node cockpit-settings.mjs <out.json> [server] [control key] [camera rtsp url]')
+const [out, server = 'https://apdc2026.rlehmk.dev', controlKey = '', cameraRtspUrl = '', boatMavlinkUrl = ''] = process.argv.slice(2)
+if (!out) throw new Error('usage: node cockpit-settings.mjs <out.json> [server] [control key] [camera rtsp url] [boat mavlink url]')
 const cameraStreamName = 'Gimbal camera feed'
 const feedUrl = server.replace(/^http/, 'ws')
 const keyVariable = 'apdc-control-key'
@@ -238,6 +239,14 @@ const joystickMapping = {
 }
 
 const settings = {
+  // Kept on this computer rather than synced, so the presentation build's importer writes these to local storage.
+  'this-computer': {
+    // No BlueOS answers at localhost, so the vehicle sync gives up at once instead of after minutes, and the points of
+    // interest from the phones are accepted as soon as the boat connects.
+    'cockpit-vehicle-address': 'localhost',
+    'cockpit-prevent-auto-vehicle-discovery-dialog': true,
+    ...(boatMavlinkUrl ? { 'cockpit-vehicle-custom-main-connection-uri': { data: boatMavlinkUrl, enabled: true } } : {}),
+  },
   ...(cameraRtspUrl
     ? { 'cockpit-streams-correspondency': [{ name: cameraStreamName, externalId: cameraRtspUrl, protocol: 'rtsp', rtspUrl: cameraRtspUrl }] }
     : {}),
