@@ -121,16 +121,9 @@ const views = [
     name: 'Gimbal camera',
     showBottomBarOnBoot: true,
     visible: true,
-    widgets: [
-      {
-        hash: hashFor('diy:gimbal'),
-        component: 'DoItYourself',
-        name: 'Gimbal camera',
-        position: { x: 0.2, y: 0.08 },
-        size: { width: 0.6, height: 0.84 },
-        options: diyOptions('widget'),
-      },
-    ],
+    // Demo 2 drives the camera from Cockpit's actions and shows it on the payload console; the DIY widget that draws it
+    // in Cockpit only arrives with demo 3, on the camera feed view.
+    widgets: [],
     miniWidgetContainers: [
       { name: 'Bottom-left container', widgets: [viewSelector('gimbal')] },
       {
