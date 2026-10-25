@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 
 const PORT = Number(process.env.PORT ?? 8765)
 const PAGE = new URL('./index.html', import.meta.url)
+const CAMERA_WORLD = new URL('./camera-world.html', import.meta.url)
 const JOIN = new URL('./join.html', import.meta.url)
 const VENDOR = fileURLToPath(new URL('./vendor/', import.meta.url))
 const JS = 'text/javascript; charset=utf-8'
@@ -427,6 +428,9 @@ const server = createServer(async (req, res) => {
     return res.writeHead(200, { ...fresh, 'Content-Type': 'text/html; charset=utf-8' }).end(readFileSync(PAGE))
   }
   if (url.pathname === '/favicon.ico') return res.writeHead(204).end()
+  if (req.method === 'GET' && url.pathname === '/camera-world') {
+    return res.writeHead(200, { ...fresh, 'Content-Type': 'text/html; charset=utf-8' }).end(readFileSync(CAMERA_WORLD))
+  }
   if (req.method === 'GET' && url.pathname === '/join') {
     return res.writeHead(200, { ...fresh, 'Content-Type': 'text/html; charset=utf-8' }).end(readFileSync(JOIN))
   }

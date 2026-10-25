@@ -18,6 +18,7 @@ services:
       - ./join.html:/app/join.html:ro
       - ./obstacle-map.js:/app/obstacle-map.js:ro
       - ./gimbal-view.js:/app/gimbal-view.js:ro
+      - ./camera-world.html:/app/camera-world.html:ro
       - ./diy-widget:/app/diy-widget:ro
       - ./vendor:/app/vendor:ro
     networks: [my_vps_services_default]
@@ -56,6 +57,29 @@ services:
       - "traefik.http.routers.apdc-sitl-https.middlewares=apdc-sitl-strip"
       - "traefik.http.middlewares.apdc-sitl-strip.stripprefix.prefixes=/${SITL_PATH:?}"
       - "traefik.http.services.apdc-sitl-service.loadbalancer.server.port=8088"
+
+  # The gimbal camera's video at rtsp://152.53.91.60:8554/<CAMERA_PATH>. RTSP cannot pass through Cloudflare, so it is
+  # published straight on the VPS's address; CAMERA_PATH, like SITL_PATH, lives only in the VPS's .env.
+  apdc-rtsp:
+    image: bluenviron/mediamtx:1.12.2
+    container_name: apdc-rtsp
+    restart: unless-stopped
+    volumes:
+      - ./camera/mediamtx.rendered.yml:/mediamtx.yml:ro
+    ports:
+      - "8554:8554"
+    networks: [my_vps_services_default]
+
+  apdc-camera:
+    build: ./camera
+    container_name: apdc-camera
+    restart: unless-stopped
+    depends_on: [apdc-demos, apdc-rtsp]
+    environment:
+      RTSP_URL: rtsp://publisher:${CAMERA_PUBLISH_PASS:?}@apdc-rtsp:8554/${CAMERA_PATH:?}
+    # Chromium needs more shared memory than Docker's default 64 MB.
+    shm_size: 512m
+    networks: [my_vps_services_default]
 
 volumes:
   sitl-data:

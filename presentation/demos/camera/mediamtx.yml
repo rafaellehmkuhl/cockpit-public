@@ -1,0 +1,31 @@
+# The RTSP server for the gimbal camera's video. Only RTSP over TCP is on; the other protocols stay off.
+# Watching needs the secret path in the URL. Publishing needs the publisher's password, which deploy.sh writes in place
+# of __PUBLISH_PASS__ on the VPS, and an address inside Docker, so nobody outside can use it to relay their own video.
+logLevel: warn
+authMethod: internal
+authInternalUsers:
+  - user: publisher
+    pass: __PUBLISH_PASS__
+    ips: ['172.16.0.0/12', '10.0.0.0/8', '192.168.0.0/16']
+    permissions:
+      - action: publish
+        path:
+  - user: any
+    pass:
+    ips: []
+    permissions:
+      - action: read
+        path:
+api: no
+metrics: no
+pprof: no
+playback: no
+rtsp: yes
+rtspTransports: [tcp]
+rtspAddress: :8554
+rtmp: no
+hls: no
+webrtc: no
+srt: no
+paths:
+  all_others:
