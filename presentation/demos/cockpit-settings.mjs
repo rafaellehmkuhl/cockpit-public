@@ -188,6 +188,8 @@ const actions = Object.fromEntries([
   action('Gimbal: look down and right', 'GET', camera('attitude'), { pitch: '-45', yaw: '90' }),
   action('Gimbal: look left', 'GET', camera('attitude'), { pitch: '-15', yaw: '-90' }),
   action('Gimbal: tilt', 'GET', camera('attitude'), { roll: '20' }),
+  // Straight at the DevCon logo floating in the camera's world (camera-world.html).
+  action('Gimbal: look at the logo', 'GET', camera('attitude'), { roll: '0', pitch: '10', yaw: '-35' }),
   action('Camera: take a photo', 'POST', camera('photo')),
   action('Camera: start recording', 'POST', camera('record/start')),
   action('Camera: stop recording', 'POST', camera('record/stop')),
@@ -218,6 +220,7 @@ const joystickMapping = {
       8: cockpitAction('mavlink_disarm', 'Mavlink disarm'), // select
       9: cockpitAction('mavlink_arm', 'Mavlink arm'), // start
       10: cockpitAction('apdc-obstacle-run-reset', 'Obstacle run: reset'), // left stick click
+      11: httpAction('Gimbal: look at the logo'), // right stick click
       12: httpAction('Gimbal: look ahead'), // d-pad up
       13: httpAction('Gimbal: look down and right'), // d-pad down
       14: httpAction('Gimbal: look left'), // d-pad left
