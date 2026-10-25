@@ -887,7 +887,7 @@ Have ready BEFORE you start:
   · the payload console on tab 4, with the QR code; Clear all if a rehearsal left obstacles behind
   · Cockpit (the presentation build) connected to the boat, the SITL on the VPS at wss://apdc2026-sitl.rlehmk.dev/<secret path>/ws/mavlink
   · Cockpit connected to the feed's WebSocket at least a minute earlier: without BlueOS it only accepts points of interest once its vehicle sync gives up, about 30 s after connecting
-  · the boat in MANUAL with the joystick, on the map view
+  · the boat in MANUAL with the joystick, on the 'Obstacle run' view (map plus the run widget, from the imported settings file)
 
 The boat on the phones comes straight from that SITL, which runs next to the demo server. On the laptop fallback (local server and local SITL), Cockpit reports it through the HTTP action shown on the console's tab 4 instead.
 
@@ -895,7 +895,7 @@ Leave this slide up while people scan. Each tap on their map drops an obstacle; 
 
 The one rule, enforced by the phones and again by the server: nothing within 10 m of the boat. No limit on how many each person drops.
 
-Then drive through the field without hitting anything. Flash the phones from the console at the end.
+Then press Start on the run widget: a 3-2-1 countdown, then it counts the metres the boat covers. Pass within 5 m of any point of interest and it turns red with 'Hit!', the distance and the time. It reads the obstacles from the data lake (every POI has cockpit/pois/<id>/latitude and /longitude) and the boat from GLOBAL_POSITION_INT, nothing else. Flash the phones from the console at the end.
 
 If the venue network is bad, skip it: the local server only reaches phones on the same Wi-Fi.">
   <div class="badge">Live demo · door 1</div>
@@ -909,7 +909,7 @@ If the venue network is bad, skip it: the local server only reaches phones on th
       <div><b>1</b> Scan, press Join, tap the map to drop an obstacle</div>
       <div><b>2</b> Door 1 · each one lands in Cockpit as a point of interest</div>
       <div><b>3</b> Every phone sees the boat move, live</div>
-      <div><b>4</b> I steer the boat through without hitting any</div>
+      <div><b>4</b> I steer through; a DIY widget counts the metres until I hit one</div>
     </div>
   </div>
   <div class="fallback">If the network fights back: skip it. Ten seconds, then move on.</div>
