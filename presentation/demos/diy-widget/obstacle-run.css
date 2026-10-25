@@ -1,0 +1,18 @@
+.apdc-run { box-sizing: border-box; width: 100%; height: 100%; display: flex; flex-direction: column; gap: 10px; padding: 14px 16px;
+  border-radius: 12px; color: #e9f2ef; font-family: ui-sans-serif, system-ui, sans-serif; background: rgba(10, 20, 22, 0.88);
+  border: 2px solid rgba(255, 255, 255, 0.12); transition: background .3s, border-color .3s; }
+.apdc-run[data-state="countdown"], .apdc-run[data-state="running"] { border-color: #4fa483; }
+.apdc-run[data-state="hit"] { background: rgba(150, 30, 34, 0.92); border-color: #ff6b6b; }
+.apdc-run .head { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; }
+.apdc-run .title { color: #8fa7a2; font-weight: 700; }
+.apdc-run .status { font-weight: 750; }
+.apdc-run .big { display: flex; align-items: baseline; gap: 8px; }
+.apdc-run .big b { font-size: 64px; line-height: 1; font-weight: 760; font-variant-numeric: tabular-nums; letter-spacing: -2px; }
+.apdc-run .big small { font-size: 16px; color: #c9d6d3; }
+.apdc-run .row { display: flex; gap: 16px; font-size: 13px; color: #8fa7a2; }
+.apdc-run .row b { color: #e9f2ef; font-size: 16px; font-variant-numeric: tabular-nums; }
+.apdc-run .buttons { display: flex; gap: 8px; margin-top: auto; }
+.apdc-run button { flex: 1; font: inherit; font-size: 16px; font-weight: 700; color: #e9f2ef; background: #FFFFFF22;
+  border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; padding: 8px; cursor: pointer; }
+.apdc-run .start { background: #4fa483; color: #07120f; border-color: transparent; }
+.apdc-run button:disabled { opacity: .4; cursor: default; }
