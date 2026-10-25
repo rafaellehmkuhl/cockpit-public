@@ -3,12 +3,13 @@
 // restarts the whole pipeline, which is simpler and more reliable than repairing one piece in place.
 import { spawn } from 'node:child_process'
 
-// 20 fps at two thirds of the size keeps Chromium near 1.3 of the VPS's 4 cores; 30 fps at full size took over 2.
-const PAGE_URL = process.env.PAGE_URL ?? 'http://apdc-demos:8765/camera-world?fps=20&scale=0.67'
+// 720p rendered at full size, at 15 fps, keeps Chromium near 1.75 of the VPS's 4 cores. Antialiasing on the CPU
+// renderer took about 3, at any frame rate, so the scene goes without it.
+const PAGE_URL = process.env.PAGE_URL ?? 'http://apdc-demos:8765/camera-world?fps=15&scale=1'
 const RTSP_URL = process.env.RTSP_URL
-const WIDTH = 960
-const HEIGHT = 540
-const FPS = 20
+const WIDTH = Number(process.env.WIDTH) || 1280
+const HEIGHT = Number(process.env.HEIGHT) || 720
+const FPS = 15
 const DEBUG_PORT = 9222
 if (!RTSP_URL) throw new Error('RTSP_URL is required')
 
@@ -47,7 +48,7 @@ const ffmpeg = spawn(
     '-f', 'image2pipe', '-use_wallclock_as_timestamps', '1', '-c:v', 'mjpeg', '-i', '-',
     '-vf', `fps=${FPS},scale=${WIDTH}:${HEIGHT}`,
     '-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency', '-pix_fmt', 'yuv420p',
-    '-g', String(FPS), '-b:v', '2500k', '-maxrate', '2500k', '-bufsize', '1000k',
+    '-g', String(FPS), '-b:v', '3500k', '-maxrate', '3500k', '-bufsize', '1400k',
     '-f', 'rtsp', '-rtsp_transport', 'tcp', RTSP_URL,
   ],
   { stdio: ['pipe', 'inherit', 'inherit'] }
@@ -113,7 +114,7 @@ await send('Runtime.enable')
 const loaded = new Promise((resolve) => (onLoad = resolve))
 await send('Page.navigate', { url: PAGE_URL })
 await Promise.race([loaded, sleep(30000)])
-await send('Page.startScreencast', { format: 'jpeg', quality: 85, maxWidth: WIDTH, maxHeight: HEIGHT, everyNthFrame: 1 })
+await send('Page.startScreencast', { format: 'jpeg', quality: 92, maxWidth: WIDTH, maxHeight: HEIGHT, everyNthFrame: 1 })
 console.log(`[camera] rendering ${PAGE_URL} at ${WIDTH}x${HEIGHT}, publishing to the RTSP server`)
 
 // The page is reloaded if it failed to load (the demo server restarting, say), and the whole pipeline restarts if
