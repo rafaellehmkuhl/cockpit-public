@@ -324,11 +324,14 @@ const reading = () => {
   }
 }
 
-// Plain text is one variable per message; a `/` in a name would become `-`, so the names stay flat.
-const messagesFor = (r) =>
-  feed.format === 'json'
-    ? [JSON.stringify(r)]
-    : Object.entries(r).flatMap(([k, v]) => (typeof v === 'object' ? Object.entries(v).map(([sk, sv]) => `${k}${sk}=${sv}`) : [`${k}=${v}`]))
+// Plain text is one variable per message and cannot nest, so the camera and the crowd still go as one JSON message:
+// the widgets read them as external/camera/... in either format.
+const messagesFor = (r) => {
+  if (feed.format === 'json') return [JSON.stringify(r)]
+  const flat = Object.entries(r).filter(([, v]) => typeof v !== 'object')
+  const nested = Object.entries(r).filter(([, v]) => typeof v === 'object')
+  return [...flat.map(([k, v]) => `${k}=${v}`), ...(nested.length ? [JSON.stringify(Object.fromEntries(nested))] : [])]
+}
 
 let timer
 const tick = () => {
