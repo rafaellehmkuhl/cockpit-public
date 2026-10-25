@@ -151,6 +151,32 @@
   .act-up{grid-column:3; text-align:center; font-size:30px; color:var(--kelp); line-height:1;}
   .act-triggers{grid-column:1 / -1; display:grid; grid-template-columns:repeat(4, 1fr); gap:12px;}
   .act-triggers .lake-h{grid-column:1 / -1;}
+  /* Under the trigger cards: a button pressed and released fires once; a timer fires on every tick of its square wave. */
+  .act-anim{display:flex; flex-direction:column; align-items:center; gap:10px; padding-top:40px; font-size:14px;
+            color:var(--muted); white-space:nowrap;}
+  .act-anim .row{display:flex; align-items:center; gap:14px; height:58px;}
+  /* Each sits centred between the two cards it illustrates: the two button kinds, and the two that fire on their own. */
+  .act-press{grid-column:1 / 3;}
+  .act-timer{grid-column:3 / 5;}
+  .press-btn{width:52px; height:52px; border-radius:50%; background:#22343a; border:1px solid var(--line);
+             box-shadow:0 7px 0 #0b1517; animation:act-press 2s ease-in-out infinite;}
+  .fire-dot{width:14px; height:14px; border-radius:50%; background:var(--kelp-dim); animation:act-fire 2s infinite;}
+  .act-timer svg{width:140px; height:48px; flex:none; overflow:visible;}
+  .act-timer .wave{fill:none; stroke:var(--kelp); stroke-width:2.5; animation:act-scroll 1.2s linear infinite;}
+  .act-timer .now{stroke:var(--line); stroke-width:1.5; stroke-dasharray:3 3;}
+  .act-timer .tick{fill:var(--kelp-dim); transform-box:fill-box; transform-origin:center; animation:act-tick 1.2s linear infinite;}
+  @keyframes act-press{
+    0%,40%,70%,100%{transform:translateY(0); box-shadow:0 7px 0 #0b1517; background:#22343a;}
+    46%,62%{transform:translateY(6px); box-shadow:0 1px 0 #0b1517; background:var(--kelp-dim);}
+  }
+  @keyframes act-fire{
+    0%,44%,64%,100%{background:var(--kelp-dim); transform:scale(1);}
+    47%{background:var(--kelp); transform:scale(1.5);}
+  }
+  @keyframes act-scroll{from{transform:translateX(0);} to{transform:translateX(-60px);}}
+  /* The wave moves one period per cycle, and a rising edge sits on the 'now' line at its start, so that is the tick. */
+  @keyframes act-tick{0%{fill:var(--kelp); transform:scale(1.6);} 25%,100%{fill:var(--kelp-dim); transform:scale(1);}}
+  @media (prefers-reduced-motion: reduce){.press-btn, .fire-dot, .act-timer .wave, .act-timer .tick{animation:none;}}
   .lake-core small{display:block; font-size:15px; font-weight:400; color:var(--muted); margin-top:6px; font-family:var(--mono);}
 
   .intro{display:grid; grid-template-columns:3fr 1fr; gap:28px; flex:1; min-height:0; align-items:center;}
@@ -713,6 +739,21 @@ Give the worked example verbally: external/watertemp crosses a threshold, a comp
       <div class="act-box">On-screen element<small>Button, switch, slider, dial</small></div>
       <div class="act-box">Data-lake change<small>Action links, rate-limited</small></div>
       <div class="act-box">Time<small>On startup, or repeatedly</small></div>
+      <div class="act-anim act-press" aria-hidden="true">
+        <div class="row"><div class="press-btn"></div><div class="fire-dot"></div></div>
+        <span>press → fires once</span>
+      </div>
+      <div class="act-anim act-timer" aria-hidden="true">
+        <div class="row"><svg viewBox="0 0 230 48">
+          <clipPath id="act-wave-clip"><rect x="0" y="0" width="210" height="48"/></clipPath>
+          <g clip-path="url(#act-wave-clip)">
+            <path class="wave" d="M-60 38 H-30 V10 H0 V38 H30 V10 H60 V38 H90 V10 H120 V38 H150 V10 H180 V38 H210 V10 H240 V38 H270 V10 H300"/>
+          </g>
+          <line class="now" x1="210" y1="2" x2="210" y2="46"/>
+          <circle class="tick" cx="210" cy="10" r="6"/>
+        </svg></div>
+        <span>fires every tick</span>
+      </div>
     </div>
   </div>
 </section>
