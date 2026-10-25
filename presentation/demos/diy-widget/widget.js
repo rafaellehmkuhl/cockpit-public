@@ -8,6 +8,26 @@
   const attitude = { roll: 0, pitch: 0, yaw: 0 }
   let photos = Number(cockpit.getDataLakeVariableData(variable('photos')) ?? 0)
 
+  // Stretched over the whole screen, the widget sits under Cockpit's top and bottom bars, so the REC badge and the
+  // readouts move in by however much of the widget each bar covers.
+  const clearBars = () => {
+    const box = host.getBoundingClientRect()
+    let top = 0
+    let bottom = 0
+    for (const bar of document.querySelectorAll('.bar')) {
+      const edge = bar.getBoundingClientRect()
+      const covered = Math.min(edge.bottom, box.bottom) - Math.max(edge.top, box.top)
+      if (covered <= 0 || edge.right <= box.left || edge.left >= box.right) continue
+      // Compared by centre, since the bar's edge and the widget's can differ by a fraction of a pixel.
+      if (edge.top + edge.bottom < box.top + box.bottom) top = Math.max(top, edge.bottom - box.top)
+      else bottom = Math.max(bottom, box.bottom - edge.top)
+    }
+    host.style.setProperty('--bar-top', `${top}px`)
+    host.style.setProperty('--bar-bottom', `${bottom}px`)
+  }
+  clearBars()
+  ;(typeof root === 'undefined' ? window.setInterval : cockpit.setInterval)(clearBars, 500)
+
   import(`${SERVER}/gimbal-view.js`).then(({ createGimbalView }) => {
     const gimbal = createGimbalView(host.querySelector('.view'), {
       onMove: (now) => host.querySelectorAll('[data-axis]').forEach((el) => (el.textContent = `${now[el.dataset.axis].toFixed(1)}°`)),
