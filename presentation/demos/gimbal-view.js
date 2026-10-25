@@ -58,7 +58,6 @@ export const createGimbalView = (container, { onMove } = {}) => {
     body: new THREE.MeshStandardMaterial({ color: 0x24292c, metalness: 0.2, roughness: 0.55 }),
     glass: new THREE.MeshStandardMaterial({ color: 0x0d2a3a, emissive: 0x0c3446, metalness: 0.6, roughness: 0.1 }),
     tally: new THREE.MeshStandardMaterial({ color: 0x3a1c1c, emissive: 0x000000 }),
-    beam: new THREE.MeshBasicMaterial({ color: 0x4fa483, transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide }),
   }
 
   // The hull it hangs from, and the fixed half of the yaw motor.
@@ -91,10 +90,6 @@ export const createGimbalView = (container, { onMove } = {}) => {
   pitch.add(glass)
   const tally = mesh(new THREE.SphereGeometry(0.06, 16, 16), materials.tally, [0.4, 0.42, 0.3])
   pitch.add(tally)
-  // What the lens sees, so the audience can tell where it points without reading the numbers.
-  const beam = mesh(new THREE.ConeGeometry(1.5, 4.2, 4, 1, true), materials.beam, [0, 0, 3])
-  beam.rotation.set(-Math.PI / 2, 0, Math.PI / 4)
-  pitch.add(beam)
 
   const target = { roll: 0, pitch: 0, yaw: 0 }
   const current = { roll: 0, pitch: 0, yaw: 0 }
