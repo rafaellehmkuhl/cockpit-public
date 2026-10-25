@@ -143,7 +143,42 @@ const actions = Object.fromEntries([
   action('Camera: stop recording', 'POST', camera('record/stop')),
 ])
 
+// The 8BitDo Ultimate 2C reports the standard gamepad layout, so these are its buttons as Cockpit numbers them.
+const cockpitAction = (id, name) => ({ action: { protocol: 'cockpit-action', id, name } })
+const httpAction = (name) => cockpitAction(`http-request-action (${name})`, name)
+const roverMode = (mode) => cockpitAction(`ardupilot_rover_mode_${mode.toLowerCase()}`, `${mode[0]}${mode.slice(1).toLowerCase()} Mode (ArduPilot Rover)`)
+const noFunction = { action: { protocol: 'other', id: 'no_function', name: 'No function' } }
+const axis = (name, min, max) => ({ action: { protocol: 'data-lake-variable', id: `inputs/mavlink/axis-${name}`, name: `Axis ${name.toUpperCase()}` }, min, max })
+const buttons = (assigned) => Object.fromEntries(Array.from({ length: 20 }, (_, i) => [i, assigned[i] ?? noFunction]))
+const joystickMapping = {
+  name: 'APDC 2026 · 8BitDo Ultimate 2C',
+  hash: hashFor('joystick:8bitdo'),
+  // Cockpit's boat defaults: left stick steers and drives, right stick for the other two axes.
+  axesCorrespondencies: { 0: axis('y', -1000, 1000), 1: axis('x', 1000, -1000), 2: axis('r', -1000, 1000), 3: axis('z', 1000, -1000) },
+  buttonsCorrespondencies: {
+    regular: buttons({
+      0: httpAction('Camera: take a photo'), // A
+      1: roverMode('MANUAL'), // B
+      2: httpAction('Camera: start recording'), // X
+      3: httpAction('Camera: stop recording'), // Y
+      4: cockpitAction('go_to_previous_view', 'Go to previous view'), // LB
+      5: cockpitAction('go_to_next_view', 'Go to next view'), // RB
+      6: roverMode('HOLD'), // LT
+      7: cockpitAction('apdc-obstacle-run-start', 'Obstacle run: start'), // RT
+      8: cockpitAction('mavlink_disarm', 'Mavlink disarm'), // select
+      9: cockpitAction('mavlink_arm', 'Mavlink arm'), // start
+      10: cockpitAction('apdc-obstacle-run-reset', 'Obstacle run: reset'), // left stick click
+      12: httpAction('Gimbal: look ahead'), // d-pad up
+      13: httpAction('Gimbal: look down and right'), // d-pad down
+      14: httpAction('Gimbal: look left'), // d-pad left
+      15: httpAction('Gimbal: tilt'), // d-pad right
+    }),
+    shift: buttons({}),
+  },
+}
+
 const settings = {
+  'cockpit-joystick-functions-mapping-v1': joystickMapping,
   'cockpit-generic-websocket-connections': [feedUrl],
   'cockpit-http-request-actions': actions,
   'cockpit-views-group-v1': { hash: hashFor('profile'), name: 'APDC 2026', views },
