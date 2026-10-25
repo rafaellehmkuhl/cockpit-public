@@ -211,8 +211,15 @@ const buttons = (assigned) => Object.fromEntries(Array.from({ length: 20 }, (_, 
 const joystickMapping = {
   name: 'APDC 2026 · 8BitDo Ultimate 2C',
   hash: hashFor('joystick:8bitdo'),
-  // Cockpit's boat defaults: left stick steers and drives, right stick for the other two axes.
-  axesCorrespondencies: { 0: axis('y', -1000, 1000), 1: axis('x', 1000, -1000), 2: axis('r', -1000, 1000), 3: axis('z', 1000, -1000) },
+  // ArduRover drives from MANUAL_CONTROL's y (steering) and z (throttle) only, so both go on the left stick, like an RC
+  // car: up and down for throttle, sideways to turn. Cockpit's boat default put throttle on the right stick and the
+  // left stick's vertical on x, which Rover ignores, so pushing the left stick forward only turned the boat.
+  axesCorrespondencies: {
+    0: axis('y', -1000, 1000),
+    1: axis('z', 1000, -1000),
+    2: { ...noFunction, min: -1000, max: 1000 },
+    3: { ...noFunction, min: -1000, max: 1000 },
+  },
   buttonsCorrespondencies: {
     regular: buttons({
       0: httpAction('Camera: take a photo'), // A

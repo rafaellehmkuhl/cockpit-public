@@ -1,6 +1,4 @@
 LOG_BACKEND_TYPE 0
-SIM_WAVE_ENABLE 1
-SIM_WAVE_AMP 0.4
-SIM_WAVE_LENGTH 6
-SIM_WAVE_SPEED 1
-SIM_WIND_SPD 3
+# Calm water: after hours of simulated waves the EKF's heading drifted off and the boat seemed to spin on the map.
+SIM_WAVE_ENABLE 0
+SIM_WIND_SPD 0
