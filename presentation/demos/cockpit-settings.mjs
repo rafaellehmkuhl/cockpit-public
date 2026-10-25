@@ -1,13 +1,15 @@
 // Writes the Cockpit settings file for the talk, to import from Settings → General → Manage Cockpit settings:
 // the feed connection, the camera actions, two views (the sensor plotters, and the gimbal widget) and their
 // indicators. The camera key goes into a data lake variable the actions read, so it never shows on screen.
-//   node cockpit-settings.mjs <out.json> [server] [control key]
-// The server defaults to the VPS; pass http://localhost:8765 and no key for the local fallback.
+//   node cockpit-settings.mjs <out.json> [server] [control key] [camera rtsp url]
+// The server defaults to the VPS; pass http://localhost:8765 and no key for the local fallback. With the camera's RTSP
+// URL, the file also adds that stream and a view showing it beside the gimbal widget (Cockpit standalone only).
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 
-const [out, server = 'https://apdc2026.rlehmk.dev', controlKey = ''] = process.argv.slice(2)
-if (!out) throw new Error('usage: node cockpit-settings.mjs <out.json> [server] [control key]')
+const [out, server = 'https://apdc2026.rlehmk.dev', controlKey = '', cameraRtspUrl = ''] = process.argv.slice(2)
+if (!out) throw new Error('usage: node cockpit-settings.mjs <out.json> [server] [control key] [camera rtsp url]')
+const cameraStreamName = 'Gimbal camera feed'
 const feedUrl = server.replace(/^http/, 'ws')
 const keyVariable = 'apdc-control-key'
 
@@ -17,8 +19,9 @@ const hashFor = (name) => {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`
 }
 
-const indicator = (displayName, variableName, iconName, variableUnit, extra = {}) => ({
-  hash: hashFor(`indicator:${variableName}`),
+// `view` keeps the ids unique when the same variable has an indicator on more than one view.
+const indicator = (displayName, variableName, iconName, variableUnit, extra = {}, view = '') => ({
+  hash: hashFor(`indicator:${view ? `${view}:` : ''}${variableName}`),
   component: 'VeryGenericIndicator',
   name: displayName,
   options: { displayName, variableName, iconName, variableUnit, variableMultiplier: 1, ...extra },
@@ -44,6 +47,49 @@ const diyOptions = (widget) => ({
   scopedScript: true,
   inheritCockpitStyles: false,
 })
+
+// What the gimbal camera sees, streamed by the VPS, full screen, with the gimbal widget in the bottom-right corner.
+// Positions are fractions of the screen; these keep the gimbal at least 30 px from the right edge and from the bottom
+// bar on a window as small as 1425x867, and further on anything larger.
+function cameraFeedView() {
+  return {
+    hash: hashFor('view:camera-feed'),
+    name: 'Camera feed',
+    showBottomBarOnBoot: true,
+    visible: true,
+    widgets: [
+      // Earlier widgets are drawn on top, so the gimbal comes before the video it sits on.
+      {
+        hash: hashFor('diy:camera-feed'),
+        component: 'DoItYourself',
+        name: 'Gimbal camera',
+        position: { x: 0.725, y: 0.65 },
+        size: { width: 0.25, height: 0.25 },
+        options: diyOptions('widget'),
+      },
+      {
+        hash: hashFor('video:camera-feed'),
+        component: 'VideoPlayer',
+        name: 'Gimbal camera feed',
+        position: { x: 0, y: 0 },
+        size: { width: 1, height: 1 },
+        options: { internalStreamName: cameraStreamName, videoFitStyle: 'cover' },
+      },
+    ],
+    miniWidgetContainers: [
+      { name: 'Bottom-left container', widgets: [viewSelector('camera-feed')] },
+      {
+        name: 'Bottom-center container',
+        widgets: [
+          indicator('Roll', 'external/camera/roll', 'mdi-horizontal-rotate-clockwise', '°', { decimalPlaces: 0 }, 'camera-feed'),
+          indicator('Pitch', 'external/camera/pitch', 'mdi-arrow-up-down', '°', { decimalPlaces: 0 }, 'camera-feed'),
+          indicator('Yaw', 'external/camera/yaw', 'mdi-compass-outline', '°', { decimalPlaces: 0 }, 'camera-feed'),
+        ],
+      },
+      { name: 'Bottom-right container', widgets: [] },
+    ],
+  }
+}
 
 const views = [
   {
@@ -99,6 +145,7 @@ const views = [
       { name: 'Bottom-right container', widgets: [] },
     ],
   },
+  ...(cameraRtspUrl ? [cameraFeedView()] : []),
   {
     hash: hashFor('view:obstacle-run'),
     name: 'Obstacle run',
@@ -181,6 +228,9 @@ const joystickMapping = {
 }
 
 const settings = {
+  ...(cameraRtspUrl
+    ? { 'cockpit-streams-correspondency': [{ name: cameraStreamName, externalId: cameraRtspUrl, protocol: 'rtsp', rtspUrl: cameraRtspUrl }] }
+    : {}),
   'cockpit-joystick-functions-mapping-v1': joystickMapping,
   'cockpit-generic-websocket-connections': [feedUrl],
   'cockpit-http-request-actions': actions,

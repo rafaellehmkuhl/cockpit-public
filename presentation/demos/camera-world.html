@@ -11,10 +11,12 @@
   .osd { position: fixed; inset: 0; pointer-events: none; color: #fff; font: 600 18px/1.2 ui-monospace, Menlo, monospace;
          text-shadow: 0 1px 3px rgba(0, 0, 0, .8); }
   .osd > * { position: absolute; }
-  .name { top: 16px; left: 20px; }
-  .clock { top: 16px; right: 20px; }
-  .attitude { bottom: 16px; left: 20px; }
-  .rec { top: 44px; left: 20px; color: #ff4b4b; }
+  /* Inset well inside the frame: shown full screen in Cockpit, the video sits under its top and bottom bars, and
+     filling a screen narrower than 16:9 crops its sides. */
+  .name { top: 9%; left: 6%; }
+  .clock { top: 9%; right: 6%; }
+  .attitude { bottom: 9%; left: 6%; }
+  .rec { top: calc(9% + 28px); left: 6%; color: #ff4b4b; }
   .rec[hidden] { display: none; }
   .cross { left: 50%; top: 50%; width: 36px; height: 36px; margin: -18px 0 0 -18px; opacity: .7;
            background: linear-gradient(#fff, #fff) center / 2px 100% no-repeat, linear-gradient(#fff, #fff) center / 100% 2px no-repeat; }
