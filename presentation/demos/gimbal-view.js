@@ -2,9 +2,9 @@
 // Cockpit's actions ask for. three.js comes from /vendor so the page works without internet.
 import * as THREE from '/vendor/three/three.module.min.js'
 
-// Real gimbals slew at a finite rate. Within the last 10° the camera moves at 5°/s, so a 5° step takes a second and
-// presses in a row add up; further out the speed grows with the distance, so a jump to a preset does not crawl.
-const SLOW_DEG_PER_S = 5
+// Real gimbals slew at a finite rate. Within the last 10° the camera moves at 10°/s, so a 5° step takes half a second
+// and presses in a row add up; further out the speed grows with the distance, so a jump to a preset does not crawl.
+const SLOW_DEG_PER_S = 10
 const SLOW_ZONE_DEG = 10
 const CATCH_UP_PER_S = 2
 const RAD = Math.PI / 180
