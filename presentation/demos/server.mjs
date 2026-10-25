@@ -361,15 +361,21 @@ const cameraNow = () => {
 
 // Each endpoint changes the camera and says how; an unknown one returns null. Angles are degrees, and any of roll,
 // pitch and yaw can be left out to keep its current value.
+// Sets each axis given in params, in degrees: to that value, or, with `relative`, by that much from where it is.
+const steerCamera = (params, relative) => {
+  for (const axis of ['roll', 'pitch', 'yaw']) {
+    const given = params[axis] === null || params[axis] === undefined || params[axis] === '' ? NaN : Number(params[axis])
+    if (!Number.isFinite(given)) continue
+    const value = relative ? camera[axis] + given : given
+    camera[axis] = axis === 'yaw' ? wrap180(value) : Math.min(CAMERA_LIMITS[axis][1], Math.max(CAMERA_LIMITS[axis][0], value))
+  }
+  return 'attitude'
+}
+
 const CAMERA_COMMANDS = {
-  '/camera/attitude': (params) => {
-    for (const axis of ['roll', 'pitch', 'yaw']) {
-      const value = params[axis] === null || params[axis] === undefined || params[axis] === '' ? NaN : Number(params[axis])
-      if (!Number.isFinite(value)) continue
-      camera[axis] = axis === 'yaw' ? wrap180(value) : Math.min(CAMERA_LIMITS[axis][1], Math.max(CAMERA_LIMITS[axis][0], value))
-    }
-    return 'attitude'
-  },
+  '/camera/attitude': (params) => steerCamera(params, false),
+  // Small steps from wherever the camera points, for buttons that nudge it rather than jump to a preset.
+  '/camera/move': (params) => steerCamera(params, true),
   '/camera/photo': () => (camera.photos++, 'photo'),
   '/camera/record/start': () => {
     if (!camera.recording) Object.assign(camera, { recording: true, recordingSince: Date.now() })

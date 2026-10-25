@@ -227,11 +227,13 @@
         <div class="label">Point HTTP request actions here</div>
         <div class="api">
           <span class="m">GET</span><code id="api-attitude"></code><button class="btn" data-copy="api-attitude">Copy</button>
+          <span class="m">GET</span><code id="api-move"></code><button class="btn" data-copy="api-move">Copy</button>
           <span class="m">POST</span><code id="api-photo"></code><button class="btn" data-copy="api-photo">Copy</button>
           <span class="m">POST</span><code id="api-rec-start"></code><button class="btn" data-copy="api-rec-start">Copy</button>
           <span class="m">POST</span><code id="api-rec-stop"></code><button class="btn" data-copy="api-rec-stop">Copy</button>
         </div>
-        <p class="hint" style="margin-top:12px">Degrees. Leave out any of roll, pitch or yaw to keep it; a JSON body works too.
+        <p class="hint" style="margin-top:12px">Degrees: <code>attitude</code> points the camera there, <code>move</code> turns it by that much.
+          Leave out any of roll, pitch or yaw to keep it; a JSON body works too.
           Roll ±45°, pitch −90° to 30°, yaw all the way round.<span id="camera-key-hint"> Add the header
           <code>x-control-key</code> with the console key.</span></p>
       </div>
@@ -624,6 +626,7 @@
   // The addresses to paste follow wherever this page is served from: localhost, or the public host over TLS.
   $('ws-url').textContent = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`
   $('api-attitude').textContent = `${location.origin}/camera/attitude?roll=0&pitch=-30&yaw=45`
+  $('api-move').textContent = `${location.origin}/camera/move?yaw=5`
   $('api-photo').textContent = `${location.origin}/camera/photo`
   $('api-rec-start').textContent = `${location.origin}/camera/record/start`
   $('api-rec-stop').textContent = `${location.origin}/camera/record/stop`

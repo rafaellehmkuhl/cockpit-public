@@ -188,6 +188,11 @@ const actions = Object.fromEntries([
   action('Gimbal: look down and right', 'GET', camera('attitude'), { pitch: '-45', yaw: '90' }),
   action('Gimbal: look left', 'GET', camera('attitude'), { pitch: '-15', yaw: '-90' }),
   action('Gimbal: tilt', 'GET', camera('attitude'), { roll: '20' }),
+  // Small steps from wherever the camera points: yaw right is positive, pitch up is positive.
+  action('Gimbal: step up', 'GET', camera('move'), { pitch: '5' }),
+  action('Gimbal: step down', 'GET', camera('move'), { pitch: '-5' }),
+  action('Gimbal: step left', 'GET', camera('move'), { yaw: '-5' }),
+  action('Gimbal: step right', 'GET', camera('move'), { yaw: '5' }),
   // Straight at the DevCon logo floating in the camera's world (camera-world.html).
   action('Gimbal: look at the logo', 'GET', camera('attitude'), { roll: '0', pitch: '10', yaw: '-35' }),
   action('Camera: take a photo', 'POST', camera('photo')),
@@ -221,10 +226,12 @@ const joystickMapping = {
       9: cockpitAction('mavlink_arm', 'Mavlink arm'), // start
       10: cockpitAction('apdc-obstacle-run-reset', 'Obstacle run: reset'), // left stick click
       11: httpAction('Gimbal: look at the logo'), // right stick click
-      12: httpAction('Gimbal: look ahead'), // d-pad up
-      13: httpAction('Gimbal: look down and right'), // d-pad down
-      14: httpAction('Gimbal: look left'), // d-pad left
-      15: httpAction('Gimbal: tilt'), // d-pad right
+      // The d-pad steps the gimbal 5° at a time; the presets stay in the actions menu.
+      12: httpAction('Gimbal: step up'), // d-pad up
+      13: httpAction('Gimbal: step down'), // d-pad down
+      14: httpAction('Gimbal: step left'), // d-pad left
+      15: httpAction('Gimbal: step right'), // d-pad right
+      16: httpAction('Gimbal: look ahead'), // home
     }),
     shift: buttons({}),
   },
