@@ -187,7 +187,8 @@ const settings = {
   'cockpit-user-last-map-center': [-27.5935, -48.4525],
   'cockpit-user-last-map-zoom': 18,
   'cockpit-map-follow-vehicle': true,
-  // Nothing should pop up on stage: neither the offer of the vehicle's default views nor the tutorial.
+  // Nothing should pop up on stage: neither the offer of the vehicle's default views nor the tutorial, nor the splash screen.
+  'cockpit-show-splash-screen-on-startup': false,
   'cockpit-vehicle-defaults-handled': true,
   'cockpit-has-seen-tutorial': true,
   ...(controlKey && {
