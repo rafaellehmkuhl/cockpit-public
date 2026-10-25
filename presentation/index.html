@@ -886,31 +886,27 @@ evaluate_expression        take_screenshot</code></pre>
 </section>
 
 <!-- ============================================================ 27c · DEMO 3 -->
-<section data-secs="90" class="slide demo" data-notes="LIVE DEMO, about ninety seconds: the DIY widget, built through MCP. Rough is fine, that's the point.
+<section data-secs="90" class="slide demo" data-notes="LIVE DEMO, about ninety seconds: a complete DIY widget, on the 'Camera feed' view.
 
 Have ready BEFORE you start:
-  · the payload console on tab 3, feed still connected, so external/camera/* is in the data lake
-  · the camera actions from demo 2 still in Cockpit, on buttons
-  · Cockpit Standalone with AI agent access on, and the code opt-in on
-  · an MCP client already connected to it, with a big font
-  · Cockpit on a view with free space
+  · Cockpit on the 'Camera feed' view (from the imported settings file): the camera's live video full screen, the gimbal widget in the corner
+  · the payload console on tab 2, so the room sees the same camera there
+  · the joystick connected; the d-pad steps the gimbal, A takes a photo, X and Y start and stop recording
 
-This one joins demos 1 and 2: the same camera, still driven by HTTP actions, now streams its state back over the WebSocket, and a widget draws it inside Cockpit.
+This one joins demos 1 and 2: the same camera, driven by the actions from demo 2, sends its state back over the WebSocket from demo 1, and a widget of your own draws it inside Cockpit.
 
-Ask for the widget in one sentence; the console has the prompt ready to copy. Let the agent build it, take a screenshot of its own work and fix what it sees. Then run the camera actions: the gimbal turns, REC blinks, a photo flashes, inside Cockpit. Open the widget's editor to show the code it wrote is right there, yours to change.
+Move the camera: the drawn gimbal and the video turn together, REC blinks, a photo flashes. Flip the widget's switch to MAVLink and do it again: the same camera, now commanded over MAVLink, and the video says so. Then open the widget's editor: plain HTML, CSS and JS, yours to change.
 
-Fallback if the agent stalls: tab 3 has Copy HTML, CSS and JS for a ready-made widget that loads the same 3D gimbal as tab 2. Paste them into a DIY widget.
-
-If it fails: say so and move on within 10 seconds. Do not debug on stage.">
+Mention, don't show: with AI agent access on, an MCP client can write a widget like this one from a sentence.">
   <div class="badge">Live demo</div>
-  <h1>A widget, described</h1>
+  <h1>Bring your widget</h1>
   <div class="steps">
-    <div><b>1</b> Settings → General → AI agent access, on</div>
-    <div><b>2</b> Ask an agent for a DIY widget that draws the gimbal camera, from its state on the WebSocket</div>
-    <div><b>3</b> It builds the widget, then takes a screenshot to check its own work</div>
-    <div><b>4</b> Run the camera actions: it turns, records and snaps inside Cockpit</div>
-    <div><b>5</b> Open the editor: the code it wrote is right there, yours to change</div>
+    <div><b>1</b> The Camera feed view: a DIY widget draws the gimbal, over the camera's live video</div>
+    <div><b>2</b> Drive the camera: it turns, records and snaps, in the widget and in the video</div>
+    <div><b>3</b> Flip the widget's switch to MAVLink: the same camera, another protocol</div>
+    <div><b>4</b> Open the editor: plain HTML, CSS and JS, yours to change</div>
   </div>
+  <p class="after dim" style="font-size:17px">Rather describe it? With AI agent access on, an MCP client can build one for you.</p>
 </section>
 
 <!-- ============================================================ 36 · CHOOSING -->
