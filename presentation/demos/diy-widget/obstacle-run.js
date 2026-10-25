@@ -47,17 +47,28 @@
   }
   const clock = (ms) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`
 
-  $('.start').addEventListener('click', () => {
+  const start = () => {
+    if (state === 'countdown' || state === 'running') return
     distance = 0
     last = boat()
     startedAt = Date.now() + COUNTDOWN_S * 1000
     setState('countdown', `${COUNTDOWN_S}…`)
-  })
-  $('.reset').addEventListener('click', () => {
+  }
+  const reset = () => {
     distance = 0
     startedAt = endedAt = 0
     setState('idle', 'Ready')
-  })
+  }
+  $('.start').addEventListener('click', start)
+  $('.reset').addEventListener('click', reset)
+
+  // Also offered as Cockpit actions, so a joystick button starts the run without letting go of the sticks.
+  for (const [id, name, run] of [['apdc-obstacle-run-start', 'Obstacle run: start', start], ['apdc-obstacle-run-reset', 'Obstacle run: reset', reset]]) {
+    const action = { protocol: 'cockpit-action', id, name }
+    cockpit.registerNewAction(action)
+    const callbackId = cockpit.registerActionCallback(action, run)
+    cockpit.onCleanup?.(() => cockpit.unregisterActionCallback(callbackId))
+  }
 
   every(() => {
     const now = Date.now()
