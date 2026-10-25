@@ -2,11 +2,35 @@
 // Cockpit's actions ask for. three.js comes from /vendor so the page works without internet.
 import * as THREE from '/vendor/three/three.module.min.js'
 
-// Real gimbals slew at a finite rate, which is also what makes the motion readable from the back of the room.
-const SLEW_DEG_PER_S = 90
+// Real gimbals slew at a finite rate. Within the last 10° the camera moves at 5°/s, so a 5° step takes a second and
+// presses in a row add up; further out the speed grows with the distance, so a jump to a preset does not crawl.
+const SLOW_DEG_PER_S = 5
+const SLOW_ZONE_DEG = 10
+const CATCH_UP_PER_S = 2
 const RAD = Math.PI / 180
 
-const shortestDelta = (from, to) => ((((to - from + 180) % 360) + 360) % 360) - 180
+export const shortestDelta = (from, to) => ((((to - from + 180) % 360) + 360) % 360) - 180
+
+/**
+ * Moves an attitude towards its target for a slice of time, in place. The camera's world (camera-world.html) uses it
+ * too, so the video moves exactly like the drawn gimbal.
+ * @param {{roll: number, pitch: number, yaw: number}} current - The attitude to move, in degrees
+ * @param {{roll: number, pitch: number, yaw: number}} target - Where it is heading, in degrees
+ * @param {number} dtMs - How much time passed, in milliseconds
+ * @returns {boolean} Whether any axis moved
+ */
+export const slewToward = (current, target, dtMs) => {
+  let moved = false
+  for (const axis of ['roll', 'pitch', 'yaw']) {
+    const delta = axis === 'yaw' ? shortestDelta(current[axis], target[axis]) : target[axis] - current[axis]
+    if (Math.abs(delta) < 0.01) continue
+    const speed = SLOW_DEG_PER_S + CATCH_UP_PER_S * Math.max(0, Math.abs(delta) - SLOW_ZONE_DEG)
+    current[axis] += Math.sign(delta) * Math.min(Math.abs(delta), (speed * dtMs) / 1000)
+    if (axis === 'yaw') current.yaw = shortestDelta(0, current.yaw)
+    moved = true
+  }
+  return moved
+}
 
 const mesh = (geometry, material, [x, y, z] = [0, 0, 0]) => {
   const m = new THREE.Mesh(geometry, material)
@@ -110,16 +134,8 @@ export const createGimbalView = (container, { onMove } = {}) => {
 
   const frame = (now) => {
     // The first frame's timestamp can predate `last`, which would step backwards.
-    const step = (SLEW_DEG_PER_S * Math.min(Math.max(now - last, 0), 100)) / 1000
+    const moved = slewToward(current, target, Math.min(Math.max(now - last, 0), 100))
     last = now
-    let moved = false
-    for (const axis of ['roll', 'pitch', 'yaw']) {
-      const delta = axis === 'yaw' ? shortestDelta(current[axis], target[axis]) : target[axis] - current[axis]
-      if (Math.abs(delta) < 0.01) continue
-      current[axis] += Math.sign(delta) * Math.min(Math.abs(delta), step)
-      if (axis === 'yaw') current.yaw = shortestDelta(0, current.yaw)
-      moved = true
-    }
     // The lens faces +z: yaw right turns it towards -x, pitch up raises it, roll right drops its right side.
     yaw.rotation.y = -current.yaw * RAD
     roll.rotation.z = current.roll * RAD

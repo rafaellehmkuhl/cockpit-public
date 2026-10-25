@@ -39,15 +39,14 @@
 <script type="module">
 import * as THREE from '/vendor/three/three.module.min.js'
 import { GLTFLoader } from '/vendor/three/examples/jsm/loaders/GLTFLoader.js'
+// The same slew as the drawn gimbal, so the feed moves exactly like the 3D gimbal next to it.
+import { shortestDelta, slewToward } from '/gimbal-view.js'
 
-// Same slew and axis conventions as gimbal-view.js, so the feed moves exactly like the 3D gimbal next to it.
-const SLEW_DEG_PER_S = 90
 // On the VPS the GPU is the CPU, so the streamer picks how often and how sharp to render: `?fps=` and `?scale=`, the
 // fraction of the page's size the scene renders at before it is scaled up. The OSD is HTML, so its text stays sharp.
 const params = new URLSearchParams(location.search)
 const MAX_FPS = Number(params.get('fps')) || 30
 const RAD = Math.PI / 180
-const shortestDelta = (from, to) => ((((to - from + 180) % 360) + 360) % 360) - 180
 const $ = (id) => document.getElementById(id)
 
 const renderer = new THREE.WebGLRenderer({ antialias: false })
@@ -262,15 +261,8 @@ let last = performance.now()
 const frame = (now) => {
   requestAnimationFrame(frame)
   if (now - last < 1000 / MAX_FPS - 2) return
-  const dt = Math.min(Math.max(now - last, 0), 100)
+  slewToward(current, target, Math.min(Math.max(now - last, 0), 100))
   last = now
-  const step = (SLEW_DEG_PER_S * dt) / 1000
-  for (const axis of ['roll', 'pitch', 'yaw']) {
-    const delta = axis === 'yaw' ? shortestDelta(current[axis], target[axis]) : target[axis] - current[axis]
-    if (Math.abs(delta) < 0.01) continue
-    current[axis] += Math.sign(delta) * Math.min(Math.abs(delta), step)
-    if (axis === 'yaw') current.yaw = shortestDelta(0, current.yaw)
-  }
   yaw.rotation.y = -current.yaw * RAD
   roll.rotation.z = current.roll * RAD
   pitch.rotation.x = -current.pitch * RAD
