@@ -3,13 +3,13 @@
 // restarts the whole pipeline, which is simpler and more reliable than repairing one piece in place.
 import { spawn } from 'node:child_process'
 
-// 720p rendered at full size, at 15 fps, keeps Chromium near 1.75 of the VPS's 4 cores. Antialiasing on the CPU
-// renderer took about 3, at any frame rate, so the scene goes without it.
-const PAGE_URL = process.env.PAGE_URL ?? 'http://apdc-demos:8765/camera-world?fps=15&scale=1'
+// 720p rendered at full size, at 20 fps, keeps Chromium near 2.7 of the VPS's 4 cores; 15 fps took about 2.2.
+// Antialiasing on the CPU renderer took about 3 at any frame rate, so the scene goes without it.
+const PAGE_URL = process.env.PAGE_URL ?? 'http://apdc-demos:8765/camera-world?fps=20&scale=1'
 const RTSP_URL = process.env.RTSP_URL
 const WIDTH = Number(process.env.WIDTH) || 1280
 const HEIGHT = Number(process.env.HEIGHT) || 720
-const FPS = 15
+const FPS = 20
 const DEBUG_PORT = 9222
 if (!RTSP_URL) throw new Error('RTSP_URL is required')
 
