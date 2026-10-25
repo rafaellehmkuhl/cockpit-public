@@ -8,6 +8,18 @@
   const attitude = { roll: 0, pitch: 0, yaw: 0 }
   let photos = Number(cockpit.getDataLakeVariableData(variable('photos')) ?? 0)
 
+  // The HTTP | MAVLink switch: the camera's buttons and joystick actions read this variable to pick how they send.
+  const PROTOCOL = 'apdc-camera-protocol'
+  const showProtocol = (value) => {
+    const on = value === 'mavlink' ? 'mavlink' : 'http'
+    host.querySelectorAll('[data-protocol]').forEach((b) => b.classList.toggle('on', b.dataset.protocol === on))
+  }
+  showProtocol(cockpit.getDataLakeVariableData(PROTOCOL))
+  cockpit.listenDataLakeVariable(PROTOCOL, showProtocol)
+  host.querySelectorAll('[data-protocol]').forEach((b) =>
+    b.addEventListener('click', () => cockpit.setDataLakeVariableData(PROTOCOL, b.dataset.protocol))
+  )
+
   // Stretched over the whole screen, the widget sits under Cockpit's top and bottom bars, so the REC badge and the
   // readouts move in by however much of the widget each bar covers.
   const clearBars = () => {

@@ -17,6 +17,7 @@
   .clock { top: 9%; right: 6%; }
   .attitude { bottom: 9%; left: 6%; }
   .rec { top: calc(9% + 28px); left: 6%; color: #ff4b4b; }
+  .via { top: calc(9% + 28px); right: 6%; }
   .rec[hidden] { display: none; }
   .cross { left: 50%; top: 50%; width: 36px; height: 36px; margin: -18px 0 0 -18px; opacity: .7;
            background: linear-gradient(#fff, #fff) center / 2px 100% no-repeat, linear-gradient(#fff, #fff) center / 100% 2px no-repeat; }
@@ -30,6 +31,7 @@
   <div class="name">CAM 1 · BOW</div>
   <div class="clock" id="clock"></div>
   <div class="rec" id="rec" hidden>● REC</div>
+  <div class="via" id="via"></div>
   <div class="cross"></div>
   <div class="attitude" id="attitude"></div>
   <div class="flash" id="flash"></div>
@@ -246,6 +248,7 @@ let photos = null
 const onCamera = (c) => {
   Object.assign(target, { roll: c.roll, pitch: c.pitch, yaw: c.yaw })
   $('rec').hidden = !c.recording
+  $('via').textContent = c.via === 'mavlink' ? 'via MAVLink' : 'via HTTP'
   if (photos !== null && c.photos > photos) {
     $('flash').classList.remove('go')
     void $('flash').offsetWidth

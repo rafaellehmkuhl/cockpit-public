@@ -184,26 +184,93 @@ const views = [
 const camera = (path) => `${server}/camera/${path}`
 const headers = controlKey ? { 'x-control-key': `{{ ${keyVariable} }}` } : {}
 const action = (name, method, url, urlParams = {}) => [`http-request-action (${name})`, { name, url, method, headers, urlParams, body: '' }]
-const actions = Object.fromEntries([
-  action('Gimbal: look ahead', 'GET', camera('attitude'), { roll: '0', pitch: '0', yaw: '0' }),
-  action('Gimbal: look down and right', 'GET', camera('attitude'), { pitch: '-45', yaw: '90' }),
-  action('Gimbal: look left', 'GET', camera('attitude'), { pitch: '-15', yaw: '-90' }),
-  action('Gimbal: tilt', 'GET', camera('attitude'), { roll: '20' }),
-  // Small steps from wherever the camera points: yaw right is positive, pitch up is positive.
-  action('Gimbal: step up', 'GET', camera('move'), { pitch: '5' }),
-  action('Gimbal: step down', 'GET', camera('move'), { pitch: '-5' }),
-  action('Gimbal: step left', 'GET', camera('move'), { yaw: '-5' }),
-  action('Gimbal: step right', 'GET', camera('move'), { yaw: '5' }),
-  // Straight at the DevCon logo floating in the camera's world (camera-world.html).
-  action('Gimbal: look at the logo', 'GET', camera('attitude'), { roll: '0', pitch: '10', yaw: '-35' }),
-  action('Camera: take a photo', 'POST', camera('photo')),
-  action('Camera: start recording', 'POST', camera('record/start')),
-  action('Camera: stop recording', 'POST', camera('record/stop')),
+
+// Every camera command exists over HTTP and over MAVLink. The buttons and the joystick run a JavaScript action that
+// picks one by the switch in the gimbal widget, which sets this data lake variable.
+const protocolVariable = 'apdc-camera-protocol'
+const targetVariable = (axis) => `apdc-gimbal-target-${axis}`
+const targetAtVariable = 'apdc-gimbal-target-at'
+// MAVLink commands go to the camera's component id, which the demo server answers and the autopilot ignores.
+const MAVLINK_CAMERA_COMPONENT = 100
+const field = (value) => ({ type: 'number', value: String(value) })
+const commandLong = (name, command, params) => [
+  `mavlink-message-action (${name})`,
+  {
+    name,
+    messageType: 'COMMAND_LONG',
+    messageConfig: {
+      target_system: field(1),
+      target_component: field(MAVLINK_CAMERA_COMPONENT),
+      command: { type: 'type_struct_enum', value: command },
+      confirmation: field(0),
+      ...Object.fromEntries(Array.from({ length: 7 }, (_, i) => [`param${i + 1}`, field(params[i] ?? 0)])),
+    },
+  },
+]
+const mavlinkActions = Object.fromEntries([
+  // MAV_MOUNT_MODE_MAVLINK_TARGETING (2), with pitch, roll and yaw in degrees.
+  commandLong('MAVLink · Gimbal: point', 'MAV_CMD_DO_MOUNT_CONTROL', [
+    `{{ ${targetVariable('pitch')} }}`, `{{ ${targetVariable('roll')} }}`, `{{ ${targetVariable('yaw')} }}`, 0, 0, 0, 2,
+  ]),
+  commandLong('MAVLink · Camera: take a photo', 'MAV_CMD_IMAGE_START_CAPTURE', [0, 0, 1]),
+  commandLong('MAVLink · Camera: start recording', 'MAV_CMD_VIDEO_START_CAPTURE', [0, 0]),
+  commandLong('MAVLink · Camera: stop recording', 'MAV_CMD_VIDEO_STOP_CAPTURE', [0]),
 ])
+
+// MAVLink points the gimbal at absolute angles, so a step adds to the target sent just before, or else to where the
+// camera points now, which keeps quick presses adding up before the camera's new state comes back on the feed.
+const pointOverMavlink = (change) => `  const recent = Date.now() - (Number(cockpit.getDataLakeVariableData('${targetAtVariable}')) || 0) < 1500
+  const base = (axis) => Number(cockpit.getDataLakeVariableData(recent ? \`apdc-gimbal-target-\${axis}\` : \`external/camera/\${axis}\`)) || 0
+  const target = { roll: base('roll'), pitch: base('pitch'), yaw: base('yaw') }
+  ${change}
+  target.roll = Math.max(-45, Math.min(45, target.roll))
+  target.pitch = Math.max(-90, Math.min(30, target.pitch))
+  for (const axis of ['roll', 'pitch', 'yaw']) cockpit.setDataLakeVariableData(\`apdc-gimbal-target-\${axis}\`, target[axis])
+  cockpit.setDataLakeVariableData('${targetAtVariable}', Date.now())
+  cockpit.executeActionCallback('mavlink-message-action (MAVLink · Gimbal: point)')`
+const runMavlink = (name) => `  cockpit.executeActionCallback('mavlink-message-action (MAVLink · ${name})')`
+const set = (attitude) => `Object.assign(target, ${JSON.stringify(attitude)})`
+const add = (axis, degrees) => `target.${axis} += ${degrees}`
+
+// name, its HTTP endpoint and parameters, and what the MAVLink path does.
+const cameraCommands = [
+  ['Gimbal: look ahead', 'GET', 'attitude', { roll: '0', pitch: '0', yaw: '0' }, pointOverMavlink(set({ roll: 0, pitch: 0, yaw: 0 }))],
+  ['Gimbal: look down and right', 'GET', 'attitude', { pitch: '-45', yaw: '90' }, pointOverMavlink(set({ pitch: -45, yaw: 90 }))],
+  ['Gimbal: look left', 'GET', 'attitude', { pitch: '-15', yaw: '-90' }, pointOverMavlink(set({ pitch: -15, yaw: -90 }))],
+  ['Gimbal: tilt', 'GET', 'attitude', { roll: '20' }, pointOverMavlink(set({ roll: 20 }))],
+  // Small steps from wherever the camera points: yaw right is positive, pitch up is positive.
+  ['Gimbal: step up', 'GET', 'move', { pitch: '5' }, pointOverMavlink(add('pitch', 5))],
+  ['Gimbal: step down', 'GET', 'move', { pitch: '-5' }, pointOverMavlink(add('pitch', -5))],
+  ['Gimbal: step left', 'GET', 'move', { yaw: '-5' }, pointOverMavlink(add('yaw', -5))],
+  ['Gimbal: step right', 'GET', 'move', { yaw: '5' }, pointOverMavlink(add('yaw', 5))],
+  // Straight at the DevCon logo floating in the camera's world (camera-world.html).
+  ['Gimbal: look at the logo', 'GET', 'attitude', { roll: '0', pitch: '10', yaw: '-35' }, pointOverMavlink(set({ roll: 0, pitch: 10, yaw: -35 }))],
+  ['Camera: take a photo', 'POST', 'photo', {}, runMavlink('Camera: take a photo')],
+  ['Camera: start recording', 'POST', 'record/start', {}, runMavlink('Camera: start recording')],
+  ['Camera: stop recording', 'POST', 'record/stop', {}, runMavlink('Camera: stop recording')],
+]
+const actions = Object.fromEntries(
+  cameraCommands.map(([name, method, path, params]) => action(`HTTP · ${name}`, method, camera(path), params))
+)
+const javascriptActions = Object.fromEntries(
+  cameraCommands.map(([name, , , , overMavlink]) => [
+    `javascript-action (${name})`,
+    {
+      name,
+      code: `// Sent over whichever protocol the switch in the gimbal widget picks.
+if (cockpit.getDataLakeVariableData('${protocolVariable}') === 'mavlink') {
+${overMavlink}
+} else {
+  cockpit.executeActionCallback('http-request-action (HTTP · ${name})')
+}
+`,
+    },
+  ])
+)
 
 // The 8BitDo Ultimate 2C reports the standard gamepad layout, so these are its buttons as Cockpit numbers them.
 const cockpitAction = (id, name) => ({ action: { protocol: 'cockpit-action', id, name } })
-const httpAction = (name) => cockpitAction(`http-request-action (${name})`, name)
+const cameraAction = (name) => cockpitAction(`javascript-action (${name})`, name)
 const roverMode = (mode) => cockpitAction(`ardupilot_rover_mode_${mode.toLowerCase()}`, `${mode[0]}${mode.slice(1).toLowerCase()} Mode (ArduPilot Rover)`)
 const noFunction = { action: { protocol: 'other', id: 'no_function', name: 'No function' } }
 const axis = (name, min, max) => ({ action: { protocol: 'data-lake-variable', id: `inputs/mavlink/axis-${name}`, name: `Axis ${name.toUpperCase()}` }, min, max })
@@ -222,10 +289,10 @@ const joystickMapping = {
   },
   buttonsCorrespondencies: {
     regular: buttons({
-      0: httpAction('Camera: take a photo'), // A
+      0: cameraAction('Camera: take a photo'), // A
       1: roverMode('MANUAL'), // B
-      2: httpAction('Camera: start recording'), // X
-      3: httpAction('Camera: stop recording'), // Y
+      2: cameraAction('Camera: start recording'), // X
+      3: cameraAction('Camera: stop recording'), // Y
       4: cockpitAction('go_to_previous_view', 'Go to previous view'), // LB
       5: cockpitAction('go_to_next_view', 'Go to next view'), // RB
       6: roverMode('HOLD'), // LT
@@ -233,13 +300,13 @@ const joystickMapping = {
       8: cockpitAction('mavlink_disarm', 'Mavlink disarm'), // select
       9: cockpitAction('mavlink_arm', 'Mavlink arm'), // start
       10: cockpitAction('apdc-obstacle-run-reset', 'Obstacle run: reset'), // left stick click
-      11: httpAction('Gimbal: look at the logo'), // right stick click
+      11: cameraAction('Gimbal: look at the logo'), // right stick click
       // The d-pad steps the gimbal 5° at a time; the presets stay in the actions menu.
-      12: httpAction('Gimbal: step up'), // d-pad up
-      13: httpAction('Gimbal: step down'), // d-pad down
-      14: httpAction('Gimbal: step left'), // d-pad left
-      15: httpAction('Gimbal: step right'), // d-pad right
-      16: httpAction('Gimbal: look ahead'), // home
+      12: cameraAction('Gimbal: step up'), // d-pad up
+      13: cameraAction('Gimbal: step down'), // d-pad down
+      14: cameraAction('Gimbal: step left'), // d-pad left
+      15: cameraAction('Gimbal: step right'), // d-pad right
+      16: cameraAction('Gimbal: look ahead'), // home
     }),
     shift: buttons({}),
   },
@@ -260,6 +327,8 @@ const settings = {
   'cockpit-joystick-functions-mapping-v1': joystickMapping,
   'cockpit-generic-websocket-connections': [feedUrl],
   'cockpit-http-request-actions': actions,
+  'cockpit-mavlink-message-actions': mavlinkActions,
+  'cockpit-javascript-actions': javascriptActions,
   'cockpit-views-group-v1': { hash: hashFor('profile'), name: 'APDC 2026', views },
   'cockpit-current-view-index-v1': 0,
   // The obstacles sit tens of metres from the boat, so the map opens close in on the SITL's home and keeps up with it.
@@ -270,19 +339,45 @@ const settings = {
   'cockpit-show-splash-screen-on-startup': false,
   'cockpit-vehicle-defaults-handled': true,
   'cockpit-has-seen-tutorial': true,
-  ...(controlKey && {
-    'cockpit-persistent-data-lake-variables': [
-      {
-        id: keyVariable,
-        name: 'APDC demo server key',
-        type: 'string',
-        description: 'Sent as x-control-key by the camera actions, so only this Cockpit drives the demo camera.',
-        persistent: true,
-        persistValue: true,
-      },
-    ],
-    'cockpit-persistent-data-lake-values': { [keyVariable]: controlKey },
-  }),
+  'cockpit-persistent-data-lake-variables': [
+    ...(controlKey
+      ? [
+          {
+            id: keyVariable,
+            name: 'APDC demo server key',
+            type: 'string',
+            description: 'Sent as x-control-key by the camera actions, so only this Cockpit drives the demo camera.',
+            persistent: true,
+            persistValue: true,
+          },
+        ]
+      : []),
+    {
+      id: protocolVariable,
+      name: 'Camera protocol',
+      type: 'string',
+      description: "Which protocol the camera actions use, 'http' or 'mavlink'; the gimbal widget's switch sets it.",
+      persistent: true,
+      persistValue: true,
+    },
+    ...['pitch', 'roll', 'yaw'].map((axis) => ({
+      id: targetVariable(axis),
+      name: `Gimbal target ${axis}`,
+      type: 'number',
+      description: `The ${axis} the MAVLink gimbal command sends, in degrees.`,
+      persistent: true,
+      persistValue: false,
+    })),
+    {
+      id: targetAtVariable,
+      name: 'Gimbal target time',
+      type: 'number',
+      description: 'When the last MAVLink gimbal target was set, so quick steps add up.',
+      persistent: true,
+      persistValue: false,
+    },
+  ],
+  'cockpit-persistent-data-lake-values': { ...(controlKey ? { [keyVariable]: controlKey } : {}), [protocolVariable]: 'http' },
 }
 writeFileSync(out, JSON.stringify(settings, null, 2) + '\n')
 console.log(`Wrote ${out} for ${server}${controlKey ? ', with the control key' : ''}`)

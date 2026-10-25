@@ -7,6 +7,11 @@
 .apdc-gimbal .rec[hidden] { display: none; }
 .apdc-gimbal .rec span { width: 10px; height: 10px; border-radius: 50%; background: #ff3b3b; animation: apdc-blink 1s steps(1) infinite; }
 @keyframes apdc-blink { 50% { opacity: 0; } }
+.apdc-gimbal .protocol { position: absolute; top: calc(var(--bar-top, 0px) + 10px); right: 12px; display: flex;
+  border: 1px solid rgba(255, 255, 255, .25); border-radius: 999px; overflow: hidden; }
+.apdc-gimbal .protocol button { font: inherit; font-size: 13px; font-weight: 700; color: #c9d6d3; background: transparent;
+  border: 0; padding: 4px 12px; cursor: pointer; }
+.apdc-gimbal .protocol button.on { background: #4fa483; color: #07120f; }
 .apdc-gimbal .axes { position: absolute; left: 12px; bottom: calc(var(--bar-bottom, 0px) + 10px); display: flex; gap: 18px; font-size: 12px; color: #8fa7a2; }
 .apdc-gimbal .axes b { display: block; font-size: 20px; color: #e9f2ef; font-variant-numeric: tabular-nums; }
 .apdc-gimbal .shutter { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }

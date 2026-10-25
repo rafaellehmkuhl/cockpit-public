@@ -321,7 +321,7 @@ const reading = () => {
   return {
     ...Object.fromEntries(values),
     // Demo 3: the camera's state, which a DIY widget in Cockpit draws. Its attitude is the target the gimbal slews to.
-    Camera: { Roll: camera.roll, Pitch: camera.pitch, Yaw: camera.yaw, Recording: camera.recording, Photos: camera.photos },
+    Camera: { Roll: camera.roll, Pitch: camera.pitch, Yaw: camera.yaw, Recording: camera.recording, Photos: camera.photos, Via: camera.via },
     ...(crowd.on ? { Crowd: crowdNow() } : {}),
   }
 }
@@ -350,7 +350,8 @@ const schedule = () => {
 }
 
 // --- demo 2: a virtual gimbal camera that Cockpit's HTTP actions drive ----------------------------------------------
-const camera = { roll: 0, pitch: -10, yaw: 25, recording: false, recordingSince: 0, photos: 0 }
+// `via` says which protocol sent the last command, so the screens can show the switch between HTTP and MAVLink.
+const camera = { roll: 0, pitch: -10, yaw: 25, recording: false, recordingSince: 0, photos: 0, via: 'http' }
 const CAMERA_LIMITS = { roll: [-45, 45], pitch: [-90, 30] }
 const wrap180 = (angle) => ((((angle + 180) % 360) + 360) % 360) - 180
 // The page's clock is not the server's, so a recording is sent as how long it has been running.
@@ -382,6 +383,47 @@ const CAMERA_COMMANDS = {
     return 'record-start'
   },
   '/camera/record/stop': () => (Object.assign(camera, { recording: false }), 'record-stop'),
+}
+
+// --- the same camera over MAVLink -------------------------------------------------------------------------------------
+// Cockpit's MAVLink actions go out through the SITL's mavlink2rest, which keeps the last COMMAND_LONG of each sender
+// with a counter, so a counter that moved is a new command. They are addressed to the camera's component id, which is
+// not the autopilot's, so the SITL ignores them and only this server acts on them.
+const MAVLINK_CAMERA_COMPONENT = 100
+const MAVLINK_CAMERA_COMMANDS = {
+  MAV_CMD_DO_MOUNT_CONTROL: (p) => steerCamera({ pitch: p.param1, roll: p.param2, yaw: p.param3 }, false),
+  MAV_CMD_IMAGE_START_CAPTURE: () => CAMERA_COMMANDS['/camera/photo'](),
+  MAV_CMD_VIDEO_START_CAPTURE: () => CAMERA_COMMANDS['/camera/record/start'](),
+  MAV_CMD_VIDEO_STOP_CAPTURE: () => CAMERA_COMMANDS['/camera/record/stop'](),
+}
+if (SITL_M2R) {
+  // ponytail: two commands from Cockpit inside one 100 ms poll keep only the last; poll the websocket if that bites.
+  let seenCount = null
+  setInterval(async () => {
+    try {
+      const response = await fetch(`${SITL_M2R}/mavlink/vehicles/255/components/240/messages/COMMAND_LONG`, {
+        signal: AbortSignal.timeout(1000),
+      })
+      // Nothing sent yet: the first command to arrive is new.
+      if (!response.ok) return void (seenCount ??= 0)
+      const { message, status } = await response.json()
+      // After a restart the last command is old news, so the first poll only notes where the counter is.
+      const isNew = seenCount !== null && status.time.counter !== seenCount
+      seenCount = status.time.counter
+      const command = MAVLINK_CAMERA_COMMANDS[message.command.type]
+      if (!isNew || !command || message.target_component !== MAVLINK_CAMERA_COMPONENT) return
+      camera.via = 'mavlink'
+      const event = command(message)
+      const params = Object.fromEntries([1, 2, 3, 7].map((i) => [`param${i}`, message[`param${i}`]]))
+      broadcast('request', {
+        id: ++requestCount, at: Date.now(), method: 'MAVLINK', path: message.command.type, query: params,
+        headers: {}, body: '', json: null, from: 'Cockpit over MAVLink',
+      })
+      broadcast('camera', { ...cameraNow(), event })
+    } catch {
+      // The SITL is restarting; the next poll tries again.
+    }
+  }, 100)
 }
 
 // --- control from the page ---------------------------------------------------------------------
@@ -529,6 +571,7 @@ const server = createServer(async (req, res) => {
       const error = command ? 'wrong or missing key' : `unknown endpoint; try ${Object.keys(CAMERA_COMMANDS).join(', ')}`
       return res.writeHead(command ? 401 : 404, { ...CORS, 'Content-Type': 'application/json' }).end(JSON.stringify({ error }))
     }
+    camera.via = 'http'
     const event = command({ ...Object.fromEntries(url.searchParams), ...(json && typeof json === 'object' ? json : {}) })
     broadcast('camera', { ...cameraNow(), event })
     return res.writeHead(200, { ...CORS, 'Content-Type': 'application/json' }).end(JSON.stringify(cameraNow()))
