@@ -1,0 +1,14 @@
+.apdc-gimbal { position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: 12px; color: #e9f2ef;
+  font-family: ui-sans-serif, system-ui, sans-serif; background: radial-gradient(circle at 70% 0%, #17302c, #0a1416 70%); }
+.apdc-gimbal .view { position: absolute; inset: 0; }
+.apdc-gimbal .view canvas { width: 100%; height: 100%; display: block; }
+.apdc-gimbal .rec { position: absolute; top: 10px; left: 12px; display: flex; align-items: center; gap: 8px; font-weight: 750;
+  letter-spacing: 1px; background: rgba(210, 40, 40, .25); border: 1px solid rgba(255, 80, 80, .6); border-radius: 999px; padding: 3px 12px; }
+.apdc-gimbal .rec[hidden] { display: none; }
+.apdc-gimbal .rec span { width: 10px; height: 10px; border-radius: 50%; background: #ff3b3b; animation: apdc-blink 1s steps(1) infinite; }
+@keyframes apdc-blink { 50% { opacity: 0; } }
+.apdc-gimbal .axes { position: absolute; left: 12px; bottom: 10px; display: flex; gap: 18px; font-size: 12px; color: #8fa7a2; }
+.apdc-gimbal .axes b { display: block; font-size: 20px; color: #e9f2ef; font-variant-numeric: tabular-nums; }
+.apdc-gimbal .shutter { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+.apdc-gimbal .shutter.go { animation: apdc-shutter .55s ease-out; }
+@keyframes apdc-shutter { from { opacity: .95; } to { opacity: 0; } }

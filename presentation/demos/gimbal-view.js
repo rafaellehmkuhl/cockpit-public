@@ -31,7 +31,7 @@ const motor = (axis, materials, position) => {
  * @param {object} options - Options
  * @param {(attitude: {roll: number, pitch: number, yaw: number}) => void} [options.onMove] - Called with the current
  *   attitude, in degrees, on every frame the gimbal moves
- * @returns {{setTarget: Function, setRecording: Function, shutter: Function}} Controls
+ * @returns {{setTarget: Function, setRecording: Function, shutter: Function, destroy: Function}} Controls
  */
 export const createGimbalView = (container, { onMove } = {}) => {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
@@ -109,7 +109,9 @@ export const createGimbalView = (container, { onMove } = {}) => {
     view.aspect = w / h
     view.updateProjectionMatrix()
   }
-  new ResizeObserver(resize).observe(container)
+  const observer = new ResizeObserver(resize)
+  observer.observe(container)
+  let animation
 
   const frame = (now) => {
     // The first frame's timestamp can predate `last`, which would step backwards.
@@ -131,10 +133,10 @@ export const createGimbalView = (container, { onMove } = {}) => {
     glass.material.emissive.setHex(now < flashUntil ? 0xffffff : 0x0c3446)
     if (moved) onMove?.({ ...current })
     renderer.render(scene, view)
-    requestAnimationFrame(frame)
+    animation = requestAnimationFrame(frame)
   }
   resize()
-  requestAnimationFrame(frame)
+  animation = requestAnimationFrame(frame)
 
   return {
     setTarget(next) {
@@ -145,6 +147,12 @@ export const createGimbalView = (container, { onMove } = {}) => {
     },
     shutter() {
       flashUntil = performance.now() + 180
+    },
+    destroy() {
+      cancelAnimationFrame(animation)
+      observer.disconnect()
+      renderer.dispose()
+      renderer.domElement.remove()
     },
   }
 }

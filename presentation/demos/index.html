@@ -142,6 +142,7 @@
   .shutter { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
   .shutter.go { animation: shutter .55s ease-out; }
   @keyframes shutter { from { opacity: .95; } to { opacity: 0; } }
+  .vars { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
   .sensors { flex: 1; min-height: 0; display: grid; grid-template-rows: repeat(3, minmax(0, 1fr)); gap: 16px; }
   .sensor { display: flex; flex-direction: column; min-height: 0; }
   .sensor .chart { min-height: 90px; margin-top: 4px; }
@@ -257,7 +258,7 @@
     </div>
   </section>
 
-  <!-- 3 · the source of truth for the agent-built widget -->
+  <!-- 3 · the camera's state, sent to Cockpit for a DIY widget to draw -->
   <section role="tabpanel" id="panel-3" aria-labelledby="tab-3" hidden>
     <div class="col">
       <div class="card">
@@ -265,24 +266,30 @@
       </div>
       <div class="card">
         <div class="label">Ask the agent</div>
-        <pre id="prompt" style="font-size:16px;white-space:pre-wrap">Create a DIY widget in Cockpit that shows the water temperature from external/watertemp as a large number in °C. Colour the number by temperature: white below 0 °C, blue at 15, yellow at 30 and red from 40. Take a screenshot to check it before you finish.</pre>
+        <pre id="prompt" style="font-size:16px;white-space:pre-wrap"></pre>
         <div class="row" style="margin-top:10px"><button class="btn" data-copy="prompt">Copy prompt</button></div>
       </div>
       <div class="card">
-        <div class="label">Push the reading</div>
-        <div class="presets">
-          <button class="btn" data-temp="-2">Ice · −2 °C</button>
-          <button class="btn" data-temp="15">Cool · 15 °C</button>
-          <button class="btn" data-temp="30">Warm · 30 °C</button>
-          <button class="btn" data-temp="42">Hot · 42 °C</button>
+        <div class="label">Fallback widget, ready to paste</div>
+        <p class="hint">Into a DIY widget's three editors. It loads the same 3D gimbal as tab 2 from this server.</p>
+        <div class="row" style="margin-top:10px">
+          <button class="btn" data-copy="diy-html">Copy HTML</button>
+          <button class="btn" data-copy="diy-css">Copy CSS</button>
+          <button class="btn" data-copy="diy-js">Copy JS</button>
         </div>
+        <pre id="diy-html" hidden></pre><pre id="diy-css" hidden></pre><pre id="diy-js" hidden></pre>
       </div>
     </div>
     <div class="col">
       <div class="card grow">
-        <div class="label">What the payload is sending now</div>
-        <div class="hero"><span class="v wait" id="temp-3">Waiting</span><span class="u">°C</span></div>
-        <div class="chart" id="chart-3"></div>
+        <div class="label">The camera, as Cockpit receives it</div>
+        <pre id="camera-wire">—</pre>
+        <div class="vars">
+          <code class="chip">external/camera/roll</code><code class="chip">external/camera/pitch</code><code class="chip">external/camera/yaw</code>
+          <code class="chip">external/camera/recording</code><code class="chip">external/camera/photos</code>
+        </div>
+        <p class="hint" style="margin-top:14px">Drive it from Cockpit's actions exactly as in tab 2. The state comes back over the
+          WebSocket from tab 1, and the widget draws it.</p>
       </div>
     </div>
   </section>
@@ -418,17 +425,18 @@
     luminosity: { name: 'Luminosity', unit: ' lux', decimals: 0 },
   }
   for (const [id, spec] of Object.entries(SENSORS)) spec.chart = lineChart($(`chart-${id}`), { windowS: 60, unit: spec.unit, decimals: spec.decimals })
-  const chart3 = lineChart($('chart-3'), { windowS: 120, unit: ' °C' })
-  const charts = [...Object.values(SENSORS).map((s) => s.chart), chart3]
+  const charts = Object.values(SENSORS).map((s) => s.chart)
   addEventListener('resize', () => charts.forEach((c) => c.draw()))
   setInterval(() => charts.forEach((c) => c.draw()), 1000)
 
   // ---- copy buttons
   document.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', async () => {
     const el = $(b.dataset.copy)
+    b.dataset.label ??= b.textContent
     try { await navigator.clipboard.writeText(el.textContent); b.textContent = 'Copied' }
     catch { getSelection().selectAllChildren(el); b.textContent = 'Selected, press ⌘C' }
-    setTimeout(() => (b.textContent = b.dataset.copy.endsWith('prompt') ? 'Copy prompt' : 'Copy'), 1600)
+    const original = b.dataset.label ??= b.textContent
+    setTimeout(() => (b.textContent = original), 1600)
   }))
 
   // ---- feed controls
@@ -442,7 +450,7 @@
       .then((r) => { if (r.status === 401) viewOnly(true) })
       .catch(() => {})
   const viewOnly = (on) => {
-    document.querySelectorAll('#panel-1 .controls input, #panel-1 .controls select, #panel-1 .controls button, [data-temp], .ctl').forEach((el) => (el.disabled = on))
+    document.querySelectorAll('#panel-1 .controls input, #panel-1 .controls select, #panel-1 .controls button, .ctl').forEach((el) => (el.disabled = on))
     $('locked-note').hidden = !on
   }
   const showSetting = (id, value) => ($(`s-${id}-v`).textContent = value.toFixed(SENSORS[id].decimals) + SENSORS[id].unit)
@@ -454,7 +462,6 @@
   $('rate').addEventListener('change', (e) => control({ rateHz: Number(e.target.value) }))
   $('running').addEventListener('click', () => control({ running: !feed?.running }))
   document.querySelectorAll('[data-format]').forEach((b) => b.addEventListener('click', () => control({ format: b.dataset.format })))
-  document.querySelectorAll('[data-temp]').forEach((b) => b.addEventListener('click', () => control({ sensors: { temperature: { value: Number(b.dataset.temp), drift: true } } })))
 
   const renderState = (s) => {
     feed = s.feed
@@ -506,9 +513,7 @@
       chart.push(f.at, f.reading[name])
       $(`now-${id}`).innerHTML = `${f.reading[name].toFixed(decimals)}<small>${unit}</small>`
     }
-    chart3.push(f.at, f.reading.WaterTemp)
-    $('temp-3').textContent = f.reading.WaterTemp.toFixed(1)
-    $('temp-3').classList.remove('wait')
+    if (!$('panel-3').hidden) $('camera-wire').innerHTML = highlight(JSON.stringify({ Camera: f.reading.Camera }, null, 2))
   }
 
   // ---- requests from Cockpit's actions
@@ -617,6 +622,14 @@
   $('api-photo').textContent = `${location.origin}/camera/photo`
   $('api-rec-start').textContent = `${location.origin}/camera/record/start`
   $('api-rec-stop').textContent = `${location.origin}/camera/record/stop`
+
+  // ---- demo 3: the agent's prompt and the fallback widget point at wherever this page is served from
+  $('prompt').textContent = `Create a DIY widget in Cockpit that shows a 3D gimbal camera. Take its attitude from external/camera/roll, external/camera/pitch and external/camera/yaw, in degrees, and slew to each new value smoothly instead of jumping. Show a blinking red REC badge while external/camera/recording is true, and flash the widget white each time external/camera/photos goes up. Use three.js from ${location.origin}/vendor/three/three.module.min.js. Take a screenshot to check it before you finish.`
+  for (const part of ['html', 'css', 'js']) {
+    fetch(`/diy-widget/widget.${part}`).then((r) => r.text())
+      .then((code) => ($(`diy-${part}`).textContent = code.replace('https://apdc2026.rlehmk.dev', location.origin)))
+      .catch(() => {})
+  }
 
   let start = 0
   try { start = Number(localStorage.getItem('payload-console-tab')) || 0 } catch {}

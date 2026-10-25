@@ -855,21 +855,26 @@ evaluate_expression        take_screenshot</code></pre>
 <section data-secs="90" class="slide demo" data-notes="LIVE DEMO, about ninety seconds: the DIY widget, built through MCP. Rough is fine, that's the point.
 
 Have ready BEFORE you start:
-  · the payload console on tab 3, feed still connected, so external/watertemp is moving
+  · the payload console on tab 3, feed still connected, so external/camera/* is in the data lake
+  · the camera actions from demo 2 still in Cockpit, on buttons
   · Cockpit Standalone with AI agent access on, and the code opt-in on
   · an MCP client already connected to it, with a big font
   · Cockpit on a view with free space
 
-Ask for the widget in one sentence; the console has the prompt ready to copy. Let the agent build it, take a screenshot of its own work and fix what it sees. Then press Ice, Warm and Hot on the console and let the widget follow. Open the widget's editor to show the code it wrote is right there, yours to change.
+This one joins demos 1 and 2: the same camera, still driven by HTTP actions, now streams its state back over the WebSocket, and a widget draws it inside Cockpit.
+
+Ask for the widget in one sentence; the console has the prompt ready to copy. Let the agent build it, take a screenshot of its own work and fix what it sees. Then run the camera actions: the gimbal turns, REC blinks, a photo flashes, inside Cockpit. Open the widget's editor to show the code it wrote is right there, yours to change.
+
+Fallback if the agent stalls: tab 3 has Copy HTML, CSS and JS for a ready-made widget that loads the same 3D gimbal as tab 2. Paste them into a DIY widget.
 
 If it fails: say so and move on within 10 seconds. Do not debug on stage.">
   <div class="badge">Live demo</div>
   <h1>A widget, described</h1>
   <div class="steps">
     <div><b>1</b> Settings → General → AI agent access, on</div>
-    <div><b>2</b> Ask an agent for a DIY widget that shows the water temperature</div>
+    <div><b>2</b> Ask an agent for a DIY widget that draws the gimbal camera, from its state on the WebSocket</div>
     <div><b>3</b> It builds the widget, then takes a screenshot to check its own work</div>
-    <div><b>4</b> Heat the payload up and cool it down: the widget follows</div>
+    <div><b>4</b> Run the camera actions: it turns, records and snaps inside Cockpit</div>
     <div><b>5</b> Open the editor: the code it wrote is right there, yours to change</div>
   </div>
   <div class="fallback">If it fails: no debugging on stage. Ten seconds, then move on.</div>

@@ -12,9 +12,15 @@ const PORT = Number(process.env.PORT ?? 8765)
 const PAGE = new URL('./index.html', import.meta.url)
 const JOIN = new URL('./join.html', import.meta.url)
 const VENDOR = fileURLToPath(new URL('./vendor/', import.meta.url))
-const MODULES = {
-  '/obstacle-map.js': new URL('./obstacle-map.js', import.meta.url),
-  '/gimbal-view.js': new URL('./gimbal-view.js', import.meta.url),
+const JS = 'text/javascript; charset=utf-8'
+const TEXT = 'text/plain; charset=utf-8'
+// Files served as they are. The DIY widget in Cockpit imports the gimbal from here, so these allow any origin.
+const FILES = {
+  '/obstacle-map.js': [new URL('./obstacle-map.js', import.meta.url), JS],
+  '/gimbal-view.js': [new URL('./gimbal-view.js', import.meta.url), JS],
+  '/diy-widget/widget.html': [new URL('./diy-widget/widget.html', import.meta.url), TEXT],
+  '/diy-widget/widget.css': [new URL('./diy-widget/widget.css', import.meta.url), TEXT],
+  '/diy-widget/widget.js': [new URL('./diy-widget/widget.js', import.meta.url), TEXT],
 }
 const TYPES = { '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.txt': 'text/plain' }
 const MAX_BODY = 64 * 1024
@@ -310,14 +316,19 @@ const reading = () => {
     const wave = drift ? amplitude * (Math.sin((2 * Math.PI * t) / periodS) + 0.12 * Math.sin(t * 1.7)) : 0
     return [name, Number(Math.min(max, Math.max(min, value + wave)).toFixed(decimals))]
   })
-  return { ...Object.fromEntries(values), ...(crowd.on ? { Crowd: crowdNow() } : {}) }
+  return {
+    ...Object.fromEntries(values),
+    // Demo 3: the camera's state, which a DIY widget in Cockpit draws. Its attitude is the target the gimbal slews to.
+    Camera: { Roll: camera.roll, Pitch: camera.pitch, Yaw: camera.yaw, Recording: camera.recording, Photos: camera.photos },
+    ...(crowd.on ? { Crowd: crowdNow() } : {}),
+  }
 }
 
 // Plain text is one variable per message; a `/` in a name would become `-`, so the names stay flat.
 const messagesFor = (r) =>
   feed.format === 'json'
     ? [JSON.stringify(r)]
-    : Object.entries(r).flatMap(([k, v]) => (k === 'Crowd' ? Object.entries(v).map(([ck, cv]) => `Crowd${ck}=${cv}`) : [`${k}=${v}`]))
+    : Object.entries(r).flatMap(([k, v]) => (typeof v === 'object' ? Object.entries(v).map(([sk, sv]) => `${k}${sk}=${sv}`) : [`${k}=${v}`]))
 
 let timer
 const tick = () => {
@@ -414,15 +425,17 @@ const server = createServer(async (req, res) => {
   if (req.method === 'GET' && url.pathname === '/join') {
     return res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(readFileSync(JOIN))
   }
-  if (req.method === 'GET' && MODULES[url.pathname]) {
-    return res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8' }).end(readFileSync(MODULES[url.pathname]))
+  if (req.method === 'GET' && FILES[url.pathname]) {
+    const [file, type] = FILES[url.pathname]
+    return res.writeHead(200, { ...CORS, 'Content-Type': type }).end(readFileSync(file))
   }
   if (req.method === 'GET' && url.pathname.startsWith('/vendor/')) {
     const file = resolve(VENDOR, decodeURIComponent(url.pathname.slice('/vendor/'.length)))
     if (!file.startsWith(VENDOR.endsWith(sep) ? VENDOR : VENDOR + sep) || !existsSync(file) || !TYPES[extname(file)]) {
       return res.writeHead(404).end()
     }
-    return res.writeHead(200, { 'Content-Type': `${TYPES[extname(file)]}; charset=utf-8`, 'Cache-Control': 'max-age=3600' }).end(readFileSync(file))
+    const headers = { ...CORS, 'Content-Type': `${TYPES[extname(file)]}; charset=utf-8`, 'Cache-Control': 'max-age=3600' }
+    return res.writeHead(200, headers).end(readFileSync(file))
   }
 
   if (req.method === 'GET' && url.pathname === '/events') {
