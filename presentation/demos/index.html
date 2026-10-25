@@ -122,6 +122,32 @@
   .stats div { font-size: 14px; color: var(--muted); }
   .stats b { display: block; font-size: 36px; font-weight: 700; color: var(--ink); letter-spacing: -1px; font-variant-numeric: tabular-nums; }
   .crowd-map { flex: 1; min-height: 240px; margin-top: 14px; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--code); }
+  .api { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px 10px; align-items: center; }
+  .api .m { font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--kelp); }
+  .api code { font-family: var(--mono); font-size: 15px; padding: 8px 10px; border-radius: 8px; background: var(--code); border: 1px solid var(--line); overflow-wrap: anywhere; color: #cfe3de; }
+  .cam { position: relative; padding: 0; overflow: hidden; }
+  .cam-view { position: absolute; inset: 0; }
+  .cam-view canvas { width: 100%; height: 100%; display: block; }
+  .cam-top { position: absolute; top: 18px; left: 20px; right: 20px; display: flex; justify-content: space-between; align-items: center; pointer-events: none; }
+  .rec { display: flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 750; letter-spacing: 1px; color: #fff;
+    background: rgba(210,40,40,.22); border: 1px solid rgba(255,80,80,.6); border-radius: 999px; padding: 6px 16px; }
+  .rec span { width: 14px; height: 14px; border-radius: 50%; background: #ff3b3b; animation: blink 1s steps(1) infinite; }
+  .rec b { font-family: var(--mono); font-weight: 600; font-variant-numeric: tabular-nums; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .photos { margin-left: auto; font-size: 16px; color: var(--muted); }
+  .cam-axes { position: absolute; left: 20px; right: 20px; bottom: 18px; display: flex; gap: 28px; pointer-events: none; }
+  .cam-axes div { font-size: 14px; color: var(--muted); }
+  .cam-axes b { display: block; font-size: 34px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -.5px; }
+  .cam-axes small { font-size: 13px; color: var(--dim); font-family: var(--mono); }
+  .shutter { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+  .shutter.go { animation: shutter .55s ease-out; }
+  @keyframes shutter { from { opacity: .95; } to { opacity: 0; } }
+  .sensors { flex: 1; min-height: 0; display: grid; grid-template-rows: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .sensor { display: flex; flex-direction: column; min-height: 0; }
+  .sensor .chart { min-height: 90px; margin-top: 4px; }
+  .sensor-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 16px; }
+  .sensor-head b { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .sensor-head small { font-size: 15px; color: var(--muted); font-weight: 400; }
   input[type="text"] { background: var(--code); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; flex: 1; min-width: 0; }
 
   @media (max-width: 900px) {
@@ -129,7 +155,7 @@
     header { flex-wrap: wrap; }
     .link { margin-left: 0; }
   }
-  @media (prefers-reduced-motion: reduce) { .flash, .req.new { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .flash, .req.new, .rec span { animation: none; } }
 </style>
 </head>
 <body>
@@ -137,7 +163,7 @@
   <h1>Payload Console <span>· what the other side sees</span></h1>
   <nav role="tablist">
     <button role="tab" id="tab-1" aria-controls="panel-1" aria-selected="true"><b>1</b>WebSocket feed</button>
-    <button role="tab" id="tab-2" aria-controls="panel-2" aria-selected="false"><b>2</b>Cockpit calls you</button>
+    <button role="tab" id="tab-2" aria-controls="panel-2" aria-selected="false"><b>2</b>Gimbal camera</button>
     <button role="tab" id="tab-3" aria-controls="panel-3" aria-selected="false"><b>3</b>Agent widget</button>
     <button role="tab" id="tab-4" aria-controls="panel-4" aria-selected="false"><b>4</b>Get in the way</button>
   </nav>
@@ -154,16 +180,18 @@
         <div class="copy"><code id="ws-url">ws://localhost:8765</code><button class="btn" data-copy="ws-url">Copy</button></div>
       </div>
       <div class="card">
-        <div class="label">What the payload sends</div>
+        <div class="label">Virtual sensors</div>
         <p class="hint" id="locked-note" hidden style="margin-bottom:12px">View only. Open this page with <code>?key=…</code> to change the feed.</p>
         <div class="controls">
-          <label for="temp">Water temp</label>
-          <div class="row"><input type="range" id="temp" min="-5" max="45" step="0.5"><span class="num" id="temp-v"></span>
-            <label class="row" style="color:var(--ink)"><input type="checkbox" id="wave"> drift</label></div>
-          <label for="locked">Winch</label>
-          <div class="row"><button class="btn" id="locked" aria-pressed="false"></button></div>
-          <label for="status">Status</label>
-          <div class="row"><select id="status"><option>Logging</option><option>Idle</option><option>Recovering</option></select></div>
+          <label for="s-temperature">Temperature</label>
+          <div class="row"><input type="range" id="s-temperature" data-sensor="temperature" min="-5" max="45" step="0.5"><span class="num" id="s-temperature-v"></span>
+            <label class="row" style="color:var(--ink)"><input type="checkbox" data-drift="temperature"> drift</label></div>
+          <label for="s-salinity">Salinity</label>
+          <div class="row"><input type="range" id="s-salinity" data-sensor="salinity" min="0" max="42" step="0.5"><span class="num" id="s-salinity-v"></span>
+            <label class="row" style="color:var(--ink)"><input type="checkbox" data-drift="salinity"> drift</label></div>
+          <label for="s-luminosity">Luminosity</label>
+          <div class="row"><input type="range" id="s-luminosity" data-sensor="luminosity" min="0" max="2000" step="10"><span class="num" id="s-luminosity-v"></span>
+            <label class="row" style="color:var(--ink)"><input type="checkbox" data-drift="luminosity"> drift</label></div>
           <label>Format</label>
           <div class="row"><button class="btn" data-format="json">JSON</button><button class="btn" data-format="text">name=value</button></div>
           <label for="rate">Rate</label>
@@ -179,38 +207,52 @@
         <div class="meta"><span id="wire-meta"></span><span id="wire-count"></span></div>
       </div>
       <div class="card grow">
-        <div class="label">external/watertemp, as sent</div>
-        <div class="chart" id="chart-1"></div>
+        <div class="label">As sent · each one is a variable in Cockpit</div>
+        <div class="sensors">
+          <div class="sensor"><div class="sensor-head"><span>Temperature <code class="chip">external/watertemp</code></span><b id="now-temperature">—</b></div><div class="chart" id="chart-temperature"></div></div>
+          <div class="sensor"><div class="sensor-head"><span>Salinity <code class="chip">external/salinity</code></span><b id="now-salinity">—</b></div><div class="chart" id="chart-salinity"></div></div>
+          <div class="sensor"><div class="sensor-head"><span>Luminosity <code class="chip">external/luminosity</code></span><b id="now-luminosity">—</b></div><div class="chart" id="chart-luminosity"></div></div>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- 2 · Cockpit's actions calling in -->
+  <!-- 2 · a virtual gimbal camera driven by Cockpit's actions -->
   <section role="tabpanel" id="panel-2" aria-labelledby="tab-2" hidden>
     <div class="col">
       <div class="card">
-        <div class="label">Point an HTTP request action here</div>
-        <div class="copy"><code id="hook-url">http://localhost:8765/axis?v={{ inputs/mavlink/axis-x }}</code><button class="btn" data-copy="hook-url">Copy</button></div>
-        <p class="hint" style="margin-top:12px">Any path and method works, and every request shows up on the right. Add an
-          automatic trigger on the axis, no faster than 10 per second.</p>
-      </div>
-      <div class="card grow">
-        <div class="row" style="justify-content:space-between">
-          <div class="label" style="margin:0">Value received</div>
-          <label class="row hint" for="track">from <select id="track"><option value="">first number</option></select></label>
+        <div class="label">Point HTTP request actions here</div>
+        <div class="api">
+          <span class="m">GET</span><code id="api-attitude"></code><button class="btn" data-copy="api-attitude">Copy</button>
+          <span class="m">POST</span><code id="api-photo"></code><button class="btn" data-copy="api-photo">Copy</button>
+          <span class="m">POST</span><code id="api-rec-start"></code><button class="btn" data-copy="api-rec-start">Copy</button>
+          <span class="m">POST</span><code id="api-rec-stop"></code><button class="btn" data-copy="api-rec-stop">Copy</button>
         </div>
-        <div class="hero" style="margin-top:12px"><span class="v wait" id="hook-v">Waiting for a request</span></div>
-        <div class="meta"><span id="hook-rate">No requests yet</span><span id="hook-count"></span></div>
-        <div class="chart" id="chart-2"></div>
+        <p class="hint" style="margin-top:12px">Degrees. Leave out any of roll, pitch or yaw to keep it; a JSON body works too.
+          Roll ±45°, pitch −90° to 30°, yaw all the way round.<span id="camera-key-hint"> Add the header
+          <code>x-control-key</code> with the console key.</span></p>
       </div>
-    </div>
-    <div class="col">
       <div class="card grow">
         <div class="row" style="justify-content:space-between;margin-bottom:12px">
           <div class="label" style="margin:0">Requests from Cockpit</div>
           <button class="btn" id="clear-log">Clear</button>
         </div>
-        <div class="log" id="log"><div class="empty">Waiting for Cockpit to call. Run the action, or move the stick once the trigger is set.</div></div>
+        <div class="log" id="log"><div class="empty">Waiting for Cockpit to call. Run one of the actions.</div></div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card grow cam">
+        <div class="cam-view" id="cam-view"></div>
+        <div class="cam-top">
+          <div class="rec" id="rec" hidden><span></span>REC <b id="rec-time">00:00</b></div>
+          <div class="photos" id="photos">No photos yet</div>
+        </div>
+        <div class="cam-axes">
+          <div>Roll<b id="now-roll">0.0°</b><small id="to-roll"></small></div>
+          <div>Pitch<b id="now-pitch">0.0°</b><small id="to-pitch"></small></div>
+          <div>Yaw<b id="now-yaw">0.0°</b><small id="to-yaw"></small></div>
+        </div>
+        <div class="shutter" id="shutter"></div>
       </div>
     </div>
   </section>
@@ -369,10 +411,15 @@
       clear() { points.length = 0; draw() },
     }
   }
-  const chart1 = lineChart($('chart-1'), { windowS: 60, unit: ' °C' })
-  const chart2 = lineChart($('chart-2'), { windowS: 30, decimals: 2 })
+  // The feed variable each console sensor drives, as named in server.mjs.
+  const SENSORS = {
+    temperature: { name: 'WaterTemp', unit: ' °C', decimals: 1 },
+    salinity: { name: 'Salinity', unit: ' PSU', decimals: 1 },
+    luminosity: { name: 'Luminosity', unit: ' lux', decimals: 0 },
+  }
+  for (const [id, spec] of Object.entries(SENSORS)) spec.chart = lineChart($(`chart-${id}`), { windowS: 60, unit: spec.unit, decimals: spec.decimals })
   const chart3 = lineChart($('chart-3'), { windowS: 120, unit: ' °C' })
-  const charts = [chart1, chart2, chart3]
+  const charts = [...Object.values(SENSORS).map((s) => s.chart), chart3]
   addEventListener('resize', () => charts.forEach((c) => c.draw()))
   setInterval(() => charts.forEach((c) => c.draw()), 1000)
 
@@ -398,14 +445,16 @@
     document.querySelectorAll('#panel-1 .controls input, #panel-1 .controls select, #panel-1 .controls button, [data-temp], .ctl').forEach((el) => (el.disabled = on))
     $('locked-note').hidden = !on
   }
-  $('temp').addEventListener('input', (e) => { $('temp-v').textContent = Number(e.target.value).toFixed(1) + ' °C'; control({ waterTemp: Number(e.target.value) }) })
-  $('wave').addEventListener('change', (e) => control({ wave: e.target.checked }))
-  $('locked').addEventListener('click', () => control({ winchLocked: !feed?.winchLocked }))
-  $('status').addEventListener('change', (e) => control({ status: e.target.value }))
+  const showSetting = (id, value) => ($(`s-${id}-v`).textContent = value.toFixed(SENSORS[id].decimals) + SENSORS[id].unit)
+  document.querySelectorAll('[data-sensor]').forEach((el) => el.addEventListener('input', () => {
+    showSetting(el.dataset.sensor, Number(el.value))
+    control({ sensors: { [el.dataset.sensor]: { value: Number(el.value) } } })
+  }))
+  document.querySelectorAll('[data-drift]').forEach((el) => el.addEventListener('change', () => control({ sensors: { [el.dataset.drift]: { drift: el.checked } } })))
   $('rate').addEventListener('change', (e) => control({ rateHz: Number(e.target.value) }))
   $('running').addEventListener('click', () => control({ running: !feed?.running }))
   document.querySelectorAll('[data-format]').forEach((b) => b.addEventListener('click', () => control({ format: b.dataset.format })))
-  document.querySelectorAll('[data-temp]').forEach((b) => b.addEventListener('click', () => control({ waterTemp: Number(b.dataset.temp), wave: true })))
+  document.querySelectorAll('[data-temp]').forEach((b) => b.addEventListener('click', () => control({ sensors: { temperature: { value: Number(b.dataset.temp), drift: true } } })))
 
   const renderState = (s) => {
     feed = s.feed
@@ -417,12 +466,10 @@
       $(id).classList.toggle('ok', n > 0)
       $(id).querySelector('div').innerHTML = `${esc(label)}<small>${esc(detail)}</small>`
     }
-    if (document.activeElement !== $('temp')) { $('temp').value = feed.waterTemp; $('temp-v').textContent = feed.waterTemp.toFixed(1) + ' °C' }
-    $('wave').checked = feed.wave
-    $('locked').textContent = feed.winchLocked ? 'Locked' : 'Free'
-    $('locked').setAttribute('aria-pressed', String(feed.winchLocked))
-    $('locked').classList.toggle('on', feed.winchLocked)
-    $('status').value = feed.status
+    for (const [id, { value, drift }] of Object.entries(feed.sensors)) {
+      if (document.activeElement !== $(`s-${id}`)) { $(`s-${id}`).value = value; showSetting(id, value) }
+      document.querySelector(`[data-drift="${id}"]`).checked = drift
+    }
     $('rate').value = String(feed.rateHz)
     $('running').textContent = feed.running ? 'Pause feed' : 'Resume feed'
     document.querySelectorAll('[data-format]').forEach((b) => b.classList.toggle('on', b.dataset.format === feed.format))
@@ -431,6 +478,8 @@
     crowdOn = s.crowd.on
     renderObstacles(s.obstacles)
     renderVehicle(s.vehicle)
+    renderCamera(s.camera)
+    $('camera-key-hint').hidden = !s.locked
     $('key-hint').hidden = !s.locked
     $('vehicle-from-sitl').hidden = !s.sitl
     $('vehicle-from-action').hidden = s.sitl
@@ -453,39 +502,17 @@
     if (f.sent) sentCount += f.messages.length
     $('wire-meta').textContent = !feed?.running ? `Paused · not sent (${fmtTime(f.at)})` : f.sent ? `Sent to ${f.sent === 1 ? 'Cockpit' : f.sent + ' clients'} at ${fmtTime(f.at)}` : `Not sent: no one connected (${fmtTime(f.at)})`
     $('wire-count').textContent = `${sentCount} message${sentCount === 1 ? '' : 's'} sent`
-    chart1.push(f.at, f.reading.WaterTemp)
+    for (const [id, { name, unit, decimals, chart }] of Object.entries(SENSORS)) {
+      chart.push(f.at, f.reading[name])
+      $(`now-${id}`).innerHTML = `${f.reading[name].toFixed(decimals)}<small>${unit}</small>`
+    }
     chart3.push(f.at, f.reading.WaterTemp)
     $('temp-3').textContent = f.reading.WaterTemp.toFixed(1)
     $('temp-3').classList.remove('wait')
   }
 
   // ---- requests from Cockpit's actions
-  const numbers = (req) => {
-    const out = {}
-    for (const [k, v] of Object.entries(req.query)) if (v !== '' && Number.isFinite(Number(v))) out['?' + k] = Number(v)
-    const walk = (o, path) => {
-      if (typeof o === 'number') out[path] = o
-      else if (o && typeof o === 'object') for (const [k, v] of Object.entries(o)) walk(v, path ? `${path}.${k}` : k)
-    }
-    walk(req.json, '')
-    return out
-  }
-  const waitHook = () => { $('hook-v').textContent = 'Waiting for a request'; $('hook-v').classList.add('wait') }
-  const seenKeys = new Set()
-  let requests = []
   const renderRequest = (req) => {
-    requests.push(req.at)
-    const nums = numbers(req)
-    for (const k of Object.keys(nums)) if (!seenKeys.has(k)) {
-      seenKeys.add(k)
-      $('track').append(new Option(k, k))
-    }
-    const key = $('track').value || Object.keys(nums)[0]
-    if (key in nums) {
-      $('hook-v').textContent = Number.isInteger(nums[key]) ? nums[key] : nums[key].toFixed(3)
-      $('hook-v').classList.remove('wait')
-      chart2.push(req.at, nums[key])
-    }
     const log = $('log')
     log.querySelector('.empty')?.remove()
     const el = document.createElement('div')
@@ -495,15 +522,39 @@
     el.innerHTML = `<div class="top"><span class="m">${esc(req.method)}</span><span>${esc(req.path)}</span><span class="t">#${req.id} · ${fmtTime(req.at)}</span></div>${query ? `<div class="q">${query}</div>` : ''}${body}`
     log.prepend(el)
     while (log.children.length > 40) log.lastChild.remove()
-    $('hook-count').textContent = `${req.id} received`
+  }
+  $('clear-log').addEventListener('click', () => { $('log').innerHTML = '<div class="empty">Cleared. Waiting for the next request.</div>' })
+
+  // ---- the gimbal camera. three.js needs WebGL; without it the readouts and the REC badge still work.
+  let gimbal = null, photos = null, recStart = 0
+  import('/gimbal-view.js')
+    .then(({ createGimbalView }) => {
+      gimbal = createGimbalView($('cam-view'), {
+        onMove: (a) => { for (const axis of ['roll', 'pitch', 'yaw']) $(`now-${axis}`).textContent = `${a[axis].toFixed(1)}°` },
+      })
+      if (camera) renderCamera(camera)
+    })
+    .catch(() => {})
+  let camera = null
+  const renderCamera = (c) => {
+    camera = c
+    gimbal?.setTarget({ roll: c.roll, pitch: c.pitch, yaw: c.yaw })
+    gimbal?.setRecording(c.recording)
+    for (const axis of ['roll', 'pitch', 'yaw']) $(`to-${axis}`).textContent = `target ${c[axis].toFixed(1)}°`
+    if (!gimbal) for (const axis of ['roll', 'pitch', 'yaw']) $(`now-${axis}`).textContent = `${c[axis].toFixed(1)}°`
+    if (photos !== null && c.photos > photos) {
+      $('shutter').classList.remove('go'); void $('shutter').offsetWidth; $('shutter').classList.add('go')
+      gimbal?.shutter()
+    }
+    photos = c.photos
+    $('photos').textContent = c.photos ? `${c.photos} photo${c.photos === 1 ? '' : 's'} taken` : 'No photos yet'
+    if (c.recording && $('rec').hidden) recStart = Date.now() - c.recordingForMs
+    $('rec').hidden = !c.recording
   }
   setInterval(() => {
-    const now = Date.now()
-    requests = requests.filter((t) => t > now - 2000)
-    if (seenKeys.size || requests.length) $('hook-rate').textContent = `${(requests.length / 2).toFixed(1)} requests per second`
-  }, 500)
-  $('track').addEventListener('change', () => { chart2.clear(); waitHook() })
-  $('clear-log').addEventListener('click', () => { $('log').innerHTML = '<div class="empty">Cleared. Waiting for the next request.</div>'; chart2.clear(); waitHook() })
+    const s = Math.floor((Date.now() - recStart) / 1000)
+    $('rec-time').textContent = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+  }, 250)
 
   // ---- the audience
   let crowdOn = false
@@ -554,6 +605,7 @@
   es.addEventListener('state', (e) => renderState(JSON.parse(e.data)))
   es.addEventListener('feed', (e) => renderFeed(JSON.parse(e.data)))
   es.addEventListener('request', (e) => renderRequest(JSON.parse(e.data)))
+  es.addEventListener('camera', (e) => renderCamera(JSON.parse(e.data)))
   es.addEventListener('crowd', (e) => renderCrowd(JSON.parse(e.data)))
   es.addEventListener('flash', (e) => renderFlash(JSON.parse(e.data)))
   es.addEventListener('obstacles', (e) => renderObstacles(JSON.parse(e.data).list))
@@ -561,10 +613,15 @@
 
   // The addresses to paste follow wherever this page is served from: localhost, or the public host over TLS.
   $('ws-url').textContent = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`
-  $('hook-url').textContent = `${location.origin}/axis?v={{ inputs/mavlink/axis-x }}`
+  $('api-attitude').textContent = `${location.origin}/camera/attitude?roll=0&pitch=-30&yaw=45`
+  $('api-photo').textContent = `${location.origin}/camera/photo`
+  $('api-rec-start').textContent = `${location.origin}/camera/record/start`
+  $('api-rec-stop').textContent = `${location.origin}/camera/record/stop`
 
   let start = 0
   try { start = Number(localStorage.getItem('payload-console-tab')) || 0 } catch {}
+  const asked = Number(new URLSearchParams(location.search).get('tab'))
+  if (asked >= 1 && asked <= tabs.length) start = asked - 1
   select(start)
 })()
 </script>

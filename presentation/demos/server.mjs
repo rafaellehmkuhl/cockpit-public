@@ -12,7 +12,10 @@ const PORT = Number(process.env.PORT ?? 8765)
 const PAGE = new URL('./index.html', import.meta.url)
 const JOIN = new URL('./join.html', import.meta.url)
 const VENDOR = fileURLToPath(new URL('./vendor/', import.meta.url))
-const OBSTACLE_MAP = new URL('./obstacle-map.js', import.meta.url)
+const MODULES = {
+  '/obstacle-map.js': new URL('./obstacle-map.js', import.meta.url),
+  '/gimbal-view.js': new URL('./gimbal-view.js', import.meta.url),
+}
 const TYPES = { '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.txt': 'text/plain' }
 const MAX_BODY = 64 * 1024
 // On a public host the feed controls need this key (sent by the page as `x-control-key`); locally there is none.
@@ -23,12 +26,18 @@ const feed = {
   running: true,
   format: 'json',
   rateHz: 10,
-  waterTemp: 18.4,
-  wave: true,
-  winchLocked: false,
-  status: 'Logging',
+  sensors: {
+    temperature: { value: 18.4, drift: true },
+    salinity: { value: 35, drift: true },
+    luminosity: { value: 420, drift: true },
+  },
 }
-const STATUSES = ['Logging', 'Idle', 'Recovering']
+// The variable each virtual sensor sends, the range the console can set, and how far and how slowly it drifts.
+const SENSORS = {
+  temperature: { name: 'WaterTemp', min: -5, max: 45, amplitude: 1.2, periodS: 20, decimals: 2 },
+  salinity: { name: 'Salinity', min: 0, max: 42, amplitude: 0.4, periodS: 27, decimals: 2 },
+  luminosity: { name: 'Luminosity', min: 0, max: 2000, amplitude: 40, periodS: 13, decimals: 0 },
+}
 const RATES = [1, 2, 5, 10, 20]
 
 const lanUrls = () =>
@@ -45,6 +54,7 @@ const broadcast = (event, data) => {
 }
 const state = () => ({
   feed,
+  camera: cameraNow(),
   crowd: { on: crowd.on },
   obstacles: obstacleList(),
   vehicle: vehicleNow(),
@@ -290,34 +300,24 @@ const flashPhones = (text) => {
 // Each phone hears how many others are in, once a second.
 setInterval(() => toPhones({ type: 'count', count: phones.size }), 1000)
 
-// The temperature drifts on a slow wave so the data lake sees a change every tick: Cockpit only notifies listeners
+// Drifting sensors move on a slow wave so the data lake sees a change every tick: Cockpit only notifies listeners
 // (plots, action links, DIY widgets) when a value changes.
 const started = Date.now()
-let sonar = 12.3
 const reading = () => {
   const t = (Date.now() - started) / 1000
-  const wave = feed.wave ? 1.2 * Math.sin((2 * Math.PI * t) / 20) + 0.15 * Math.sin(t * 1.7) : 0
-  sonar = Math.min(40, Math.max(2, sonar + (Math.random() - 0.5) * 0.6))
-  return {
-    WaterTemp: Math.round((feed.waterTemp + wave) * 100) / 100,
-    Sonar: { Ping: { Distance: Math.round(sonar * 100) / 100 } },
-    Winch: { Locked: feed.winchLocked },
-    PayloadStatus: feed.status,
-    ...(crowd.on ? { Crowd: crowdNow() } : {}),
-  }
+  const values = Object.entries(SENSORS).map(([id, { name, min, max, amplitude, periodS, decimals }]) => {
+    const { value, drift } = feed.sensors[id]
+    const wave = drift ? amplitude * (Math.sin((2 * Math.PI * t) / periodS) + 0.12 * Math.sin(t * 1.7)) : 0
+    return [name, Number(Math.min(max, Math.max(min, value + wave)).toFixed(decimals))]
+  })
+  return { ...Object.fromEntries(values), ...(crowd.on ? { Crowd: crowdNow() } : {}) }
 }
 
 // Plain text is one variable per message; a `/` in a name would become `-`, so the names stay flat.
 const messagesFor = (r) =>
   feed.format === 'json'
     ? [JSON.stringify(r)]
-    : [
-        `WaterTemp=${r.WaterTemp}`,
-        `SonarDistance=${r.Sonar.Ping.Distance}`,
-        `WinchLocked=${r.Winch.Locked}`,
-        `PayloadStatus="${r.PayloadStatus}"`,
-        ...(r.Crowd ? Object.entries(r.Crowd).map(([k, v]) => `Crowd${k}=${v}`) : []),
-      ]
+    : Object.entries(r).flatMap(([k, v]) => (k === 'Crowd' ? Object.entries(v).map(([ck, cv]) => `Crowd${ck}=${cv}`) : [`${k}=${v}`]))
 
 let timer
 const tick = () => {
@@ -333,6 +333,35 @@ const schedule = () => {
   timer = setInterval(tick, 1000 / feed.rateHz)
 }
 
+// --- demo 2: a virtual gimbal camera that Cockpit's HTTP actions drive ----------------------------------------------
+const camera = { roll: 0, pitch: -10, yaw: 25, recording: false, recordingSince: 0, photos: 0 }
+const CAMERA_LIMITS = { roll: [-45, 45], pitch: [-90, 30] }
+const wrap180 = (angle) => ((((angle + 180) % 360) + 360) % 360) - 180
+// The page's clock is not the server's, so a recording is sent as how long it has been running.
+const cameraNow = () => {
+  const { recordingSince, ...rest } = camera
+  return { ...rest, recordingForMs: camera.recording ? Date.now() - recordingSince : 0 }
+}
+
+// Each endpoint changes the camera and says how; an unknown one returns null. Angles are degrees, and any of roll,
+// pitch and yaw can be left out to keep its current value.
+const CAMERA_COMMANDS = {
+  '/camera/attitude': (params) => {
+    for (const axis of ['roll', 'pitch', 'yaw']) {
+      const value = params[axis] === null || params[axis] === undefined || params[axis] === '' ? NaN : Number(params[axis])
+      if (!Number.isFinite(value)) continue
+      camera[axis] = axis === 'yaw' ? wrap180(value) : Math.min(CAMERA_LIMITS[axis][1], Math.max(CAMERA_LIMITS[axis][0], value))
+    }
+    return 'attitude'
+  },
+  '/camera/photo': () => (camera.photos++, 'photo'),
+  '/camera/record/start': () => {
+    if (!camera.recording) Object.assign(camera, { recording: true, recordingSince: Date.now() })
+    return 'record-start'
+  },
+  '/camera/record/stop': () => (Object.assign(camera, { recording: false }), 'record-stop'),
+}
+
 // --- control from the page ---------------------------------------------------------------------
 const applyControl = (patch) => {
   if (typeof patch.running === 'boolean') feed.running = patch.running
@@ -341,10 +370,12 @@ const applyControl = (patch) => {
     feed.rateHz = patch.rateHz
     schedule()
   }
-  if (Number.isFinite(patch.waterTemp)) feed.waterTemp = Math.min(60, Math.max(-10, patch.waterTemp))
-  if (typeof patch.wave === 'boolean') feed.wave = patch.wave
-  if (typeof patch.winchLocked === 'boolean') feed.winchLocked = patch.winchLocked
-  if (STATUSES.includes(patch.status)) feed.status = patch.status
+  for (const [id, change] of Object.entries(patch.sensors ?? {})) {
+    const spec = SENSORS[id]
+    if (!spec || typeof change !== 'object' || change === null) continue
+    if (Number.isFinite(change.value)) feed.sensors[id].value = Math.min(spec.max, Math.max(spec.min, change.value))
+    if (typeof change.drift === 'boolean') feed.sensors[id].drift = change.drift
+  }
   if (typeof patch.crowd === 'boolean') [crowd.on, crowd.chosen] = [patch.crowd, true]
 }
 
@@ -383,8 +414,8 @@ const server = createServer(async (req, res) => {
   if (req.method === 'GET' && url.pathname === '/join') {
     return res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(readFileSync(JOIN))
   }
-  if (req.method === 'GET' && url.pathname === '/obstacle-map.js') {
-    return res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8' }).end(readFileSync(OBSTACLE_MAP))
+  if (req.method === 'GET' && MODULES[url.pathname]) {
+    return res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8' }).end(readFileSync(MODULES[url.pathname]))
   }
   if (req.method === 'GET' && url.pathname.startsWith('/vendor/')) {
     const file = resolve(VENDOR, decodeURIComponent(url.pathname.slice('/vendor/'.length)))
@@ -452,7 +483,7 @@ const server = createServer(async (req, res) => {
     at: Date.now(),
     method: req.method,
     path: url.pathname,
-    query: Object.fromEntries(url.searchParams),
+    query: Object.fromEntries([...url.searchParams].filter(([k]) => k !== 'key')),
     headers: Object.fromEntries(
       ['content-type', 'authorization', 'user-agent'].filter((h) => req.headers[h]).map((h) => [h, req.headers[h]])
     ),
@@ -461,6 +492,18 @@ const server = createServer(async (req, res) => {
     from: clientIp(req),
   }
   broadcast('request', entry)
+  if (url.pathname.startsWith('/camera')) {
+    const command = CAMERA_COMMANDS[url.pathname.replace(/\/$/, '')]
+    // On a public host only the presenter's Cockpit moves the camera; actions can send the key as a header or `key=`.
+    const allowed = !CONTROL_KEY || [req.headers['x-control-key'], url.searchParams.get('key')].includes(CONTROL_KEY)
+    if (!command || !allowed) {
+      const error = command ? 'wrong or missing key' : `unknown endpoint; try ${Object.keys(CAMERA_COMMANDS).join(', ')}`
+      return res.writeHead(command ? 401 : 404, { ...CORS, 'Content-Type': 'application/json' }).end(JSON.stringify({ error }))
+    }
+    const event = command({ ...Object.fromEntries(url.searchParams), ...(json && typeof json === 'object' ? json : {}) })
+    broadcast('camera', { ...cameraNow(), event })
+    return res.writeHead(200, { ...CORS, 'Content-Type': 'application/json' }).end(JSON.stringify(cameraNow()))
+  }
   // An action link fires on every change, true and false alike, so `when` lets the action pass its trigger along.
   let flashed
   if (url.pathname === '/crowd/flash') {
@@ -477,7 +520,7 @@ server.listen(PORT, () => {
   schedule()
   console.log(`Demo page:      http://localhost:${PORT}/`)
   console.log(`Cockpit feed:   ws://localhost:${PORT}`)
-  console.log(`Action target:  http://localhost:${PORT}/axis?v={{ inputs/mavlink/axis-x }}`)
+  console.log(`Gimbal camera:  http://localhost:${PORT}/camera/attitude?pitch=-45&yaw=90`)
   console.log(`Audience joins: http://localhost:${PORT}/join`)
   for (const ip of lanUrls()) console.log(`On the network: http://${ip}:${PORT}/`)
 })

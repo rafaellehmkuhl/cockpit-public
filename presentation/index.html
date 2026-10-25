@@ -580,7 +580,7 @@ If someone asks about auth/TLS: wss:// works, Cockpit just opens a WebSocket.
 
 Say it: today this door is one way, data comes in. Getting data out goes through actions, next. Two-way is on the what's-next slide.
 
-On stage the payload console at apdc2026.rlehmk.dev plays this server: it sends the same JSON, plus a sonar, a winch and a status, ten times a second.">
+On stage the payload console at apdc2026.rlehmk.dev plays this server: it sends the same JSON, plus two more virtual sensors, salinity and luminosity, ten times a second.">
   <div class="kicker">Door 1 · the other side</div>
   <h2>The entire server</h2>
   <div class="cols">
@@ -622,7 +622,7 @@ Have ready BEFORE you start:
   · the payload console on tab 1 (apdc2026.rlehmk.dev), side by side with Cockpit
   · Cockpit already open on Settings → General
 
-The console is the payload's side of the wire. Point at 'Waiting for Cockpit' before you paste, and at 'Cockpit connected' after. Then drag its temperature slider and let the plot follow.
+The console is the payload's side of the wire: three virtual sensors, temperature, salinity and luminosity, each with its own slider. Point at 'Waiting for Cockpit' before you paste, and at 'Cockpit connected' after. Then drag one slider at a time and let Cockpit follow: each sensor is its own variable.
 
 No internet: run node presentation/demos/server.mjs, open localhost:8765 and paste ws://localhost:8765 instead.
 
@@ -633,7 +633,7 @@ If it fails: say so and move on within 10 seconds. Do not debug on stage.">
     <div><b>1</b> The payload console, already sending: <code>apdc2026.rlehmk.dev</code></div>
     <div><b>2</b> Paste <code>wss://apdc2026.rlehmk.dev</code> into Cockpit</div>
     <div><b>3</b> Data lake → filter <code>external</code> → values ticking</div>
-    <div><b>4</b> Plot <code>external/watertemp</code>, then heat the payload up</div>
+    <div><b>4</b> Plot them, then drag each sensor's slider on the console</div>
   </div>
   <div class="fallback">If it fails: no debugging on stage. Ten seconds, then move on.</div>
 </section>
@@ -740,24 +740,26 @@ Headers used to be the gotcha — they weren't interpolated. That was fixed in O
 <section data-secs="90" class="slide demo" data-notes="LIVE DEMO, about ninety seconds.
 
 Have ready BEFORE you start:
-  · the payload console on tab 2 (apdc2026.rlehmk.dev), with the URL to paste
-  · a joystick connected, with an axis that moves smoothly
-  · Cockpit with a plotter already on that axis
+  · the payload console on tab 2 (apdc2026.rlehmk.dev): the virtual gimbal camera
+  · Cockpit with the photo, record start and record stop actions already created, each on a button
+  · on the public host, the header x-control-key set to the console key on every action
 
-Create the action live: HTTP request with the axis value in the URL, then an automatic trigger on the axis, rate-limited.
+Create the attitude action live: GET .../camera/attitude?pitch=-45&yaw=90, run it, and the gimbal slews there. Then take a photo (the console flashes) and start a recording (REC blinks), then stop it.
 
-The point to land: the console knows nothing about Cockpit, and nothing is uploaded to Cockpit's repository. It's your own integration, local to you.
+The API: /camera/attitude takes any of roll, pitch and yaw in degrees, in the query or a JSON body; /camera/photo, /camera/record/start and /camera/record/stop take nothing.
 
-No internet: use http://localhost:8765/axis?v=… against the local server.
+The point to land: the camera knows nothing about Cockpit, and nothing is uploaded to Cockpit's repository. It's your own integration, local to you.
+
+No internet: use http://localhost:8765/camera/… against the local server, no key needed.
 
 If it fails: say so and move on within 10 seconds. Do not debug on stage.">
   <div class="badge">Live demo</div>
   <h1>Cockpit calls you</h1>
   <div class="steps">
-    <div><b>1</b> The payload console, waiting for a call</div>
-    <div><b>2</b> New HTTP request action, with the joystick axis in the URL: <code>?v={{ inputs/mavlink/axis-x }}</code></div>
-    <div><b>3</b> Automatic triggers → when the axis changes, no faster than 10/s</div>
-    <div><b>4</b> Move the stick: Cockpit's plotter and the console move together</div>
+    <div><b>1</b> A gimbal camera on the console, waiting for a call</div>
+    <div><b>2</b> New HTTP request action: <code>/camera/attitude?pitch=-45&amp;yaw=90</code></div>
+    <div><b>3</b> Run it: the gimbal slews there</div>
+    <div><b>4</b> Photo, record start, record stop: one action each</div>
   </div>
   <div class="fallback">If it fails: no debugging on stage. Ten seconds, then move on.</div>
 </section>

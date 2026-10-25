@@ -17,6 +17,7 @@ services:
       - ./index.html:/app/index.html:ro
       - ./join.html:/app/join.html:ro
       - ./obstacle-map.js:/app/obstacle-map.js:ro
+      - ./gimbal-view.js:/app/gimbal-view.js:ro
       - ./vendor:/app/vendor:ro
     networks: [my_vps_services_default]
     labels:
