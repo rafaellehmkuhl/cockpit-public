@@ -124,7 +124,10 @@ const views = [
     ],
     miniWidgetContainers: [
       { name: 'Bottom-left container', widgets: [viewSelector('obstacle-run')] },
-      { name: 'Bottom-center container', widgets: [] },
+      {
+        name: 'Bottom-center container',
+        widgets: [{ hash: hashFor('armer:obstacle-run'), component: 'ArmerButton', name: 'ArmerButton', options: {} }],
+      },
       { name: 'Bottom-right container', widgets: [] },
     ],
   },
