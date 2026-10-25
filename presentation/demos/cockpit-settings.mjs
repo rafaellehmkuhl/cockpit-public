@@ -122,20 +122,38 @@ const views = [
     showBottomBarOnBoot: true,
     visible: true,
     // Demo 2 drives the camera from Cockpit's actions and shows it on the payload console; the DIY widget that draws it
-    // in Cockpit only arrives with demo 3, on the camera feed view.
-    widgets: [],
+    // in Cockpit only arrives with demo 3, on the camera feed view. Here the camera's values sit in a container instead.
+    widgets: [
+      {
+        hash: hashFor('container:gimbal'),
+        component: 'CollapsibleContainer',
+        name: 'Gimbal camera',
+        position: { x: 0.35, y: 0.28 },
+        size: { width: 0.3, height: 0.36 },
+        // The container's rows are named 0-left to 9-left and 0-right to 9-right; one indicator per row on the left.
+        options: {
+          elementContainers: [
+            ...[
+              indicator('Roll', 'external/camera/roll', 'mdi-horizontal-rotate-clockwise', '°', { decimalPlaces: 0 }),
+              indicator('Pitch', 'external/camera/pitch', 'mdi-arrow-up-down', '°', { decimalPlaces: 0 }),
+              indicator('Yaw', 'external/camera/yaw', 'mdi-compass-outline', '°', { decimalPlaces: 0 }),
+              indicator('Photos', 'external/camera/photos', 'mdi-camera', '', { decimalPlaces: 0 }),
+              indicator('Recording', 'external/camera/recording', 'mdi-record-rec', '', { useStringVariable: true }),
+            ].map((element, row) => ({ name: `${row}-left`, elements: [element] })),
+            ...[5, 6, 7, 8, 9].map((row) => ({ name: `${row}-left`, elements: [] })),
+            ...Array.from({ length: 10 }, (_, row) => ({ name: `${row}-right`, elements: [] })),
+          ],
+          columns: 1,
+          leftColumnWidth: 50,
+          backgroundOpacity: 0.2,
+          backgroundColor: '#FFFFFF',
+          backgroundBlur: 25,
+        },
+      },
+    ],
     miniWidgetContainers: [
       { name: 'Bottom-left container', widgets: [viewSelector('gimbal')] },
-      {
-        name: 'Bottom-center container',
-        widgets: [
-          indicator('Roll', 'external/camera/roll', 'mdi-horizontal-rotate-clockwise', '°', { decimalPlaces: 0 }),
-          indicator('Pitch', 'external/camera/pitch', 'mdi-arrow-up-down', '°', { decimalPlaces: 0 }),
-          indicator('Yaw', 'external/camera/yaw', 'mdi-compass-outline', '°', { decimalPlaces: 0 }),
-          indicator('Photos', 'external/camera/photos', 'mdi-camera', '', { decimalPlaces: 0 }),
-          indicator('Recording', 'external/camera/recording', 'mdi-record-rec', '', { useStringVariable: true }),
-        ],
-      },
+      { name: 'Bottom-center container', widgets: [] },
       { name: 'Bottom-right container', widgets: [] },
     ],
   },
