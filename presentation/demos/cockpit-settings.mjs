@@ -36,7 +36,14 @@ const plotter = (name, variable, lineColor, y) => ({
 
 const diyFile = (widget, part) =>
   readFileSync(new URL(`./diy-widget/${widget}.${part}`, import.meta.url), 'utf8').replace('https://apdc2026.rlehmk.dev', server)
-const diyOptions = (widget) => ({ html: diyFile(widget, 'html'), css: diyFile(widget, 'css'), js: diyFile(widget, 'js'), scopedScript: true })
+// The widgets draw their own surface, so Cockpit's glass background stays off.
+const diyOptions = (widget) => ({
+  html: diyFile(widget, 'html'),
+  css: diyFile(widget, 'css'),
+  js: diyFile(widget, 'js'),
+  scopedScript: true,
+  inheritCockpitStyles: false,
+})
 
 const views = [
   {
