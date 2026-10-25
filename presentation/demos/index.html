@@ -56,6 +56,8 @@
 
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; min-width: 0; }
   .card.grow { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  pre.grow { flex: 1; min-height: 0; }
+  #wire { white-space: pre-wrap; }
   .label { font-size: 12px; letter-spacing: 2.2px; text-transform: uppercase; color: var(--kelp); font-weight: 700; margin-bottom: 12px; }
   .hint { font-size: 15px; color: var(--muted); line-height: 1.5; }
   .hint code, .chip { font-family: var(--mono); font-size: .92em; color: #bfe6d5; background: rgba(79,164,131,.12); padding: 1px 6px; border-radius: 4px; }
@@ -200,13 +202,13 @@
             <button class="btn" id="running"></button></div>
         </div>
       </div>
-    </div>
-    <div class="col">
-      <div class="card">
+      <div class="card grow">
         <div class="label">Last message on the wire</div>
-        <pre id="wire">—</pre>
+        <pre id="wire" class="grow">—</pre>
         <div class="meta"><span id="wire-meta"></span><span id="wire-count"></span></div>
       </div>
+    </div>
+    <div class="col">
       <div class="card grow">
         <div class="label">As sent · each one is a variable in Cockpit</div>
         <div class="sensors">
@@ -494,6 +496,8 @@
     viewOnly(s.locked && !key)
   }
 
+  // Nested objects go on one line, so the whole message fits under the sliders without scrolling.
+  const compactJson = (value) => JSON.stringify(value, null, 2).replace(/\{\n\s+([^{}]*?)\n\s+\}/g, (_, body) => `{ ${body.replace(/\n\s+/g, ' ')} }`)
   const highlight = (json) => esc(json)
     .replace(/(&quot;|")([^"]+)\1(\s*:)/g, '<span class="k">"$2"</span>$3')
     .replace(/: ("[^"]*")/g, ': <span class="s">$1</span>')
@@ -504,7 +508,7 @@
   let lastFlash = 0
   const renderFeed = (f) => {
     const wire = $('wire')
-    wire.innerHTML = feed?.format === 'text' ? esc(f.messages.join('\n')) : highlight(JSON.stringify(f.reading, null, 2))
+    wire.innerHTML = feed?.format === 'text' ? esc(f.messages.join('\n')) : highlight(compactJson(f.reading))
     if (f.sent && f.at - lastFlash > 1000) { lastFlash = f.at; wire.classList.remove('flash'); void wire.offsetWidth; wire.classList.add('flash') }
     if (f.sent) sentCount += f.messages.length
     $('wire-meta').textContent = !feed?.running ? `Paused · not sent (${fmtTime(f.at)})` : f.sent ? `Sent to ${f.sent === 1 ? 'Cockpit' : f.sent + ' clients'} at ${fmtTime(f.at)}` : `Not sent: no one connected (${fmtTime(f.at)})`
