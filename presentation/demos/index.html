@@ -536,7 +536,8 @@
 
   // ---- the gimbal camera. three.js needs WebGL; without it the readouts and the REC badge still work.
   let gimbal = null, photos = null, recStart = 0
-  import('/gimbal-view.js')
+  // A fresh URL each load: Chrome reuses a module it imported before, even across a hard reload.
+  import(`/gimbal-view.js?t=${Date.now()}`)
     .then(({ createGimbalView }) => {
       gimbal = createGimbalView($('cam-view'), {
         onMove: (a) => { for (const axis of ['roll', 'pitch', 'yaw']) $(`now-${axis}`).textContent = `${a[axis].toFixed(1)}°` },
@@ -588,7 +589,7 @@
   let crowdMap, vehicle = null, obstacles = []
   const ensureCrowdMap = async () => {
     if (crowdMap || $('panel-4').hidden) return crowdMap?.resize()
-    const { createObstacleMap } = await import('/obstacle-map.js')
+    const { createObstacleMap } = await import(`/obstacle-map.js?t=${Date.now()}`)
     crowdMap ??= createObstacleMap($('crowd-map'), { minDistance: 10, zoomButtons: true })
     crowdMap.setObstacles(obstacles)
     crowdMap.setVehicle(vehicle)

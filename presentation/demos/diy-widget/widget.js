@@ -28,7 +28,8 @@
   clearBars()
   ;(typeof root === 'undefined' ? window.setInterval : cockpit.setInterval)(clearBars, 500)
 
-  import(`${SERVER}/gimbal-view.js`).then(({ createGimbalView }) => {
+  // A fresh URL each run, so a redeployed drawing is not served from an old cached copy.
+  import(`${SERVER}/gimbal-view.js?t=${Date.now()}`).then(({ createGimbalView }) => {
     const gimbal = createGimbalView(host.querySelector('.view'), {
       onMove: (now) => host.querySelectorAll('[data-axis]').forEach((el) => (el.textContent = `${now[el.dataset.axis].toFixed(1)}°`)),
     })
