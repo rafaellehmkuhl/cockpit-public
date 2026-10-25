@@ -19,7 +19,7 @@ const TEXT = 'text/plain; charset=utf-8'
 const FILES = {
   '/obstacle-map.js': [new URL('./obstacle-map.js', import.meta.url), JS],
   '/gimbal-view.js': [new URL('./gimbal-view.js', import.meta.url), JS],
-  '/devcon2026-logo.glb': [new URL('./devcon2026-logo.glb', import.meta.url), 'model/gltf-binary'],
+  '/devcon2026-logo.png': [new URL('./devcon2026-logo.png', import.meta.url), 'image/png'],
   '/diy-widget/widget.html': [new URL('./diy-widget/widget.html', import.meta.url), TEXT],
   '/diy-widget/widget.css': [new URL('./diy-widget/widget.css', import.meta.url), TEXT],
   '/diy-widget/widget.js': [new URL('./diy-widget/widget.js', import.meta.url), TEXT],

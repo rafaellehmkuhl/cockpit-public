@@ -19,7 +19,7 @@ services:
       - ./obstacle-map.js:/app/obstacle-map.js:ro
       - ./gimbal-view.js:/app/gimbal-view.js:ro
       - ./camera-world.html:/app/camera-world.html:ro
-      - ./devcon2026-logo.glb:/app/devcon2026-logo.glb:ro
+      - ./devcon2026-logo.png:/app/devcon2026-logo.png:ro
       - ./diy-widget:/app/diy-widget:ro
       - ./vendor:/app/vendor:ro
     networks: [my_vps_services_default]
