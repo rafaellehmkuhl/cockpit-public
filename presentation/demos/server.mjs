@@ -421,16 +421,18 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost')
   if (req.method === 'OPTIONS') return res.writeHead(204, CORS).end()
 
+  // The demo's own files change during rehearsals, so browsers and Cloudflare must not keep an old copy.
+  const fresh = { 'Cache-Control': 'no-cache' }
   if (req.method === 'GET' && url.pathname === '/') {
-    return res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(readFileSync(PAGE))
+    return res.writeHead(200, { ...fresh, 'Content-Type': 'text/html; charset=utf-8' }).end(readFileSync(PAGE))
   }
   if (url.pathname === '/favicon.ico') return res.writeHead(204).end()
   if (req.method === 'GET' && url.pathname === '/join') {
-    return res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(readFileSync(JOIN))
+    return res.writeHead(200, { ...fresh, 'Content-Type': 'text/html; charset=utf-8' }).end(readFileSync(JOIN))
   }
   if (req.method === 'GET' && FILES[url.pathname]) {
     const [file, type] = FILES[url.pathname]
-    return res.writeHead(200, { ...CORS, 'Content-Type': type }).end(readFileSync(file))
+    return res.writeHead(200, { ...CORS, ...fresh, 'Content-Type': type }).end(readFileSync(file))
   }
   if (req.method === 'GET' && url.pathname.startsWith('/vendor/')) {
     const file = resolve(VENDOR, decodeURIComponent(url.pathname.slice('/vendor/'.length)))
