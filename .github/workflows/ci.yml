@@ -201,6 +201,7 @@ jobs:
           path: sitl
 
   deploy-page:
+    if: false
     needs: [test, build-ardusub-wasm]
     runs-on: ubuntu-latest
     steps:
@@ -254,30 +255,6 @@ jobs:
           uploadExtension: dmg
           latestMetadataName: latest-mac-arm64.yml
           deployCommand: deploy:electron:mac:arm64
-
-        - os: ubuntu-latest
-          suffix: linux
-          arch: x86_64
-          buildExtension: AppImage
-          uploadExtension: AppImage.tar.gz
-          latestMetadataName: latest-linux.yml
-          deployCommand: deploy:electron
-
-        - os: ubuntu-24-arm
-          suffix: linux
-          arch: arm64
-          buildExtension: AppImage
-          uploadExtension: AppImage.tar.gz
-          latestMetadataName: latest-linux-arm64.yml
-          deployCommand: deploy:electron
-
-        - os: windows-latest
-          suffix: win
-          arch: x64
-          buildExtension: exe
-          uploadExtension: exe
-          latestMetadataName: latest.yml
-          deployCommand: deploy:electron:windows
 
     steps:
       - name: Checkout
@@ -511,6 +488,7 @@ jobs:
           prerelease: true
 
   deploy-flatpak:
+    if: false
     needs: test
     runs-on: ${{ matrix.os }}
     strategy:
@@ -607,6 +585,7 @@ jobs:
           aws s3 cp dist/Cockpit-${{ matrix.suffix }}-${{ matrix.arch }}-${{ env.VERSION }}.${{ matrix.extension }} s3://bcloud-public/cockpit/releases/stable/Cockpit-${{ matrix.suffix }}-${{ matrix.arch }}.${{ matrix.extension }}
 
   deploy-blueos-extension:
+    if: false
     needs: test
     runs-on: ubuntu-latest
     env:
