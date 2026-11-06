@@ -19,7 +19,7 @@ const ack = (type: MavCmd, result = MavResult.MAV_RESULT_ACCEPTED): CommandAck =
 
 describe('sendCommand', () => {
   it('still sees its ack when another command is acknowledged right after it', async () => {
-    const vehicle = { onCommandAck: new Signal<CommandAck>() }
+    const vehicle = { onCommandAck: new Signal<CommandAck>(), sendMessage: vi.fn() }
     const sending = MAVLinkVehicle.prototype.sendCommand.call(
       vehicle,
       command(MavCmd.MAV_CMD_COMPONENT_ARM_DISARM)
@@ -33,7 +33,7 @@ describe('sendCommand', () => {
   })
 
   it('rejects when its own command is refused', async () => {
-    const vehicle = { onCommandAck: new Signal<CommandAck>() }
+    const vehicle = { onCommandAck: new Signal<CommandAck>(), sendMessage: vi.fn() }
     const sending = MAVLinkVehicle.prototype.sendCommand.call(
       vehicle,
       command(MavCmd.MAV_CMD_COMPONENT_ARM_DISARM)

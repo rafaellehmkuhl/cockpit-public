@@ -87,6 +87,19 @@ const SD_FENCE_TARGET_KB = 64
 /**
  * Generic MAVLink vehicle
  */
+/**
+ * How a MAVLink vehicle talks to the vehicle it stands for.
+ */
+export interface MAVLinkVehicleOptions {
+  /**
+   * Sends a message to the vehicle, through the main connection unless given
+   */
+  sendMessage?: (message: MavMessage) => void
+}
+
+/**
+ *
+ */
 export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Modes> {
   _dateLastHeartbeat: Date | undefined = undefined
   _altitude = new Altitude({ msl: unit(0, 'm'), rel: 0 })
@@ -126,15 +139,19 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
   protected currentSystemId = 1
   onMissionCurrent = new SignalTyped()
 
+  protected readonly sendMessage: (message: MavMessage) => void
+
   /**
    * Create MAVLink vehicle
    * @param {Vehicle.Firmware} firmware
    * @param {Vehicle.Type} type
    * @param {number} systemId
+   * @param {MAVLinkVehicleOptions} options
    */
-  constructor(firmware: Vehicle.Firmware, type: Vehicle.Type, systemId: number) {
+  constructor(firmware: Vehicle.Firmware, type: Vehicle.Type, systemId: number, options: MAVLinkVehicleOptions = {}) {
     super(firmware, type)
     this.currentSystemId = systemId
+    this.sendMessage = options.sendMessage ?? sendMavlinkMessage
 
     // Request vehicle to stream a pre-defined list of messages so the GCS can receive them
     try {
@@ -186,7 +203,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
    * @returns {Promise<void>} A promise that resolves with the command acknowledgment.
    */
   async sendCommand(commandMessage: Message.CommandLong | Message.CommandInt, awaitAck = true): Promise<void> {
-    sendMavlinkMessage(commandMessage)
+    this.sendMessage(commandMessage)
 
     if (!awaitAck) return
 
@@ -648,7 +665,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
       yaw_rate: 0,
     }
 
-    sendMavlinkMessage(gotoMessage)
+    this.sendMessage(gotoMessage)
   }
 
   /**
@@ -894,7 +911,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
       mavlink_version: 1,
     }
 
-    sendMavlinkMessage(heartbeatMessage)
+    this.sendMessage(heartbeatMessage)
   }
 
   /**
@@ -907,7 +924,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
       time_unix_usec: Math.floor((performance.timeOrigin + time_since_gcs_start_ms) * 1000),
       time_boot_ms: Math.floor(time_since_gcs_start_ms),
     }
-    sendMavlinkMessage(systemTimeMessage)
+    this.sendMessage(systemTimeMessage)
   }
 
   /**
@@ -942,7 +959,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
     const startTime = performance.now()
     this.onIncomingMAVLinkMessage.add(MAVLinkType.TIMESYNC, timesyncHandler)
 
-    sendMavlinkMessage(timeSyncMessage)
+    this.sendMessage(timeSyncMessage)
 
     while (!timeoutReached && !receivedTimesync) {
       await sleep(100)
@@ -981,7 +998,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
       target_system: this.currentSystemId,
       target_component: 0,
     }
-    sendMavlinkMessage(paramRequestMessage)
+    this.sendMessage(paramRequestMessage)
   }
 
   /**
@@ -1002,7 +1019,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
       // @ts-ignore: The correct type is indeed a char array
       param_id,
     }
-    sendMavlinkMessage(paramRequestReadMessage)
+    this.sendMessage(paramRequestReadMessage)
   }
 
   /**
@@ -1075,7 +1092,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
       // @ts-ignore: The correct type is indeed a Type<MavParamType>
       param_type: settings.type ?? { type: MavParamType.MAV_PARAM_TYPE_UINT8 },
     }
-    sendMavlinkMessage(paramSetMessage)
+    this.sendMessage(paramSetMessage)
   }
 
   /**
@@ -1176,7 +1193,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
       mission_type: { type: missionType },
     }
 
-    sendMavlinkMessage(message)
+    this.sendMessage(message)
   }
 
   /**
@@ -1191,7 +1208,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
       mission_type: { type: missionType },
     }
 
-    sendMavlinkMessage(message)
+    this.sendMessage(message)
   }
 
   /**
@@ -1208,7 +1225,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
       mission_type: { type: missionType },
     }
 
-    sendMavlinkMessage(message)
+    this.sendMessage(message)
   }
 
   /**
@@ -1225,7 +1242,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
       mission_type: { type: missionType },
     }
 
-    sendMavlinkMessage(message)
+    this.sendMessage(message)
   }
 
   /**
@@ -1278,7 +1295,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
       mission_type: { type: missionType },
     }
 
-    sendMavlinkMessage(message)
+    this.sendMessage(message)
   }
 
   /**
@@ -1286,7 +1303,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
    * @param { Message.MissionItemInt } item Item to send
    */
   sendMissionItemInt(item: Message.MissionItemInt): void {
-    sendMavlinkMessage(item)
+    this.sendMessage(item)
   }
 
   /**
@@ -1332,7 +1349,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
    * @returns { Promise<GlobalOrigin> } The origin as read back from the vehicle
    */
   async setGlobalOrigin(coordinates: [number, number], altitude: number): Promise<GlobalOrigin> {
-    sendMavlinkMessage({
+    this.sendMessage({
       type: MAVLinkType.SET_GPS_GLOBAL_ORIGIN,
       target_system: this.currentSystemId,
       latitude: Math.round(coordinates[0] * 1e7),
@@ -1446,7 +1463,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
       target_component: 1,
       mission_type: { type: MavMissionType.MAV_MISSION_TYPE_MISSION },
     }
-    sendMavlinkMessage(message)
+    this.sendMessage(message)
   }
 
   /**
@@ -1623,7 +1640,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
       target_component: 1,
       mission_type: { type: MavMissionType.MAV_MISSION_TYPE_FENCE },
     }
-    sendMavlinkMessage(message)
+    this.sendMessage(message)
 
     while (new Date().getTime() - initTime < timeoutMs) {
       await sleep(50)

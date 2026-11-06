@@ -3,6 +3,7 @@ import { MAVLinkType, MavModeFlag } from '@/libs/connection/m2r/messages/mavlink
 import type { Message } from '@/libs/connection/m2r/messages/mavlink2rest-message'
 import * as ardurover_metadata from '@/libs/vehicle/ardupilot/ParameterRepository/Rover-4.2/apm.pdef.json'
 
+import type { MAVLinkVehicleOptions } from '../mavlink/vehicle'
 import * as Vehicle from '../vehicle'
 import { ArduPilotVehicle } from './ardupilot'
 import { RoverMode as CustomMode } from './types/modes'
@@ -19,9 +20,10 @@ export class ArduRover extends ArduPilotVehicle<CustomMode> {
   /**
    * Create ArduRover vehicle
    * @param {number} system_id
+   * @param {MAVLinkVehicleOptions} options
    */
-  constructor(system_id: number) {
-    super(Vehicle.Type.Rover, system_id, CustomMode)
+  constructor(system_id: number, options: MAVLinkVehicleOptions = {}) {
+    super(Vehicle.Type.Rover, system_id, CustomMode, options)
   }
 
   /**

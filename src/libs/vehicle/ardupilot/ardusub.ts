@@ -4,6 +4,7 @@ import { MAVLinkType, MavModeFlag } from '@/libs/connection/m2r/messages/mavlink
 import type { Message } from '@/libs/connection/m2r/messages/mavlink2rest-message'
 import * as ardusub_metadata from '@/libs/vehicle/ardupilot/ParameterRepository/Sub-4.5/apm.pdef.json'
 
+import type { MAVLinkVehicleOptions } from '../mavlink/vehicle'
 import * as Vehicle from '../vehicle'
 import { ArduPilotVehicle } from './ardupilot'
 import { SubMode as CustomMode } from './types/modes'
@@ -20,9 +21,10 @@ export class ArduSub extends ArduPilotVehicle<CustomMode> {
   /**
    * Create ArduSub vehicle
    * @param {number} system_id
+   * @param {MAVLinkVehicleOptions} options
    */
-  constructor(system_id: number) {
-    super(Vehicle.Type.Sub, system_id, CustomMode)
+  constructor(system_id: number, options: MAVLinkVehicleOptions = {}) {
+    super(Vehicle.Type.Sub, system_id, CustomMode, options)
   }
 
   /**

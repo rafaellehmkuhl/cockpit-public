@@ -18,9 +18,15 @@ export abstract class ArduPilotVehicle<Modes> extends MAVLinkVehicle.MAVLinkVehi
    * @param {Vehicle.Type} type
    * @param {number} systemId
    * @param {object} modeEnum - The CustomMode enum for this vehicle type
+   * @param {MAVLinkVehicle.MAVLinkVehicleOptions} options
    */
-  constructor(type: Vehicle.Type, systemId: number, modeEnum: Record<string, string | number>) {
-    super(Vehicle.Firmware.ArduPilot, type, systemId)
+  constructor(
+    type: Vehicle.Type,
+    systemId: number,
+    modeEnum: Record<string, string | number>,
+    options: MAVLinkVehicle.MAVLinkVehicleOptions = {}
+  ) {
+    super(Vehicle.Firmware.ArduPilot, type, systemId, options)
     registerModeActions(type, modeEnum, this)
   }
 

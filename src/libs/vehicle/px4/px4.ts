@@ -47,9 +47,10 @@ export class PX4 extends MAVLinkVehicle.MAVLinkVehicle<CustomMode> {
    * Create PX4 vehicle
    * @param {Vehicle.Type} type
    * @param {number} system_id
+   * @param {MAVLinkVehicle.MAVLinkVehicleOptions} options
    */
-  constructor(type: Vehicle.Type, system_id: number) {
-    super(Vehicle.Firmware.PX4, type, system_id)
+  constructor(type: Vehicle.Type, system_id: number, options: MAVLinkVehicle.MAVLinkVehicleOptions = {}) {
+    super(Vehicle.Firmware.PX4, type, system_id, options)
     this.currentSystemId = system_id
   }
 
