@@ -989,15 +989,14 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
       })
     }
 
-    startBlueOsSystemTelemetry(
-      () => globalAddress.value,
-      (totalUploadedBytesPerInterface, timestamp) => {
+    startBlueOsSystemTelemetry(() => globalAddress.value, {
+      onNetworkInfo: (totalUploadedBytesPerInterface, timestamp) => {
         // Not awaited, so a slow beacon does not hold this round nor report its failure as a data lake one.
         if (wirelessTrafficWatcher.shouldWarn(totalUploadedBytesPerInterface, timestamp)) {
           suggestCabledLinkIfItMakesSense(timestamp)
         }
-      }
-    )
+      },
+    })
   })
 
   // Both return a function that stops the listener, bound to the vehicle it was added to.

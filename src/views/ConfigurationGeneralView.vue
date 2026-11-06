@@ -280,6 +280,19 @@
               @remove="removeSecondaryVehicle"
             >
               <template #row-actions="{ row }">
+                <v-select
+                  v-if="secondaryVehicleNumber(row.key) !== undefined"
+                  v-tooltip.bottom="'Number this vehicle\'s data-lake variables are named after'"
+                  :model-value="secondaryVehicleNumber(row.key)"
+                  :items="vehicleNumberOptions"
+                  aria-label="Vehicle number"
+                  density="compact"
+                  variant="plain"
+                  hide-details
+                  theme="dark"
+                  class="max-w-[64px]"
+                  @update:model-value="changeSecondaryVehicleNumber(row.key, $event)"
+                />
                 <v-btn
                   v-tooltip.bottom="placeOnMapTooltip(row.key)"
                   :aria-label="placeOnMapTooltip(row.key)"
@@ -588,12 +601,15 @@ import { useInteractionDialog } from '@/composables/interactionDialog'
 import {
   addSecondaryVehicle,
   canPlaceSecondaryVehiclesOnMap,
+  changeSecondaryVehicleNumber,
   duplicatedSecondaryVehicleSystemIds,
+  numberedSecondaryBlueOsVehicles,
   placeSecondaryVehiclesOnMap,
   refreshSecondaryVehicleStates,
   removeSecondaryVehicle,
   secondaryBlueOsAddresses,
   secondaryBlueOsStates,
+  secondaryVehicleNumber,
   secondaryVehicleStates,
   secondaryVehicleTelemetryUri,
   secondaryVehicleUris,
@@ -1067,7 +1083,15 @@ const secondaryVehicleRow = (key: string): ConnectionRow => {
   const state = secondaryVehicleStates.value[uri] ?? getSecondaryConnectionState(uri)
   const watchdogTimeoutMs = mainVehicleStore.vehicleConnectionWatchdogTimeoutMs
   const systemIds = state.systemIds.join(', ')
-  const details = systemIds === '' ? undefined : `System ID ${systemIds}`
+  const vehicleNumber = secondaryVehicleNumber(key)
+  const detailParts = [
+    vehicleNumber === undefined ? undefined : `Vehicle ${vehicleNumber}`,
+    systemIds === '' ? undefined : `System ID ${systemIds}`,
+    secondaryBlueOsStates.value[key]?.vehicleId === null
+      ? 'BlueOS data not received: connect to this vehicle once as the main vehicle to enable it'
+      : undefined,
+  ].filter((part) => part !== undefined)
+  const details = detailParts.length === 0 ? undefined : detailParts.join(' · ')
   if (secondaryBlueOsStates.value[key]?.isReachable === false) {
     return { key, address: key, status: 'disconnected', statusLabel: 'BlueOS unreachable', details }
   }
@@ -1079,6 +1103,11 @@ const secondaryVehicleRow = (key: string): ConnectionRow => {
     details,
   }
 }
+
+const vehicleNumberOptions = computed(() => {
+  const highestNumber = Math.max(0, ...numberedSecondaryBlueOsVehicles.value.map((vehicle) => vehicle.vehicleNumber))
+  return Array.from({ length: highestNumber + 1 }, (_, index) => index + 1)
+})
 
 const secondaryVehicleRows = computed(() =>
   [...secondaryBlueOsAddresses.value, ...secondaryVehicleUris.value].map(secondaryVehicleRow)

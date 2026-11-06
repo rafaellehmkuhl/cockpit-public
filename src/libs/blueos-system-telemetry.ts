@@ -11,17 +11,37 @@ const setBlueOsVariable = (id: string, name: string, value: number): void => {
 }
 
 /**
+ * Options of {@link startBlueOsSystemTelemetry}.
+ */
+export interface BlueOsSystemTelemetryOptions {
+  /**
+   * Prefix of the data-lake variable ids, 'blueos' unless the variables belong to a vehicle other than the main one.
+   */
+  idPrefix?: string
+  /**
+   * Prefix of the data-lake variable names, telling apart the variables of different vehicles.
+   */
+  namePrefix?: string
+  /**
+   * Called on every network reading, with the bytes each interface has transmitted so far.
+   */
+  onNetworkInfo?: (totalUploadedBytesPerInterface: Record<string, number>, timestamp: number) => void
+}
+
+/**
  * Mirrors a BlueOS's system information (CPU temperature, load and frequency, network traffic) into the data lake,
  * polling it every second.
  * @param {() => string} getAddress Returns the address of the BlueOS, read on every poll
- * @param {(totalUploadedBytesPerInterface: Record<string, number>, timestamp: number) => void} [onNetworkInfo]
- * Called on every network reading, with the bytes each interface has transmitted so far
- * @returns {void}
+ * @param {BlueOsSystemTelemetryOptions} [options] Naming of the variables, and a hook on the network readings
+ * @returns {() => void} Stops the polling
  */
 export const startBlueOsSystemTelemetry = (
   getAddress: () => string,
-  onNetworkInfo?: (totalUploadedBytesPerInterface: Record<string, number>, timestamp: number) => void
-): void => {
+  { idPrefix = 'blueos', namePrefix = '', onNetworkInfo }: BlueOsSystemTelemetryOptions = {}
+): (() => void) => {
+  const setVariable = (path: string, name: string, value: number): void =>
+    setBlueOsVariable(`${idPrefix}/${path}`, `${namePrefix}${name}`, value)
+
   // Store the recent network readings of each interface, which the published speeds are measured across
 
   // eslint-disable-next-line jsdoc/require-jsdoc, prettier/prettier
@@ -30,7 +50,7 @@ export const startBlueOsSystemTelemetry = (
   // Long enough to span several counter refreshes, which is what makes the published speed the real rate.
   const speedAveragingWindowMs = 10000
 
-  setInterval(async () => {
+  const interval = setInterval(async () => {
     try {
       const blueosStatus = await getStatus(getAddress())
       if (!blueosStatus) {
@@ -44,7 +64,7 @@ export const startBlueOsSystemTelemetry = (
     // Update CPU temperature in the data lake
     try {
       const temp = await getCpuTempCelsius(getAddress())
-      setBlueOsVariable('blueos/cpu/tempC', 'CPU Temperature', temp)
+      setVariable('cpu/tempC', 'CPU Temperature', temp)
     } catch (error) {
       console.error(`Failed to update CPU temperature in data lake: ${error}`)
     }
@@ -53,13 +73,13 @@ export const startBlueOsSystemTelemetry = (
     try {
       const updatedCpusInfos = await getCpusInfo(getAddress())
       updatedCpusInfos.forEach((cpu) => {
-        setBlueOsVariable(`blueos/${cpu.name}/usage`, `BlueOS CPU '${cpu.name}' usage`, cpu.usage)
-        setBlueOsVariable(`blueos/${cpu.name}/frequency`, `BlueOS CPU '${cpu.name}' frequency`, cpu.frequency)
+        setVariable(`${cpu.name}/usage`, `BlueOS CPU '${cpu.name}' usage`, cpu.usage)
+        setVariable(`${cpu.name}/frequency`, `BlueOS CPU '${cpu.name}' frequency`, cpu.frequency)
       })
       const averageUsage = updatedCpusInfos.reduce((acc, cpu) => acc + cpu.usage, 0) / updatedCpusInfos.length
       const averageFrequency = updatedCpusInfos.reduce((acc, cpu) => acc + cpu.frequency, 0) / updatedCpusInfos.length
-      setBlueOsVariable('blueos/cpu/usageAverage', 'BlueOS CPU Usage (average)', averageUsage)
-      setBlueOsVariable('blueos/cpu/frequencyAverage', 'BlueOS CPU Frequency (average)', averageFrequency)
+      setVariable('cpu/usageAverage', 'BlueOS CPU Usage (average)', averageUsage)
+      setVariable('cpu/frequencyAverage', 'BlueOS CPU Frequency (average)', averageFrequency)
     } catch (error) {
       console.error(`Failed to update CPU load in data lake: ${error}`)
     }
@@ -71,7 +91,7 @@ export const startBlueOsSystemTelemetry = (
       const totalUploadedBytesPerInterface: Record<string, number> = {}
 
       updatedNetworkInfos.forEach((networkInterface) => {
-        const interfaceId = `blueos/network/${networkInterface.name}`
+        const interfacePath = `network/${networkInterface.name}`
         const interfaceName = `BlueOS network '${networkInterface.name}'`
         totalUploadedBytesPerInterface[networkInterface.name] = networkInterface.total_transmitted_B
 
@@ -80,9 +100,9 @@ export const startBlueOsSystemTelemetry = (
         const totalTransmittedMB = networkInterface.total_transmitted_B / (1024 * 1024)
 
         // Update total values in MB
-        setBlueOsVariable(`${interfaceId}/totalReceivedMB`, `${interfaceName} total received (MB)`, totalReceivedMB)
-        setBlueOsVariable(
-          `${interfaceId}/totalTransmittedMB`,
+        setVariable(`${interfacePath}/totalReceivedMB`, `${interfaceName} total received (MB)`, totalReceivedMB)
+        setVariable(
+          `${interfacePath}/totalTransmittedMB`,
           `${interfaceName} total transmitted (MB)`,
           totalTransmittedMB
         )
@@ -96,13 +116,13 @@ export const startBlueOsSystemTelemetry = (
         const oldestReading = readings[0] ?? storedReadings[storedReadings.length - 1]
         if (oldestReading) {
           const spanMs = currentTimestamp - oldestReading.timestamp
-          setBlueOsVariable(
-            `${interfaceId}/downloadSpeedMbps`,
+          setVariable(
+            `${interfacePath}/downloadSpeedMbps`,
             `${interfaceName} download speed (Mbps)`,
             counterDeltaToMbps(networkInterface.total_received_B - oldestReading.bytesReceived, spanMs)
           )
-          setBlueOsVariable(
-            `${interfaceId}/uploadSpeedMbps`,
+          setVariable(
+            `${interfacePath}/uploadSpeedMbps`,
             `${interfaceName} upload speed (Mbps)`,
             counterDeltaToMbps(networkInterface.total_transmitted_B - oldestReading.bytesTransmitted, spanMs)
           )
@@ -122,4 +142,5 @@ export const startBlueOsSystemTelemetry = (
       console.error(`Failed to update network information in data lake: ${error}`)
     }
   }, 1000)
+  return () => clearInterval(interval)
 }

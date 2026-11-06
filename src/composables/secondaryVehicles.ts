@@ -8,9 +8,11 @@ import { mavlink2RestWebsocketUri } from '@/libs/blueos'
 import * as Connection from '@/libs/connection/connection'
 import { ConnectionManager } from '@/libs/connection/connection-manager'
 import {
+  type NumberedSecondaryBlueOs,
   type SecondaryBlueOsState,
   normalizeBlueOsAddress,
   secondaryBlueOsAddressesKey,
+  syncSecondaryBlueOsTelemetry,
   syncSecondaryBlueOsVehicles,
 } from '@/libs/secondary-blueos-vehicles'
 import {
@@ -19,6 +21,7 @@ import {
   secondaryVehicleUrisKey,
   syncSecondaryVehicleConnections,
 } from '@/libs/vehicle/mavlink/secondary-connections'
+import { type VehicleNumbers, assignVehicleNumbers, setVehicleNumber } from '@/libs/vehicle-numbers'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
 import type { PointOfInterestCoordinates } from '@/types/mission'
 
@@ -51,6 +54,56 @@ export const secondaryVehicleStates = ref<Record<string, SecondaryConnectionStat
 
 /** Runtime state of the BlueOS of each vehicle added by it */
 export const secondaryBlueOsStates = ref<Record<string, SecondaryBlueOsState>>({})
+
+// Machine-local, since the numbers are how this computer's widgets and connections refer to each vehicle.
+const storedVehicleNumbers = useStorage<VehicleNumbers>('cockpit-vehicle-numbers', {})
+const vehicleNumbers = computed<VehicleNumbers>(() =>
+  typeof storedVehicleNumbers.value === 'object' && storedVehicleNumbers.value !== null
+    ? storedVehicleNumbers.value
+    : {}
+)
+
+/**
+ * Vehicles added by their BlueOS whose data is mirrored under a number. The same vehicle added twice, by two
+ * addresses, is only mirrored from the first one.
+ */
+export const numberedSecondaryBlueOsVehicles = computed<NumberedSecondaryBlueOs[]>(() => {
+  const numberedVehicleIds = new Set<string>()
+  return secondaryBlueOsAddresses.value.flatMap((address) => {
+    const vehicleId = secondaryBlueOsStates.value[address]?.vehicleId
+    if (typeof vehicleId !== 'string' || numberedVehicleIds.has(vehicleId)) return []
+    const vehicleNumber = vehicleNumbers.value[vehicleId]
+    if (vehicleNumber === undefined) return []
+    numberedVehicleIds.add(vehicleId)
+    return [{ address, vehicleNumber }]
+  })
+})
+
+/**
+ * Number a vehicle added by its BlueOS is mirrored under.
+ * @param {string} address Address of the vehicle's BlueOS
+ * @returns {number | undefined} Its number, or undefined while it has none
+ */
+export const secondaryVehicleNumber = (address: string): number | undefined =>
+  numberedSecondaryBlueOsVehicles.value.find((vehicle) => vehicle.address === address)?.vehicleNumber
+
+/**
+ * Gives a vehicle added by its BlueOS another number, swapping with the vehicle that had it.
+ * @param {string} address Address of the vehicle's BlueOS
+ * @param {number} vehicleNumber Number to give it
+ * @returns {void}
+ */
+export const changeSecondaryVehicleNumber = (address: string, vehicleNumber: number): void => {
+  const vehicleId = secondaryBlueOsStates.value[address]?.vehicleId
+  if (typeof vehicleId !== 'string') return
+  storedVehicleNumbers.value = setVehicleNumber(vehicleNumbers.value, vehicleId, vehicleNumber)
+  logUserAction(`Changed the number of the secondary vehicle at '${address}' to ${vehicleNumber}`)
+  openSnackbar({
+    message: `The vehicle's data is now under vehicle ${vehicleNumber}.`,
+    variant: 'success',
+    duration: 3000,
+  })
+}
 
 /** System IDs claimed by more than one other vehicle, so all but the first to announce each are being ignored */
 export const duplicatedSecondaryVehicleSystemIds = computed<number[]>(() => {
@@ -128,7 +181,8 @@ const addVehicleByBlueOsAddress = (input: string): boolean => {
   storedBlueOsAddresses.value = [...secondaryBlueOsAddresses.value, address]
   logUserAction(`Added the secondary vehicle with BlueOS at '${address}'`)
   openSnackbar({
-    message: 'Vehicle added. Its telemetry will show up as data-lake variables once it starts arriving.',
+    message:
+      'Vehicle added. Its telemetry and BlueOS data will show up as data-lake variables once they start arriving.',
     variant: 'success',
     duration: 5000,
   })
@@ -272,6 +326,17 @@ export const initSecondaryVehicleConnections = (): void => {
     },
     { immediate: true }
   )
+
+  // A vehicle gets its number the first time its id is read, and keeps it from then on.
+  watch(secondaryBlueOsStates, (states) => {
+    const vehicleIds = Object.values(states).flatMap((state) =>
+      typeof state.vehicleId === 'string' ? [state.vehicleId] : []
+    )
+    const numbers = assignVehicleNumbers(vehicleNumbers.value, vehicleIds)
+    if (numbers !== vehicleNumbers.value) storedVehicleNumbers.value = numbers
+  })
+
+  watch(numberedSecondaryBlueOsVehicles, syncSecondaryBlueOsTelemetry, { immediate: true })
 
   watch(
     secondaryTelemetryUris,
