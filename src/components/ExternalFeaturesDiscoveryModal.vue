@@ -632,7 +632,7 @@
                       >
                         Ignore
                       </v-btn>
-                      <span class="text-xs opacity-70">from {{ offer.extensionName }}</span>
+                      <span class="text-xs opacity-70">from {{ webSocketOfferSource(offer) }}</span>
                       <v-btn
                         class="bg-[#FFFFFF22]"
                         variant="flat"
@@ -641,6 +641,17 @@
                         @click="acceptOffer(offer)"
                       >
                         Connect
+                      </v-btn>
+                    </div>
+                    <div v-if="sameOfferOnEveryVehicle(offer).length > 1" class="flex justify-end mb-2">
+                      <v-btn
+                        class="bg-[#FFFFFF22]"
+                        variant="flat"
+                        prepend-icon="mdi-lan-connect"
+                        size="small"
+                        @click="acceptOfferOnEveryVehicle(offer)"
+                      >
+                        Connect on all {{ sameOfferOnEveryVehicle(offer).length }} vehicles
                       </v-btn>
                     </div>
                   </v-card-item>
@@ -656,7 +667,7 @@
                   <v-card-item>
                     <v-card-title class="font-medium pb-0">{{ offer.name }}</v-card-title>
                     <div class="flex justify-between items-center my-2">
-                      <span class="text-xs opacity-70">from {{ offer.extensionName }}</span>
+                      <span class="text-xs opacity-70">from {{ webSocketOfferSource(offer) }}</span>
                       <v-btn
                         class="bg-[#FFFFFF22]"
                         variant="flat"
@@ -837,7 +848,7 @@
                 </div>
                 <ul class="list-disc list-inside text-xs text-gray-300 space-y-0.5">
                   <li v-for="offer in pendingOffers" :key="offer.url">
-                    {{ offer.name }} <span class="opacity-60">— from {{ offer.extensionName }}</span>
+                    {{ offer.name }} <span class="opacity-60">— from {{ webSocketOfferSource(offer) }}</span>
                   </li>
                 </ul>
               </div>
@@ -859,13 +870,15 @@
 </template>
 
 <script setup lang="ts">
+import { watchDebounced } from '@vueuse/core'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import GlassModal from '@/components/GlassModal.vue'
 import JoystickButtonIndicator from '@/components/JoystickButtonIndicator.vue'
+import { numberedSecondaryBlueOsVehicles, secondaryBlueOsStates } from '@/composables/secondaryVehicles'
 import { useBlueOsStorage } from '@/composables/settingsSyncer'
 import { useSnackbar } from '@/composables/snackbar'
-import { useExtensionWebSocketOffers } from '@/composables/useExtensionWebSocketOffers'
+import { useExtensionWebSocketOffers, webSocketOfferSource } from '@/composables/useExtensionWebSocketOffers'
 import { getAllJavascriptActionConfigs, registerJavascriptActionConfig } from '@/libs/actions/free-javascript'
 import { getAllHttpRequestActionConfigs, registerHttpRequestActionConfig } from '@/libs/actions/http-request'
 import {
@@ -902,7 +915,16 @@ const mainVehicleStore = useMainVehicleStore()
 const { openSnackbar } = useSnackbar()
 const controllerStore = useControllerStore()
 const interfaceStore = useAppInterfaceStore()
-const { discoveredOffers, pendingOffers, handledOffers, acceptOffer, ignoreOffer } = useExtensionWebSocketOffers()
+const {
+  discoveredOffers,
+  fetchSecondaryVehicleOffers,
+  pendingOffers,
+  handledOffers,
+  acceptOffer,
+  ignoreOffer,
+  sameOfferOnEveryVehicle,
+  acceptOfferOnEveryVehicle,
+} = useExtensionWebSocketOffers()
 
 /**
  * Props for the component
@@ -1762,8 +1784,52 @@ watch(isVisible, (visible, oldVisible) => {
   actionRegistryVersion.value++
   if (!oldVisible) {
     fetchBlueOSFeatures()
+    fetchSecondaryVehicleOffers()
   }
 })
+
+// Vehicles whose offers were announced this session, so one reconnecting is not announced again.
+const announcedSecondaryVehicleNumbers = new Set<number>()
+
+const reachableSecondaryVehicleNumbers = computed(() =>
+  numberedSecondaryBlueOsVehicles.value
+    .filter(({ address }) => secondaryBlueOsStates.value[address]?.isReachable === true)
+    .map(({ vehicleNumber }) => vehicleNumber)
+)
+
+// Debounced so vehicles coming up together, as they do when Cockpit starts, are announced together.
+watchDebounced(
+  reachableSecondaryVehicleNumbers,
+  async () => {
+    if (!props.autoCheckOnMount) return
+    await fetchSecondaryVehicleOffers()
+
+    const newlyOfferingNumbers = [
+      ...new Set(
+        pendingOffers.value.flatMap((offer) => (offer.vehicleNumber === undefined ? [] : [offer.vehicleNumber]))
+      ),
+    ]
+      .filter((vehicleNumber) => !announcedSecondaryVehicleNumbers.has(vehicleNumber))
+      .sort((a, b) => a - b)
+    if (newlyOfferingNumbers.length === 0) return
+    newlyOfferingNumbers.forEach((vehicleNumber) => announcedSecondaryVehicleNumbers.add(vehicleNumber))
+
+    const vehicleList = newlyOfferingNumbers.map((vehicleNumber) => `vehicle ${vehicleNumber}`).join(', ')
+    openSnackbar({
+      message: `Extensions on ${vehicleList} offer connections to Cockpit.`,
+      variant: 'info',
+      persistent: true,
+      action: {
+        label: 'Review',
+        handler: () => {
+          activeTab.value = 'connections'
+          isVisible.value = true
+        },
+      },
+    })
+  },
+  { debounce: 3000 }
+)
 
 watch(activeTab, () => {
   actionRegistryVersion.value++

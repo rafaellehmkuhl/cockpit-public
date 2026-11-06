@@ -272,4 +272,8 @@ export interface WebSocketOfferFromExtension {
    * URL template of the connection, with `{{ vehicle-address }}` standing for the vehicle's address
    */
   url: string
+  /**
+   * Number of the secondary vehicle whose extension offers the connection, absent for the main vehicle
+   */
+  vehicleNumber?: number
 }
