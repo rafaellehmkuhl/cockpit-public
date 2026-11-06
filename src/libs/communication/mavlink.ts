@@ -18,10 +18,11 @@ const serializeMavlinkJson5 = (pack: Package): string => {
 }
 
 /**
- * Send a mavlink message
+ * Encodes a MAVLink message as sent from Cockpit, ready to be written to a MAVLink2REST connection
  * @param {MavMessage} message
+ * @returns {Uint8Array} The encoded message
  */
-export const sendMavlinkMessage = (message: MavMessage): void => {
+export const encodeMavlinkMessage = (message: MavMessage): Uint8Array => {
   const pack: Package = {
     header: {
       system_id: 255, // GCS system ID
@@ -30,9 +31,16 @@ export const sendMavlinkMessage = (message: MavMessage): void => {
     },
     message: message,
   }
-  const textEncoder = new TextEncoder()
+  return new TextEncoder().encode(serializeMavlinkJson5(pack))
+}
+
+/**
+ * Send a mavlink message
+ * @param {MavMessage} message
+ */
+export const sendMavlinkMessage = (message: MavMessage): void => {
   try {
-    ConnectionManager.write(textEncoder.encode(serializeMavlinkJson5(pack)))
+    ConnectionManager.write(encodeMavlinkMessage(message))
   } catch (error) {
     // Don't log the error if it's too frequent
     if (Date.now() < lastTimeLoggedConnectionError.getTime() + 10000) return
