@@ -635,10 +635,14 @@
                 missionStore.currentPlanningWaypoints.length < 2 || !vehicleStore.isVehicleOnline,
             }"
             class="flex-1 min-w-0 h-[40px] py-2 px-2 text-sm rounded-md elevation-1 bg-[#3B78A8] hover:bg-[#3B78A8] transition-colors duration-200"
-            @click="uploadMissionToVehicle"
+            @click="uploadMissionToVehicle()"
           >
             UPLOAD MISSION TO VEHICLE
           </button>
+          <MissionUploadTargetMenu
+            :disabled="missionStore.currentPlanningWaypoints.length < 2"
+            @upload="uploadMissionToVehicle"
+          />
           <v-tooltip
             location="top"
             :text="missionActionsMenuExpanded ? 'Hide mission actions' : 'Show mission actions'"
@@ -961,6 +965,7 @@ import MissionPlacementToolbar, {
   PLACEMENT_TOOLBAR_FOOTPRINT,
 } from '@/components/mission-planning/MissionPlacementToolbar.vue'
 import MissionPlanningSidebar from '@/components/mission-planning/MissionPlanningSidebar.vue'
+import MissionUploadTargetMenu from '@/components/mission-planning/MissionUploadTargetMenu.vue'
 import ScanDirectionDial from '@/components/mission-planning/ScanDirectionDial.vue'
 import SurveyVertexList from '@/components/mission-planning/SurveyVertexList.vue'
 import WaypointConfigPanel from '@/components/mission-planning/WaypointConfigPanel.vue'
@@ -1000,6 +1005,7 @@ import { useVertexAngleOverlay } from '@/composables/map/useVertexAngleOverlay'
 import { useWaypointMarkerSize } from '@/composables/map/useWaypointMarkerSize'
 import { goToMenuPage } from '@/composables/menuRouting'
 import { useFenceMapInteraction } from '@/composables/mission-planning/useFenceMapInteraction'
+import { type SecondaryVehicleTarget, uploadMissionToSecondaryVehicle } from '@/composables/secondaryVehicles'
 import { useSnackbar } from '@/composables/snackbar'
 import { useGeoFenceEditorDraft } from '@/composables/useGeoFenceEditorDraft'
 import {
@@ -1060,6 +1066,7 @@ import { SubMenuComponentName } from '@/types/general'
 import {
   type CockpitMission,
   type MissionEstimatesSnapshot,
+  type MissionLoadingCallback,
   type SavedMission,
   type Waypoint,
   type WaypointCoordinates,
@@ -1250,16 +1257,45 @@ const sendPlannedHomeToVehicle = async (coordinates: WaypointCoordinates): Promi
   }
 }
 
-const uploadMissionToVehicle = async (): Promise<void> => {
+// Only the upload itself: the home, the cruise speed and the planner state all belong to the main vehicle.
+const uploadMissionToSecondaryVehicleAndReport = async (
+  target: SecondaryVehicleTarget,
+  missionItems: Waypoint[],
+  loadingCallback: MissionLoadingCallback
+): Promise<void> => {
+  try {
+    await uploadMissionToSecondaryVehicle(target.systemId, missionItems, loadingCallback)
+    showDialog({
+      variant: 'success',
+      title: 'Mission upload succeeded',
+      message: `The mission was uploaded to ${target.name}.`,
+      persistent: false,
+      maxWidth: '500px',
+      actions: [{ text: 'Close', color: 'white', action: closeDialog }],
+    })
+  } catch (error) {
+    showDialog({
+      variant: 'error',
+      title: `Mission upload to ${target.name} failed`,
+      message: messageFromError(error),
+      persistent: false,
+    })
+  } finally {
+    uploadingMission.value = false
+  }
+}
+
+const uploadMissionToVehicle = async (secondaryTarget?: SecondaryVehicleTarget): Promise<void> => {
   if (!home.value) {
     showHomePositionNotSetDialog.value = true
     return
   }
 
   if (!(await confirmMissionFenceBreachIfNeeded())) return
-  const sendPlannedHome = missionStore.plannedHomeSetByOperator && (await confirmHomeMoveIfArmed())
+  const sendPlannedHome =
+    secondaryTarget === undefined && missionStore.plannedHomeSetByOperator && (await confirmHomeMoveIfArmed())
 
-  logUserAction('Uploaded mission to vehicle')
+  logUserAction(secondaryTarget ? `Uploaded mission to ${secondaryTarget.name}` : 'Uploaded mission to vehicle')
   uploadingMission.value = true
   missionUploadProgress.value = 0
   const missionItemsToUpload = toPlain(missionStore.currentPlanningWaypoints)
@@ -1281,6 +1317,11 @@ const uploadMissionToVehicle = async (): Promise<void> => {
   // An empty speed field sends nothing, so the vehicle keeps the speed its own parameters define.
   const cruiseSpeedToCommand = validCruiseSpeed(localCruiseSpeed.value)
   applyCruiseSpeedCommand(missionItemsToUpload, cruiseSpeedToCommand)
+
+  if (secondaryTarget !== undefined) {
+    await uploadMissionToSecondaryVehicleAndReport(secondaryTarget, missionItemsToUpload, loadingCallback)
+    return
+  }
 
   try {
     if (!vehicleStore.isVehicleOnline) {

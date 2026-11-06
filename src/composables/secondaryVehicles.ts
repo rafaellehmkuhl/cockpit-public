@@ -19,12 +19,13 @@ import {
 import {
   type SecondaryConnectionState,
   getSecondaryConnectionState,
+  getSecondaryVehicle,
   secondaryVehicleUrisKey,
   syncSecondaryVehicleConnections,
 } from '@/libs/vehicle/mavlink/secondary-connections'
 import { type VehicleNumbers, assignVehicleNumbers, setVehicleNumber } from '@/libs/vehicle-numbers'
 import { useMainVehicleStore } from '@/stores/mainVehicle'
-import type { PointOfInterestCoordinates } from '@/types/mission'
+import type { MissionLoadingCallback, PointOfInterestCoordinates, Waypoint } from '@/types/mission'
 
 const storedUris = useStorage<string[]>(secondaryVehicleUrisKey, [])
 const storedBlueOsAddresses = useStorage<string[]>(secondaryBlueOsAddressesKey, [])
@@ -371,4 +372,51 @@ export const initSecondaryVehicleConnections = (): void => {
     },
     { immediate: true }
   )
+}
+
+/**
+ * A secondary vehicle the user can act on, such as by uploading a mission to it.
+ */
+export interface SecondaryVehicleTarget {
+  /**
+   * System ID the vehicle announced.
+   */
+  systemId: number
+  /**
+   * Name shown to the user.
+   */
+  name: string
+}
+
+/**
+ * Secondary vehicles that can be acted on, as of the last {@link refreshSecondaryVehicleStates} call.
+ */
+export const secondaryVehicleTargets = computed<SecondaryVehicleTarget[]>(() => {
+  const numbers = new Map(numberedSecondaryBlueOsVehicles.value.map((v) => [mavlink2RestWebsocketUri(v.address), v]))
+  return Object.entries(secondaryVehicleStates.value).flatMap(([uri, state]) =>
+    state.systemIds
+      .filter((systemId) => getSecondaryVehicle(systemId) !== undefined)
+      .map((systemId) => {
+        const vehicleNumber = numbers.get(uri)?.vehicleNumber
+        const name = vehicleNumber === undefined ? `Vehicle with system ID ${systemId}` : `Vehicle ${vehicleNumber}`
+        return { systemId, name }
+      })
+  )
+})
+
+/**
+ * Uploads a mission to a secondary vehicle, leaving the main vehicle and the main connection alone.
+ * @param {number} systemId System ID of the vehicle
+ * @param {Waypoint[]} items Mission items, the home first
+ * @param {MissionLoadingCallback} loadingCallback Called with the upload progress
+ * @returns {Promise<void>}
+ */
+export const uploadMissionToSecondaryVehicle = async (
+  systemId: number,
+  items: Waypoint[],
+  loadingCallback: MissionLoadingCallback
+): Promise<void> => {
+  const vehicle = getSecondaryVehicle(systemId)
+  if (vehicle === undefined) throw new Error('That vehicle is no longer connected.')
+  await vehicle.uploadMission(items, loadingCallback)
 }
