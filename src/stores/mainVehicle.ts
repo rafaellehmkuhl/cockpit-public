@@ -20,6 +20,7 @@ import {
   getNetworkInfo,
   getStatus,
   getVehicleName,
+  mavlink2RestWebsocketUri,
   setKeyDataOnCockpitVehicleStorage,
 } from '@/libs/blueos'
 import * as Connection from '@/libs/connection/connection'
@@ -102,9 +103,7 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
     },
   })
 
-  const defaultMAVLink2RestWebsocketURI = computed(
-    () => `${ws_protocol}://${globalAddress.value}/mavlink2rest/ws/mavlink`
-  )
+  const defaultMAVLink2RestWebsocketURI = computed(() => mavlink2RestWebsocketUri(globalAddress.value))
   const defaultMAVLink2RestHttpURI = computed(() => `${http_protocol}://${globalAddress.value}/mavlink2rest/v1/mavlink`)
   const defaultWebRTCSignallingURI = computed(() => `${ws_protocol}://${globalAddress.value}:6021/`)
   const customMAVLink2RestWebsocketURI = useStorage('cockpit-vehicle-custom-main-connection-uri', {

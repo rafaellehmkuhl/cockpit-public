@@ -25,6 +25,14 @@ const beaconTimeout = 5000
 
 export const protocol = window.location.protocol.includes('file') ? 'http:' : window.location.protocol
 
+/**
+ * Address of the websocket a BlueOS streams its MAVLink messages on, through MAVLink2REST.
+ * @param {string} vehicleAddress Address of the vehicle's BlueOS, without protocol
+ * @returns {string} The websocket URI
+ */
+export const mavlink2RestWebsocketUri = (vehicleAddress: string): string =>
+  `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${vehicleAddress}/mavlink2rest/ws/mavlink`
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export const getBagOfHoldingFromVehicle = async (
   vehicleAddress: string,
