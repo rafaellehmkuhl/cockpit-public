@@ -63,7 +63,7 @@ import { useAppInterfaceStore } from '@/stores/appInterface'
 /**
  * One configured connection, as shown in the list.
  */
-interface ConnectionRow {
+export interface ConnectionRow {
   /**
    * Identifier passed back on removal.
    */

@@ -4,8 +4,15 @@ import { computed, ref, watch } from 'vue'
 import { openSnackbar } from '@/composables/snackbar'
 import { generatePointOfInterestId, usePointsOfInterest } from '@/composables/usePointsOfInterest'
 import { getDataLakeVariableData } from '@/libs/actions/data-lake'
+import { mavlink2RestWebsocketUri } from '@/libs/blueos'
 import * as Connection from '@/libs/connection/connection'
 import { ConnectionManager } from '@/libs/connection/connection-manager'
+import {
+  type SecondaryBlueOsState,
+  normalizeBlueOsAddress,
+  secondaryBlueOsAddressesKey,
+  syncSecondaryBlueOsVehicles,
+} from '@/libs/secondary-blueos-vehicles'
 import {
   type SecondaryConnectionState,
   getSecondaryConnectionState,
@@ -16,12 +23,34 @@ import { useMainVehicleStore } from '@/stores/mainVehicle'
 import type { PointOfInterestCoordinates } from '@/types/mission'
 
 const storedUris = useStorage<string[]>(secondaryVehicleUrisKey, [])
+const storedBlueOsAddresses = useStorage<string[]>(secondaryBlueOsAddressesKey, [])
 
 /** Configured addresses, always read as a list even when the stored value is not one */
 export const secondaryVehicleUris = computed<string[]>(() => (Array.isArray(storedUris.value) ? storedUris.value : []))
 
-/** Runtime state of each configured address, as of the last {@link refreshSecondaryVehicleStates} call */
+/** BlueOS addresses of the vehicles added by them, always read as a list even when the stored value is not one */
+export const secondaryBlueOsAddresses = computed<string[]>(() =>
+  Array.isArray(storedBlueOsAddresses.value) ? storedBlueOsAddresses.value : []
+)
+
+/**
+ * Telemetry address of a configured vehicle, which for one added by its BlueOS is the one that BlueOS serves.
+ * @param {string} key Address the vehicle was added by
+ * @returns {string} Address its telemetry arrives on
+ */
+export const secondaryVehicleTelemetryUri = (key: string): string =>
+  secondaryBlueOsAddresses.value.includes(key) ? mavlink2RestWebsocketUri(key) : key
+
+// Derived instead of stored, so removing a vehicle added by its BlueOS also closes its telemetry connection.
+const secondaryTelemetryUris = computed<string[]>(() => [
+  ...new Set([...secondaryVehicleUris.value, ...secondaryBlueOsAddresses.value.map(mavlink2RestWebsocketUri)]),
+])
+
+/** Runtime state of each telemetry address, as of the last {@link refreshSecondaryVehicleStates} call */
 export const secondaryVehicleStates = ref<Record<string, SecondaryConnectionState>>({})
+
+/** Runtime state of the BlueOS of each vehicle added by it */
+export const secondaryBlueOsStates = ref<Record<string, SecondaryBlueOsState>>({})
 
 /** System IDs claimed by more than one other vehicle, so all but the first to announce each are being ignored */
 export const duplicatedSecondaryVehicleSystemIds = computed<number[]>(() => {
@@ -41,7 +70,7 @@ export const secondaryVehicleUsesMainVehicleSystemId = computed<boolean>(() => {
  * @returns {void}
  */
 export const refreshSecondaryVehicleStates = (): void => {
-  const states = secondaryVehicleUris.value.map((uri) => [uri, getSecondaryConnectionState(uri)] as const)
+  const states = secondaryTelemetryUris.value.map((uri) => [uri, getSecondaryConnectionState(uri)] as const)
   secondaryVehicleStates.value = Object.fromEntries(states)
 }
 
@@ -50,16 +79,7 @@ const refuse = (message: string): false => {
   return false
 }
 
-/**
- * Adds a vehicle by the address of its MAVLink stream, telling the user why it was refused when it cannot be
- * used.
- * @param {string} uri Address of the vehicle
- * @returns {boolean} Whether the vehicle was added
- */
-export const addSecondaryVehicle = (uri: string): boolean => {
-  const trimmedUri = uri.trim()
-  if (trimmedUri === '') return false
-
+const addVehicleByTelemetryUri = (trimmedUri: string): boolean => {
   let normalizedUri: string
   try {
     const parsedUri = new Connection.URI(trimmedUri)
@@ -72,7 +92,7 @@ export const addSecondaryVehicle = (uri: string): boolean => {
     return refuse(`Could not add the vehicle: ${reason}.`)
   }
 
-  if (secondaryVehicleUris.value.includes(normalizedUri)) {
+  if (secondaryTelemetryUris.value.includes(normalizedUri)) {
     return refuse('That vehicle has already been added.')
   }
   if (normalizedUri === ConnectionManager.mainConnection()?.uri().toString()) {
@@ -89,14 +109,55 @@ export const addSecondaryVehicle = (uri: string): boolean => {
   return true
 }
 
+const addVehicleByBlueOsAddress = (input: string): boolean => {
+  let address: string
+  try {
+    address = normalizeBlueOsAddress(input)
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error)
+    return refuse(`Could not add the vehicle: ${reason}.`)
+  }
+
+  if (secondaryTelemetryUris.value.includes(mavlink2RestWebsocketUri(address))) {
+    return refuse('That vehicle has already been added.')
+  }
+  if (address === useMainVehicleStore().globalAddress.toLowerCase()) {
+    return refuse('That is the address of the main vehicle, which is already connected.')
+  }
+
+  storedBlueOsAddresses.value = [...secondaryBlueOsAddresses.value, address]
+  logUserAction(`Added the secondary vehicle with BlueOS at '${address}'`)
+  openSnackbar({
+    message: 'Vehicle added. Its telemetry will show up as data-lake variables once it starts arriving.',
+    variant: 'success',
+    duration: 5000,
+  })
+  return true
+}
+
 /**
- * Removes a vehicle and closes its connection.
- * @param {string} uri Address of the vehicle
+ * Adds a vehicle by the address of its BlueOS, or by the address of its MAVLink stream when given a websocket
+ * address, telling the user why it was refused when it cannot be used.
+ * @param {string} input Address of the vehicle
+ * @returns {boolean} Whether the vehicle was added
+ */
+export const addSecondaryVehicle = (input: string): boolean => {
+  const trimmedInput = input.trim()
+  if (trimmedInput === '') return false
+  return /^wss?:\/\//i.test(trimmedInput)
+    ? addVehicleByTelemetryUri(trimmedInput)
+    : addVehicleByBlueOsAddress(trimmedInput)
+}
+
+/**
+ * Removes a vehicle and closes its connections.
+ * @param {string} key Address the vehicle was added by
  * @returns {void}
  */
-export const removeSecondaryVehicle = (uri: string): void => {
-  storedUris.value = secondaryVehicleUris.value.filter((entry) => entry !== uri)
-  logUserAction(`Removed the secondary vehicle at '${uri}'`)
+export const removeSecondaryVehicle = (key: string): void => {
+  storedUris.value = secondaryVehicleUris.value.filter((entry) => entry !== key)
+  storedBlueOsAddresses.value = secondaryBlueOsAddresses.value.filter((entry) => entry !== key)
+  logUserAction(`Removed the secondary vehicle at '${key}'`)
   openSnackbar({ message: 'Vehicle removed.', variant: 'success', duration: 3000 })
 }
 
@@ -200,7 +261,20 @@ export const initSecondaryVehicleConnections = (): void => {
   const mainVehicleStore = useMainVehicleStore()
 
   watch(
-    secondaryVehicleUris,
+    secondaryBlueOsAddresses,
+    (addresses) => {
+      syncSecondaryBlueOsVehicles(addresses, (address, state) => {
+        const states = { ...secondaryBlueOsStates.value }
+        if (state === undefined) delete states[address]
+        else states[address] = state
+        secondaryBlueOsStates.value = states
+      })
+    },
+    { immediate: true }
+  )
+
+  watch(
+    secondaryTelemetryUris,
     (uris) => {
       syncSecondaryVehicleConnections(uris, () => mainVehicleStore.vehicleConnectionWatchdogTimeoutMs)
       refreshSecondaryVehicleStates()

@@ -248,14 +248,15 @@
         </ExpansiblePanel>
         <ExpansiblePanel no-top-divider :is-expanded="!interfaceStore.isOnPhoneScreen">
           <template #title>Other vehicles (telemetry only)</template>
-          <template #subtitle>{{ secondaryVehicleUris.length }} configured</template>
+          <template #subtitle>{{ secondaryVehicleRows.length }} configured</template>
           <template #info>
             <div class="w-full">
               <p>
-                Receives telemetry from other vehicles on your network, each one on its own address. Their data becomes
-                available as data-lake variables named after the vehicle's system ID, so widgets can read it and a point
-                of interest can follow it on the map. Use the map button next to a vehicle to place it on the map, or
-                reference its position variables yourself, e.g.
+                Receives telemetry from other vehicles on your network, each one added by the address of its BlueOS, or
+                by the address of its telemetry stream when it has no BlueOS. Their data becomes available as data-lake
+                variables named after the vehicle's system ID, so widgets can read it and a point of interest can follow
+                it on the map. Use the map button next to a vehicle to place it on the map, or reference its position
+                variables yourself, e.g.
                 <span class="font-mono">{{ exampleSecondaryVehicleCoordinate }}</span>
               </p>
               <p class="mt-2">
@@ -271,7 +272,7 @@
               v-model="newSecondaryVehicleUri"
               :rows="secondaryVehicleRows"
               empty-message="No other vehicles configured."
-              address-label="Vehicle telemetry address"
+              address-label="Vehicle BlueOS or telemetry address"
               :address-placeholder="exampleSecondaryVehicleUri"
               add-button-label="Add vehicle"
               remove-tooltip="Remove vehicle"
@@ -579,7 +580,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { defaultGlobalAddress } from '@/assets/defaults'
 import ManageCockpitSettings from '@/components/configuration/CockpitSettingsManager.vue'
-import ConnectionsList from '@/components/configuration/ConnectionsList.vue'
+import ConnectionsList, { type ConnectionRow } from '@/components/configuration/ConnectionsList.vue'
 import McpSettings from '@/components/configuration/McpSettings.vue'
 import ExpansiblePanel from '@/components/ExpansiblePanel.vue'
 import VehicleDiscoveryDialog from '@/components/VehicleDiscoveryDialog.vue'
@@ -591,7 +592,10 @@ import {
   placeSecondaryVehiclesOnMap,
   refreshSecondaryVehicleStates,
   removeSecondaryVehicle,
+  secondaryBlueOsAddresses,
+  secondaryBlueOsStates,
   secondaryVehicleStates,
+  secondaryVehicleTelemetryUri,
   secondaryVehicleUris,
   secondaryVehicleUsesMainVehicleSystemId,
 } from '@/composables/secondaryVehicles'
@@ -1041,11 +1045,12 @@ watch(customRtcConfiguration, () => tryToPrettifyRtcConfig())
 const showDiscoveryDialog = ref(false)
 
 // Other vehicles, connected for telemetry only
-const exampleSecondaryVehicleUri = 'ws://192.168.2.4/mavlink2rest/ws/mavlink'
+const exampleSecondaryVehicleUri = '192.168.2.4, or ws://192.168.2.4/mavlink2rest/ws/mavlink'
 const exampleSecondaryVehicleCoordinate = '{{ /mavlink/3/1/GLOBAL_POSITION_INT/lat }} / 1e7'
 const newSecondaryVehicleUri = ref('')
 
-const secondaryVehicleSystemIds = (uri: string): number[] => secondaryVehicleStates.value[uri]?.systemIds ?? []
+const secondaryVehicleSystemIds = (key: string): number[] =>
+  secondaryVehicleStates.value[secondaryVehicleTelemetryUri(key)]?.systemIds ?? []
 
 const canPlaceOnMap = (uri: string): boolean => canPlaceSecondaryVehiclesOnMap(secondaryVehicleSystemIds(uri))
 
@@ -1057,19 +1062,26 @@ const placeOnMapTooltip = (uri: string): string => {
     : 'Waiting for this vehicle to report its position'
 }
 
+const secondaryVehicleRow = (key: string): ConnectionRow => {
+  const uri = secondaryVehicleTelemetryUri(key)
+  const state = secondaryVehicleStates.value[uri] ?? getSecondaryConnectionState(uri)
+  const watchdogTimeoutMs = mainVehicleStore.vehicleConnectionWatchdogTimeoutMs
+  const systemIds = state.systemIds.join(', ')
+  const details = systemIds === '' ? undefined : `System ID ${systemIds}`
+  if (secondaryBlueOsStates.value[key]?.isReachable === false) {
+    return { key, address: key, status: 'disconnected', statusLabel: 'BlueOS unreachable', details }
+  }
+  return {
+    key,
+    address: key,
+    status: secondaryConnectionStatus(state, watchdogTimeoutMs),
+    statusLabel: secondaryConnectionStatusLabel(state, watchdogTimeoutMs),
+    details,
+  }
+}
+
 const secondaryVehicleRows = computed(() =>
-  secondaryVehicleUris.value.map((uri) => {
-    const state = secondaryVehicleStates.value[uri] ?? getSecondaryConnectionState(uri)
-    const watchdogTimeoutMs = mainVehicleStore.vehicleConnectionWatchdogTimeoutMs
-    const systemIds = state.systemIds.join(', ')
-    return {
-      key: uri,
-      address: uri,
-      status: secondaryConnectionStatus(state, watchdogTimeoutMs),
-      statusLabel: secondaryConnectionStatusLabel(state, watchdogTimeoutMs),
-      details: systemIds === '' ? undefined : `System ID ${systemIds}`,
-    }
-  })
+  [...secondaryBlueOsAddresses.value, ...secondaryVehicleUris.value].map(secondaryVehicleRow)
 )
 
 // The connections keep no reactive state of their own, so their status is polled while this view is open
