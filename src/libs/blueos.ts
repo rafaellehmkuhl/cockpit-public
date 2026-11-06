@@ -169,12 +169,16 @@ export const joystickSuggestionsFromExtensionExtras = (
 /**
  * Lists the WebSocket connections BlueOS extensions offer Cockpit in their extras.
  * @param {ExtensionExtras[]} extensionExtras - The extensions' extras
+ * @param {string} [addressTemplate] - Placeholder the vehicle's address is left as, the main vehicle's by default
  * @returns {WebSocketOfferFromExtension[]} One entry per offered connection, with the vehicle's address left as a
- * `{{ vehicle-address }}` placeholder, so an accepted connection follows the vehicle to a new address
+ * placeholder, so an accepted connection follows the vehicle to a new address
  */
-export const webSocketOffersFromExtensionExtras = (extensionExtras: ExtensionExtras[]): WebSocketOfferFromExtension[] =>
+export const webSocketOffersFromExtensionExtras = (
+  extensionExtras: ExtensionExtras[],
+  addressTemplate = '{{ vehicle-address }}'
+): WebSocketOfferFromExtension[] =>
   extensionExtras.flatMap(({ extensionName, service, extras }) => {
-    const baseUrl = blueOsServiceUrl('{{ vehicle-address }}', service).replace(/^http/, 'ws')
+    const baseUrl = blueOsServiceUrl(addressTemplate, service).replace(/^http/, 'ws')
     return extras.webSockets.map(({ name, path }) => ({ extensionName, name, url: baseUrl + path }))
   })
 
