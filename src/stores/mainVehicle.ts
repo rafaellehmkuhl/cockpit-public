@@ -8,21 +8,17 @@ import { computed, reactive, ref, watch } from 'vue'
 import { defaultGlobalAddress, defaultVehicleBatteryPack } from '@/assets/defaults'
 import { useBlueOsStorage } from '@/composables/settingsSyncer'
 import { useSnackbar } from '@/composables/snackbar'
-import { getAllDataLakeVariablesInfo, getDataLakeVariableInfo, setDataLakeVariableData } from '@/libs/actions/data-lake'
+import { getDataLakeVariableInfo, setDataLakeVariableData } from '@/libs/actions/data-lake'
 import { createDataLakeVariable } from '@/libs/actions/data-lake'
 import { altitude_setpoint } from '@/libs/altitude-slider'
 import {
-  counterDeltaToMbps,
-  getCpusInfo,
-  getCpuTempCelsius,
   getIpsInformationFromVehicle,
   getKeyDataFromCockpitVehicleStorage,
-  getNetworkInfo,
-  getStatus,
   getVehicleName,
   mavlink2RestWebsocketUri,
   setKeyDataOnCockpitVehicleStorage,
 } from '@/libs/blueos'
+import { startBlueOsSystemTelemetry } from '@/libs/blueos-system-telemetry'
 import * as Connection from '@/libs/connection/connection'
 import { ConnectionManager } from '@/libs/connection/connection-manager'
 import type { Package } from '@/libs/connection/m2r/messages/mavlink2rest'
@@ -959,38 +955,6 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
 
     updateVehicleId()
 
-    // Register BlueOS variables in the data lake
-    const blueOsVariables = {
-      cpuTemp: { id: 'blueos/cpu/tempC', name: 'CPU Temperature', type: 'number' },
-      cpuUsageAverage: { id: 'blueos/cpu/usageAverage', name: 'BlueOS CPU Usage (average)', type: 'number' },
-      cpuFrequencyAverage: {
-        id: 'blueos/cpu/frequencyAverage',
-        name: 'BlueOS CPU Frequency (average)',
-        type: 'number',
-      },
-    }
-
-    const cpuUsageVariableId = (cpuName: string): string => `blueos/${cpuName}/usage`
-    const cpuFrequencyVariableId = (cpuName: string): string => `blueos/${cpuName}/frequency`
-
-    // Network variable ID functions
-    const networkTotalReceivedMBVariableId = (interfaceName: string): string =>
-      `blueos/network/${interfaceName}/totalReceivedMB`
-    const networkTotalTransmittedMBVariableId = (interfaceName: string): string =>
-      `blueos/network/${interfaceName}/totalTransmittedMB`
-    const networkUploadSpeedMbpsVariableId = (interfaceName: string): string =>
-      `blueos/network/${interfaceName}/uploadSpeedMbps`
-    const networkDownloadSpeedMbpsVariableId = (interfaceName: string): string =>
-      `blueos/network/${interfaceName}/downloadSpeedMbps`
-
-    // Store the recent network readings of each interface, which the published speeds are measured across
-
-    // eslint-disable-next-line jsdoc/require-jsdoc, prettier/prettier
-    const networkReadingsHistory: Map<string, { bytesReceived: number; bytesTransmitted: number; timestamp: number }[]> = new Map()
-
-    // Long enough to span several counter refreshes, which is what makes the published speed the real rate.
-    const speedAveragingWindowMs = 10000
-
     const wirelessTrafficWatcher = createWirelessTrafficWatcher()
     const cabledLinkCheckIntervalMs = 30000
     let checkingCabledLinkSuggestion = false
@@ -1025,145 +989,15 @@ export const useMainVehicleStore = defineStore('main-vehicle', () => {
       })
     }
 
-    const cpusInfos = await getCpusInfo(globalAddress.value)
-    cpusInfos.forEach((cpu) => {
-      Object.assign(blueOsVariables, {
-        [`${cpu.name}_usage`]: {
-          id: cpuUsageVariableId(cpu.name),
-          name: `BlueOS CPU '${cpu.name}' usage`,
-          type: 'number',
-        },
-      })
-      Object.assign(blueOsVariables, {
-        [`${cpu.name}_frequency`]: {
-          id: cpuFrequencyVariableId(cpu.name),
-          name: `BlueOS CPU '${cpu.name}' frequency`,
-          type: 'number',
-        },
-      })
-    })
-
-    // Register network variables for each interface
-    const networkInfos = await getNetworkInfo(globalAddress.value)
-    networkInfos.forEach((networkInterface) => {
-      Object.assign(blueOsVariables, {
-        [`${networkInterface.name}_totalReceivedMB`]: {
-          id: networkTotalReceivedMBVariableId(networkInterface.name),
-          name: `BlueOS network '${networkInterface.name}' total received (MB)`,
-          type: 'number',
-        },
-        [`${networkInterface.name}_totalTransmittedMB`]: {
-          id: networkTotalTransmittedMBVariableId(networkInterface.name),
-          name: `BlueOS network '${networkInterface.name}' total transmitted (MB)`,
-          type: 'number',
-        },
-        [`${networkInterface.name}_uploadSpeedMbps`]: {
-          id: networkUploadSpeedMbpsVariableId(networkInterface.name),
-          name: `BlueOS network '${networkInterface.name}' upload speed (Mbps)`,
-          type: 'number',
-        },
-        [`${networkInterface.name}_downloadSpeedMbps`]: {
-          id: networkDownloadSpeedMbpsVariableId(networkInterface.name),
-          name: `BlueOS network '${networkInterface.name}' download speed (Mbps)`,
-          type: 'number',
-        },
-      })
-    })
-
-    Object.values(blueOsVariables).forEach((variable) => {
-      if (!Object.values(getAllDataLakeVariablesInfo()).find((v) => v.id === variable.id)) {
-        // @ts-ignore: The type is right, only being incorrectly inferred by TS
-        createDataLakeVariable({ ...variable, persistent: false, persistValue: false, source: 'BlueOS' })
-      }
-    })
-
-    setInterval(async () => {
-      try {
-        const blueosStatus = await getStatus(globalAddress.value)
-        if (!blueosStatus) {
-          throw new Error('BlueOS is not available.')
-        }
-      } catch (error) {
-        console.error(error)
-        return
-      }
-
-      // Update CPU temperature in the data lake
-      try {
-        const temp = await getCpuTempCelsius(globalAddress.value)
-        setDataLakeVariableData(blueOsVariables.cpuTemp.id, temp)
-      } catch (error) {
-        console.error(`Failed to update CPU temperature in data lake: ${error}`)
-      }
-
-      // Update information about the CPU cores in the data lake
-      try {
-        const updatedCpusInfos = await getCpusInfo(globalAddress.value)
-        updatedCpusInfos.forEach((cpu) => {
-          setDataLakeVariableData(cpuUsageVariableId(cpu.name), cpu.usage)
-          setDataLakeVariableData(cpuFrequencyVariableId(cpu.name), cpu.frequency)
-        })
-        const averageUsage = updatedCpusInfos.reduce((acc, cpu) => acc + cpu.usage, 0) / updatedCpusInfos.length
-        const averageFrequency = updatedCpusInfos.reduce((acc, cpu) => acc + cpu.frequency, 0) / updatedCpusInfos.length
-        setDataLakeVariableData(blueOsVariables.cpuUsageAverage.id, averageUsage)
-        setDataLakeVariableData(blueOsVariables.cpuFrequencyAverage.id, averageFrequency)
-      } catch (error) {
-        console.error(`Failed to update CPU load in data lake: ${error}`)
-      }
-
-      // Update network information in the data lake
-      try {
-        const updatedNetworkInfos = await getNetworkInfo(globalAddress.value)
-        const currentTimestamp = Date.now()
-        const totalUploadedBytesPerInterface: Record<string, number> = {}
-
-        updatedNetworkInfos.forEach((networkInterface) => {
-          totalUploadedBytesPerInterface[networkInterface.name] = networkInterface.total_transmitted_B
-
-          // Convert total bytes to megabytes (MB)
-          const totalReceivedMB = networkInterface.total_received_B / (1024 * 1024)
-          const totalTransmittedMB = networkInterface.total_transmitted_B / (1024 * 1024)
-
-          // Update total values in MB
-          setDataLakeVariableData(networkTotalReceivedMBVariableId(networkInterface.name), totalReceivedMB)
-          setDataLakeVariableData(networkTotalTransmittedMBVariableId(networkInterface.name), totalTransmittedMB)
-
-          // Calculate and update speeds
-          const windowStart = currentTimestamp - speedAveragingWindowMs
-          const storedReadings = networkReadingsHistory.get(networkInterface.name) ?? []
-          const readings = storedReadings.filter((reading) => reading.timestamp > windowStart)
-          // A gap longer than the window leaves nothing inside it, and publishing nothing would leave the
-          // previous rate standing as if it were current, so the newest reading is measured against instead.
-          const oldestReading = readings[0] ?? storedReadings[storedReadings.length - 1]
-          if (oldestReading) {
-            const spanMs = currentTimestamp - oldestReading.timestamp
-            setDataLakeVariableData(
-              networkDownloadSpeedMbpsVariableId(networkInterface.name),
-              counterDeltaToMbps(networkInterface.total_received_B - oldestReading.bytesReceived, spanMs)
-            )
-            setDataLakeVariableData(
-              networkUploadSpeedMbpsVariableId(networkInterface.name),
-              counterDeltaToMbps(networkInterface.total_transmitted_B - oldestReading.bytesTransmitted, spanMs)
-            )
-          }
-
-          // Store current reading for next calculation
-          readings.push({
-            bytesReceived: networkInterface.total_received_B,
-            bytesTransmitted: networkInterface.total_transmitted_B,
-            timestamp: currentTimestamp,
-          })
-          networkReadingsHistory.set(networkInterface.name, readings)
-        })
-
+    startBlueOsSystemTelemetry(
+      () => globalAddress.value,
+      (totalUploadedBytesPerInterface, timestamp) => {
         // Not awaited, so a slow beacon does not hold this round nor report its failure as a data lake one.
-        if (wirelessTrafficWatcher.shouldWarn(totalUploadedBytesPerInterface, currentTimestamp)) {
-          suggestCabledLinkIfItMakesSense(currentTimestamp)
+        if (wirelessTrafficWatcher.shouldWarn(totalUploadedBytesPerInterface, timestamp)) {
+          suggestCabledLinkIfItMakesSense(timestamp)
         }
-      } catch (error) {
-        console.error(`Failed to update network information in data lake: ${error}`)
       }
-    }, 1000)
+    )
   })
 
   // Both return a function that stops the listener, bound to the vehicle it was added to.
