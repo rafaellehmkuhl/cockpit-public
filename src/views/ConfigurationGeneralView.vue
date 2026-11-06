@@ -277,7 +277,7 @@
               add-button-label="Add vehicle"
               remove-tooltip="Remove vehicle"
               @add="addNewSecondaryVehicle"
-              @remove="removeSecondaryVehicle"
+              @remove="removeSecondaryVehicleAndItsConnections"
             >
               <template #row-actions="{ row }">
                 <v-select
@@ -607,8 +607,10 @@ import {
   placeSecondaryVehiclesOnMap,
   refreshSecondaryVehicleStates,
   removeSecondaryVehicle,
+  removeSecondaryVehicleExtensionConnections,
   secondaryBlueOsAddresses,
   secondaryBlueOsStates,
+  secondaryVehicleExtensionConnections,
   secondaryVehicleNumber,
   secondaryVehicleStates,
   secondaryVehicleTelemetryUri,
@@ -1116,6 +1118,33 @@ const secondaryVehicleRows = computed(() =>
 // The connections keep no reactive state of their own, so their status is polled while this view is open
 // instead of being pushed on every incoming message.
 useIntervalFn(refreshSecondaryVehicleStates, 1000, { immediateCallback: true })
+
+// Asked after the removal instead of before it, so removing a vehicle stays a single click when it left nothing.
+const removeSecondaryVehicleAndItsConnections = (key: string): void => {
+  const connectionUrls = secondaryVehicleExtensionConnections(key)
+  removeSecondaryVehicle(key)
+  if (connectionUrls.length === 0) return
+  showDialog({
+    title: 'Remove its connections too?',
+    message: [
+      `The removed vehicle still has ${connectionUrls.length} connection(s) created from its extensions:`,
+      ...connectionUrls,
+    ],
+    variant: 'info',
+    maxWidth: 600,
+    actions: [
+      { text: 'Keep them', size: 'small', action: () => closeDialog() },
+      {
+        text: 'Remove them',
+        size: 'small',
+        action: () => {
+          closeDialog()
+          removeSecondaryVehicleExtensionConnections(connectionUrls)
+        },
+      },
+    ],
+  })
+}
 
 const addNewSecondaryVehicle = (): void => {
   if (addSecondaryVehicle(newSecondaryVehicleUri.value)) {

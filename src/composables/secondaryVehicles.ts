@@ -7,6 +7,7 @@ import { getDataLakeVariableData } from '@/libs/actions/data-lake'
 import { mavlink2RestWebsocketUri } from '@/libs/blueos'
 import * as Connection from '@/libs/connection/connection'
 import { ConnectionManager } from '@/libs/connection/connection-manager'
+import { getGenericWebSocketConnections, removeGenericWebSocketConnection } from '@/libs/generic-websocket'
 import {
   type NumberedSecondaryBlueOs,
   type SecondaryBlueOsState,
@@ -201,6 +202,30 @@ export const addSecondaryVehicle = (input: string): boolean => {
   return /^wss?:\/\//i.test(trimmedInput)
     ? addVehicleByTelemetryUri(trimmedInput)
     : addVehicleByBlueOsAddress(trimmedInput)
+}
+
+/**
+ * Generic WebSocket connections that point at a vehicle added by its BlueOS through its address variable, as the
+ * ones accepted from its extensions' offers do.
+ * @param {string} address Address of the vehicle's BlueOS
+ * @returns {string[]} The connections' URL templates
+ */
+export const secondaryVehicleExtensionConnections = (address: string): string[] => {
+  const vehicleNumber = secondaryVehicleNumber(address)
+  if (vehicleNumber === undefined) return []
+  const addressVariable = `/vehicles/${vehicleNumber}/address`
+  return Object.keys(getGenericWebSocketConnections()).filter((url) => url.includes(addressVariable))
+}
+
+/**
+ * Removes generic WebSocket connections left behind by a removed vehicle.
+ * @param {string[]} urls URL templates of the connections
+ * @returns {void}
+ */
+export const removeSecondaryVehicleExtensionConnections = (urls: string[]): void => {
+  urls.forEach(removeGenericWebSocketConnection)
+  logUserAction(`Removed ${urls.length} connections created from a removed vehicle's extensions`)
+  openSnackbar({ message: 'Connections removed.', variant: 'success', duration: 3000 })
 }
 
 /**
