@@ -1,6 +1,11 @@
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
 
 import { isReceivingData, isValidMavlinkId } from '@/libs/vehicle/mavlink/secondary-connections'
+
+// The vehicle classes reach the WebAssembly MAVLink codec, which the test runner cannot load.
+vi.mock('@/libs/communication/mavlink', () => ({ encodeMavlinkMessage: vi.fn() }))
+vi.mock('@/libs/vehicle/mavlink/vehicle', () => ({ MAVLinkVehicle: class {} }))
+vi.mock('@/libs/vehicle/vehicle-factory', () => ({ VehicleFactory: {}, vehicleKindFromHeartbeat: vi.fn() }))
 
 const timeoutMs = 4000
 const now = 1_700_000_000_000

@@ -3,8 +3,10 @@
  * into the data lake, so widgets and live-tracked points of interest can follow them without any of them
  * becoming the main vehicle.
  *
- * These links are read-only by design, so no command can ever reach a vehicle the user is not piloting.
- * They also bypass `ConnectionManager`, since adding a connection there replaces the main connection (and
+ * Each vehicle announced on a link also gets a vehicle object, so the user can act on it explicitly, e.g. by
+ * uploading a mission to it. Nothing is sent on its own: no heartbeat, stream request or manual control, all of
+ * which stay with the main vehicle, and a message only ever reaches the system the link announced.
+ * These links bypass `ConnectionManager`, since adding a connection there replaces the main connection (and
  * disconnects the previous one), and its `onRead` is what feeds the main vehicle and the vehicle factory.
  *
  * This module has no Vue dependencies; reactive orchestration lives in the `secondaryVehicles` composable.
@@ -16,14 +18,17 @@ import {
   getDataLakeVariableInfo,
   setDataLakeVariableData,
 } from '@/libs/actions/data-lake'
+import { encodeMavlinkMessage } from '@/libs/communication/mavlink'
 import * as Connection from '@/libs/connection/connection'
-import type { Package } from '@/libs/connection/m2r/messages/mavlink2rest'
+import type { Message as MavMessage, Package } from '@/libs/connection/m2r/messages/mavlink2rest'
 import { MavAutopilot, MAVLinkType } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
 import type { Message } from '@/libs/connection/m2r/messages/mavlink2rest-message'
 import { WebSocketConnection } from '@/libs/connection/websocket-connection'
 import type { ConnectionStatus } from '@/libs/utils/ui'
 import { injectMavlinkPackageIntoDataLake } from '@/libs/vehicle/mavlink/data-lake-injection'
+import { MAVLinkVehicle } from '@/libs/vehicle/mavlink/vehicle'
 import * as Protocol from '@/libs/vehicle/protocol/protocol'
+import { VehicleFactory, vehicleKindFromHeartbeat } from '@/libs/vehicle/vehicle-factory'
 
 /** Persistence key for the configured secondary connection addresses. Machine-local: these are addresses on the local network. */
 export const secondaryVehicleUrisKey = 'cockpit-secondary-mavlink2rest-uris'
@@ -58,6 +63,9 @@ const systemIdOwners = new Map<number, string>()
 
 // Per vehicle instead of per link, since one link carries every system on the vehicle's network.
 const lastMessageAtBySystemId = new Map<number, number>()
+
+// Keyed by system ID like the data-lake variables, and created by the link that owns that ID.
+const vehicles = new Map<number, MAVLinkVehicle<unknown>>()
 
 const isReceivingDataPollIntervalMs = 1000
 
@@ -117,6 +125,55 @@ const refreshIsReceivingDataVariables = (watchdogTimeoutMs: number): void => {
 export const isValidMavlinkId = (id: unknown): id is number =>
   typeof id === 'number' && Number.isInteger(id) && id >= 1 && id <= 255
 
+// The single way out to a secondary vehicle, so the system ID check cannot be skipped by any caller.
+const sendToSecondaryVehicle = (uri: string, systemId: number, message: MavMessage): Uint8Array => {
+  const targetSystem = (
+    message as {
+      /**
+       *
+       */
+      target_system?: unknown
+    }
+  ).target_system
+  if (targetSystem !== systemId) {
+    throw new Error(`Refused to send ${message.type} to vehicle ${systemId}, as it targets system ${targetSystem}.`)
+  }
+  const connection = connections.get(uri)
+  if (systemIdOwners.get(systemId) !== uri || connection === undefined) {
+    throw new Error(`Vehicle ${systemId} is no longer connected.`)
+  }
+  const encodedMessage = encodeMavlinkMessage(message)
+  if (!connection.write(encodedMessage)) throw new Error(`Could not send ${message.type} to vehicle ${systemId}.`)
+  return encodedMessage
+}
+
+const createSecondaryVehicle = (uri: string, mavlinkPackage: Package): void => {
+  const { system_id: systemId, component_id: componentId } = mavlinkPackage.header
+  const kind = vehicleKindFromHeartbeat(mavlinkPackage.message as Message.Heartbeat, systemId, componentId)
+  if (kind === undefined) return
+
+  let vehicle: MAVLinkVehicle<unknown> | undefined = undefined
+  const sendMessage = (message: MavMessage): void => {
+    const encodedMessage = sendToSecondaryVehicle(uri, systemId, message)
+    vehicle?.onOutgoingMessage(encodedMessage)
+  }
+  const builtVehicle = VehicleFactory.buildVehicle(kind.firmware, kind.type, systemId, {
+    sendMessage,
+    isSecondary: true,
+  })
+  if (!(builtVehicle instanceof MAVLinkVehicle)) return
+  vehicle = builtVehicle
+  vehicles.set(systemId, vehicle)
+  console.info(`${LOG_PREFIX} Vehicle ${systemId} on '${uri}' can now be acted on.`)
+}
+
+/**
+ * The vehicle object of a secondary vehicle, to act on it explicitly.
+ * @param {number} systemId System ID the vehicle announced
+ * @returns {MAVLinkVehicle<unknown> | undefined} The vehicle, or undefined when no link announces it
+ */
+export const getSecondaryVehicle = (systemId: number): MAVLinkVehicle<unknown> | undefined => vehicles.get(systemId)
+
 const onSecondaryData = (uri: string, data: Uint8Array): void => {
   let mavlinkPackage: Package
   try {
@@ -150,6 +207,11 @@ const onSecondaryData = (uri: string, data: Uint8Array): void => {
   // ponytail: every message of every secondary link is turned into data-lake variables at whatever rate the
   // vehicle streams, so the cost grows with vehicles x message rate. Filter by message type here if needed.
   injectMavlinkPackageIntoDataLake(mavlinkPackage)
+
+  if (!vehicles.has(systemId) && isVehicleHeartbeat(mavlinkPackage)) createSecondaryVehicle(uri, mavlinkPackage)
+  // ponytail: the vehicle parses the message again, as it only takes raw bytes. Hand it the parsed package if the
+  // double parse ever shows up in a profile.
+  vehicles.get(systemId)?.onIncomingMessage(data)
 }
 
 /**
@@ -216,6 +278,7 @@ export const syncSecondaryVehicleConnections = (uris: string[], getWatchdogTimeo
     systemIdOwners.forEach((owner, systemId) => {
       if (owner !== uri) return
       systemIdOwners.delete(systemId)
+      vehicles.delete(systemId)
       // Only for the systems actually mirrored: one dropped by the guards in `onSecondaryData` never reported
       // as being received, so it has no variable to close out.
       if (lastMessageAtBySystemId.delete(systemId)) setIsReceivingDataVariable(systemId, false)
