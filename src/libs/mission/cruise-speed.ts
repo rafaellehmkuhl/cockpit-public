@@ -1,5 +1,5 @@
 import { MavCmd } from '@/libs/connection/m2r/messages/mavlink2rest-enum'
-import type { CockpitMission, MissionCommand } from '@/types/mission'
+import { type CockpitMission, type MissionCommand, type Waypoint, MissionCommandType } from '@/types/mission'
 
 /**
  * The cruise speed Cockpit shipped as its default, in m/s. Before "use the vehicle's own speed" was stored on its
@@ -55,3 +55,29 @@ export const cruiseSpeedSettings = (
   defaultCruiseSpeed: speed ?? shippedCruiseSpeed,
   cruiseSpeed: speed,
 })
+
+/**
+ * Makes the first planned item of a mission about to be uploaded command the cruise speed, in place of any speed
+ * command it already carries.
+ * @param {Waypoint[]} missionItems - Items about to be uploaded, the home first; the first planned one is changed
+ * @param {number | null} cruiseSpeed - Speed to command, in m/s, or null to leave the vehicle on its own speed
+ * @returns {void}
+ */
+export const applyCruiseSpeedCommand = (missionItems: Waypoint[], cruiseSpeed: number | null): void => {
+  const firstMissionItem = missionItems[1]
+  if (firstMissionItem === undefined) return
+  const existing = Array.isArray(firstMissionItem.commands) ? firstMissionItem.commands : []
+
+  // A mission downloaded from the vehicle still carries the speed command an earlier upload added.
+  firstMissionItem.commands = existing.filter((cmd) => cmd.command !== MavCmd.MAV_CMD_DO_CHANGE_SPEED)
+  if (cruiseSpeed !== null) {
+    firstMissionItem.commands.push({
+      type: MissionCommandType.MAVLINK_NAV_COMMAND,
+      command: MavCmd.MAV_CMD_DO_CHANGE_SPEED,
+      param1: 1,
+      param2: cruiseSpeed,
+      param3: -1,
+      param4: 0,
+    })
+  }
+}

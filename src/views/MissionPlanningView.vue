@@ -1033,6 +1033,7 @@ import { orderedSurveyPath, surveyEndpointEdgeBearing, surveyEntryCornerCount } 
 import type { VehicleTooltipState } from '@/libs/map/vehicle-tooltip'
 import { vehicleTooltipContent } from '@/libs/map/vehicle-tooltip'
 import {
+  applyCruiseSpeedCommand,
   commandedCruiseSpeed,
   cruiseSpeedSettings,
   missionCruiseSpeed,
@@ -1279,23 +1280,7 @@ const uploadMissionToVehicle = async (): Promise<void> => {
 
   // An empty speed field sends nothing, so the vehicle keeps the speed its own parameters define.
   const cruiseSpeedToCommand = validCruiseSpeed(localCruiseSpeed.value)
-  if (missionItemsToUpload.length > 1) {
-    const firstMissionItem = missionItemsToUpload[1]
-    const existing = Array.isArray(firstMissionItem.commands) ? firstMissionItem.commands : []
-
-    // A mission downloaded from the vehicle still carries the speed command an earlier upload added.
-    firstMissionItem.commands = existing.filter((cmd) => cmd.command !== MavCmd.MAV_CMD_DO_CHANGE_SPEED)
-    if (cruiseSpeedToCommand !== null) {
-      firstMissionItem.commands.push({
-        type: MissionCommandType.MAVLINK_NAV_COMMAND,
-        command: MavCmd.MAV_CMD_DO_CHANGE_SPEED,
-        param1: 1,
-        param2: cruiseSpeedToCommand,
-        param3: -1,
-        param4: 0,
-      })
-    }
-  }
+  applyCruiseSpeedCommand(missionItemsToUpload, cruiseSpeedToCommand)
 
   try {
     if (!vehicleStore.isVehicleOnline) {
