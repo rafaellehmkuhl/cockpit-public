@@ -83,7 +83,7 @@ export class ArduSub extends ArduPilotVehicle<CustomMode> {
         if (scaled_pressure3.press_abs !== 0 || scaled_pressure3.press_diff !== 0) return
         const { system_id: messageSystemId, component_id: messageComponentId } = mavlink.header
         // Special names are only for the primary vehicle
-        if (messageSystemId !== this.currentSystemId || messageComponentId !== 1) return
+        if (this.isSecondary || messageSystemId !== this.currentSystemId || messageComponentId !== 1) return
         const aliasId = 'celsius-temperature'
         if (getDataLakeVariableInfo(aliasId) === undefined) {
           createDataLakeVariable({

@@ -27,7 +27,7 @@ export abstract class ArduPilotVehicle<Modes> extends MAVLinkVehicle.MAVLinkVehi
     options: MAVLinkVehicle.MAVLinkVehicleOptions = {}
   ) {
     super(Vehicle.Firmware.ArduPilot, type, systemId, options)
-    registerModeActions(type, modeEnum, this)
+    if (!this.isSecondary) registerModeActions(type, modeEnum, this)
   }
 
   /**

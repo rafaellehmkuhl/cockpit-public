@@ -95,6 +95,10 @@ export interface MAVLinkVehicleOptions {
    * Sends a message to the vehicle, through the main connection unless given
    */
   sendMessage?: (message: MavMessage) => void
+  /**
+   * Whether it stands for a vehicle other than the piloted one, see {@link MAVLinkVehicle.isSecondary}
+   */
+  isSecondary?: boolean
 }
 
 /**
@@ -142,6 +146,12 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
   protected readonly sendMessage: (message: MavMessage) => void
 
   /**
+   * Whether it stands for a vehicle other than the piloted one. Such a vehicle sends nothing on its own, and leaves
+   * the data lake, the message intervals setting and the mode actions to the piloted one, which owns them.
+   */
+  readonly isSecondary: boolean
+
+  /**
    * Create MAVLink vehicle
    * @param {Vehicle.Firmware} firmware
    * @param {Vehicle.Type} type
@@ -152,6 +162,8 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
     super(firmware, type)
     this.currentSystemId = systemId
     this.sendMessage = options.sendMessage ?? sendMavlinkMessage
+    this.isSecondary = options.isSecondary ?? false
+    if (this.isSecondary) return
 
     // Request vehicle to stream a pre-defined list of messages so the GCS can receive them
     try {
@@ -479,7 +491,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
         // without the sensor send INT16_MAX (32767) instead, which would otherwise read as a 327.67 °C ocean.
         if (batteryStatus.id === 0 && batteryStatus.temperature !== 32767) {
           const temperatureC = batteryStatus.temperature / 100
-          setDataLakeVariableData(this.preDefinedDataLakeVariables.celsius2Temperature.id, temperatureC)
+          this.setPredefinedDataLakeVariable(this.preDefinedDataLakeVariables.celsius2Temperature.id, temperatureC)
         }
         break
       }
@@ -498,8 +510,8 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
         } else {
           pitch = Math.asin(sinp)
         }
-        setDataLakeVariableData(this.preDefinedDataLakeVariables.cameraTilt.id, degrees(pitch))
-        setDataLakeVariableData(this.preDefinedDataLakeVariables.cameraTiltLegacy.id, degrees(pitch))
+        this.setPredefinedDataLakeVariable(this.preDefinedDataLakeVariables.cameraTilt.id, degrees(pitch))
+        this.setPredefinedDataLakeVariable(this.preDefinedDataLakeVariables.cameraTiltLegacy.id, degrees(pitch))
         break
       }
       case MAVLinkType.GLOBAL_POSITION_INT: {
@@ -974,7 +986,7 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
     }
 
     const latencyMs = latencyNs * 1e-6
-    setDataLakeVariableData(this.preDefinedDataLakeVariables.networkLatencyMs.id, latencyMs)
+    this.setPredefinedDataLakeVariable(this.preDefinedDataLakeVariables.networkLatencyMs.id, latencyMs)
   }
 
   /**
@@ -1821,10 +1833,21 @@ export abstract class MAVLinkVehicle<Modes> extends Vehicle.AbstractVehicle<Mode
   }
 
   /**
+   * Set one of the pre-defined data-lake variables, which only the piloted vehicle's readings name
+   * @param {string} id Id of the variable
+   * @param {number} value Value to set
+   */
+  private setPredefinedDataLakeVariable(id: string, value: number): void {
+    if (this.isSecondary) return
+    setDataLakeVariableData(id, value)
+  }
+
+  /**
    * Inject variable(s) from the MAVLink package into the DataLake
    * @param { Package } mavlinkPackage
    */
   private addPackageVariablesToDataLake(mavlinkPackage: Package): void {
+    if (this.isSecondary) return
     const legacySystemId = this.shouldCreateLegacyDataLakeVariables ? this.currentSystemId : undefined
     injectMavlinkPackageIntoDataLake(mavlinkPackage, legacySystemId)
   }
