@@ -1,0 +1,1 @@
+import{d as s,cB as n,p as o,q as a,X as c,z as e,cG as m}from"./index-BpLK-M7t.js";const r={class:"flex items-center justify-center m-2 text-sm font-bold text-center text-white select-none min-w-[90px]"},f=s({__name:"Clock",setup(i){const t=n({interval:1e3});return(l,p)=>(a(),o("div",r,c(e(m)(e(t),"E LLL do HH:mm")),1))}});export{f as default};
