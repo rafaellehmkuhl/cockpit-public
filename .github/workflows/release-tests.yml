@@ -92,6 +92,13 @@ jobs:
         # CASES is left unquoted on purpose: it is a list of ids.
         run: node e2e/run.mjs $CASES --url http://localhost:5050 --vehicle localhost --build "${GITHUB_REF_NAME} ${GITHUB_SHA::10}" --out e2e/output
 
+      - name: Dump the test user's synced settings
+        if: always()
+        run: |
+          mkdir -p e2e/output/dump
+          curl -s http://localhost/bag/v1.0/get/cockpit > e2e/output/dump/cockpit.json || true
+          curl -s http://localhost/bag/v1.0/get/cockpit/settings-v2/release-tests > e2e/output/dump/release-tests.json || true
+
       - name: Upload the videos and report
         if: always()
         uses: actions/upload-artifact@v4
