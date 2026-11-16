@@ -1,0 +1,1 @@
+import{bp as i,a as c,g as t,as as m}from"./index-CTAYNHj7.js";const f=()=>{const e=i(),a=c(),s=n=>e.areOdometersAvailable?m(n,a.displayUnitPreferences):"--",o=t(()=>s(e.totalTraveledDistanceMeters)),r=t(()=>s(e.missionTraveledDistanceMeters));return{formattedTotalDistance:o,formattedMissionDistance:r}};export{f as u};
