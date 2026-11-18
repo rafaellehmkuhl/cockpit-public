@@ -154,6 +154,23 @@ gets a frame-rate plot burned in afterwards, drawn on this machine from the page
 (`lib/perf-video.mjs`), and the report shows median and range per window and arm. `<case>.perf.json`
 keeps the raw series.
 
+### Following a long mission (`PERF-04`)
+
+The map following the boat for 60 s, mid-way through a 200-waypoint survey that fills the screen at
+zoom 16, with a 100,000-point trail behind it: one full pass of the survey and this one up to the boat,
+drawn over the waypoints. The trail goes into the key 1.19 kept it in, which later versions import, so
+every build gets the same scene, and the profile also gets a non-empty `cockpit-settings-v1-backup`, or
+1.19 copies the whole trail into one on its first start.
+
+```bash
+node e2e/run.mjs PERF-04 --arms bare --reps 3 --remote <host> --app 'C:\path\to\Cockpit.exe' \
+  --vehicle <vehicle> --app-vehicle <vehicle as the measured machine sees it>
+```
+
+A build frozen by the trail can take minutes to draw the survey, or never draw it; that wait is setup,
+not measured, and the case fails on it after 4 minutes. It sets `meta.waitForSync: false`, since such a
+build never finishes its first sync either and the seeded package already matches the vehicle's.
+
 ### Recording through an HDMI capture card (`--hdmi`)
 
 A capture card plugged into the measured machine's HDMI output, and into this one over USB, records what
