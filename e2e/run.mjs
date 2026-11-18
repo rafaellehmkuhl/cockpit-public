@@ -346,6 +346,8 @@ for (const { id, arm, rep } of jobs) {
     }
     // Vehicle-side state the app should find already there when it starts, like a loaded mission.
     if (mod.beforeLaunch) await mod.beforeLaunch({ vehicle, meta })
+    // A case can add localStorage entries of its own, like a long vehicle trail.
+    Object.assign(seed, meta.seed)
     lap('vehicle and settings reset')
 
     const bare = arm === 'bare'

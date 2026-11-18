@@ -87,6 +87,8 @@ Rules of thumb:
 - Build preconditions through the UI in `setup`, with the same helpers the cases use, rather than
   writing Cockpit's internal storage formats by hand. The runner's seeding of the test user is the one
   exception, and it follows the shapes in `src/types/settings-management.ts`.
+  When a precondition would take hours through the UI, like a long vehicle trail, `beforeLaunch` can put
+  it in `meta.seed`, localStorage entries written into the profile before Cockpit starts.
 - Look at the frames before trusting a new case:
   `ffmpeg -i e2e/output/<run>/<ID>.mp4 -vf fps=1/3,scale=800:-1 /tmp/frames/%02d.jpg`.
 
