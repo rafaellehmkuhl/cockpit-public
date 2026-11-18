@@ -367,7 +367,7 @@ for (const { id, arm, rep } of jobs) {
     lap('app start')
     const ctx = { page, vehicle, url, vehicleHost, meta, outDir, user: TEST_USER }
     if (meta.perf) await page.addScript(SAMPLER)
-    await openCockpit(page, { url, route: meta.route, needsVehicle })
+    await openCockpit(page, { url, route: meta.route, needsVehicle, waitForSync: meta.waitForSync ?? true })
     lap('app ready')
     // The machine's load during a performance case: started once the app is up, since processes started later are not
     // sampled.

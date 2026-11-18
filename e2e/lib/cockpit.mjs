@@ -335,8 +335,9 @@ const SYNC_HOOK = `addEventListener('vehicle-sync-complete', () => { window.__e2
  * @param {string} options.url - Cockpit base URL
  * @param {string} [options.route] - Hash route, e.g. '/mission-planning'
  * @param {boolean} [options.needsVehicle] - Wait for the vehicle to come online
+ * @param {boolean} [options.waitForSync] - Also wait for Cockpit's first settings sync with it
  */
-export async function openCockpit(page, { url, route = '/', needsVehicle = true }) {
+export async function openCockpit(page, { url, route = '/', needsVehicle = true, waitForSync = true }) {
   let hookMissed = false
   if (!page.mapHooked) {
     await page.addScript(MAP_HOOK)
@@ -353,10 +354,11 @@ export async function openCockpit(page, { url, route = '/', needsVehicle = true 
   if (needsVehicle) {
     await page.waitFor(() => vehicleOnline(page), { label: 'the vehicle to come online', timeout: 45000 })
     // Its first settings sync can still replace what a case does before it lands, like a downloaded mission.
-    await page.waitFor(() => page.eval('window.__e2eSynced === true'), {
-      label: "Cockpit's first sync with the vehicle",
-      timeout: 45000,
-    })
+    if (waitForSync)
+      await page.waitFor(() => page.eval('window.__e2eSynced === true'), {
+        label: "Cockpit's first sync with the vehicle",
+        timeout: 45000,
+      })
   }
   // The tour opens 6 s after start unless the user has seen it; the runner marks it seen, so the wait is
   // only for profiles where that has not arrived. A tour that opened anyway is still closed.
