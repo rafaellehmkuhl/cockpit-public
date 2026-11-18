@@ -118,6 +118,9 @@ node e2e/run.mjs PERF- --remote <ssh-host> --app 'C:\path\to\Cockpit-1.19.0\Cock
 - Each case gets a throwaway profile under `%USERPROFILE%\e2e\profiles`, removed when it ends; the
   DevTools port is forwarded over ssh. `download` and `chooseFiles` take paths on this machine, so cases
   that use them do not run remotely yet.
+- When the measured machine reaches the vehicle by another address than this one does (a direct
+  cable to it, say), `--app-vehicle <address>` is the one Cockpit connects to; `--vehicle` stays the
+  one the runner talks to.
 
 ## Performance cases
 

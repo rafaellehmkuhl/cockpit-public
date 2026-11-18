@@ -56,6 +56,8 @@ const appPage = app && (remote ? remotePage(app) : pathToFileURL(join(app, resou
 const url = flag('--url', appPage ?? process.env.COCKPIT_E2E_URL ?? 'http://localhost:5050')
 // No default: every case force-disarms the vehicle and wipes its mission and fence, so the target is always named.
 const vehicleHost = flag('--vehicle', process.env.COCKPIT_E2E_VEHICLE)
+// `--app-vehicle`: the address Cockpit connects to, when the measured machine reaches the vehicle by another route.
+const appVehicleHost = flag('--app-vehicle', vehicleHost)
 const headed = bool('--headed')
 // Performance A/B: every case runs once per arm per repetition. `bare` is the same script with no
 // screencast and nothing painted over the page, which prices what recording costs.
@@ -338,7 +340,7 @@ for (const { id, arm, rep } of jobs) {
     // the same package: Cockpit opens on it and its first sync finds nothing to change.
     const pack = await vehicle.replaceSyncedSettings(TEST_USER, synced)
     const seed = {
-      ...seedFor(vehicleHost),
+      ...seedFor(appVehicleHost),
       'cockpit-settings-v2': JSON.stringify({ [TEST_USER]: { [settingsVehicleId]: pack } }),
       'cockpit-last-connected-vehicle-id': settingsVehicleId,
     }
