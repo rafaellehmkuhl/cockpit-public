@@ -1,0 +1,1171 @@
+{
+  "AHRS": {
+    "message": {
+      "accel_weight": 0.0,
+      "error_rp": 0.0023782604839652777,
+      "error_yaw": 0.0014684224734082818,
+      "omegaIx": -0.00325490883551538,
+      "omegaIy": -0.0032894136384129524,
+      "omegaIz": -0.002743932418525219,
+      "renorm_val": 0.0,
+      "type": "AHRS"
+    },
+    "status": {
+      "time": {
+        "counter": 14728078,
+        "first_update": "2026-11-12T19:46:48.170527082Z",
+        "frequency": 15.784688949584961,
+        "last_update": "2026-11-23T14:57:49.483176045Z"
+      }
+    }
+  },
+  "AHRS2": {
+    "message": {
+      "altitude": -0.03999999910593033,
+      "lat": -275716683,
+      "lng": -481723073,
+      "pitch": 0.0016887856181710958,
+      "roll": 0.0016931557329371572,
+      "type": "AHRS2",
+      "yaw": 1.5844796895980835
+    },
+    "status": {
+      "time": {
+        "counter": 14728076,
+        "first_update": "2026-11-12T19:46:50.185533942Z",
+        "frequency": 15.784721374511719,
+        "last_update": "2026-11-23T14:57:49.483772201Z"
+      }
+    }
+  },
+  "ATTITUDE": {
+    "message": {
+      "pitch": 0.004617109429091215,
+      "pitchspeed": 0.00023867120034992695,
+      "roll": 0.012149003334343433,
+      "rollspeed": 0.00029368745163083076,
+      "time_boot_ms": 931444622,
+      "type": "ATTITUDE",
+      "yaw": 1.603579044342041,
+      "yawspeed": 0.0007637683302164078
+    },
+    "status": {
+      "time": {
+        "counter": 14728078,
+        "first_update": "2026-11-12T19:46:48.170702685Z",
+        "frequency": 15.784688949584961,
+        "last_update": "2026-11-23T14:57:49.484451732Z"
+      }
+    }
+  },
+  "AUTOPILOT_VERSION": {
+    "message": {
+      "board_version": 0,
+      "capabilities": {
+        "bits": 61935
+      },
+      "flight_custom_version": [
+        49,
+        53,
+        49,
+        49,
+        102,
+        50,
+        55,
+        49
+      ],
+      "flight_sw_version": 67567871,
+      "middleware_custom_version": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "middleware_sw_version": 0,
+      "os_custom_version": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "os_sw_version": 0,
+      "product_id": 0,
+      "type": "AUTOPILOT_VERSION",
+      "uid": 0,
+      "uid2": [
+        98,
+        48,
+        99,
+        100,
+        54,
+        53,
+        55,
+        48,
+        99,
+        50,
+        55,
+        50,
+        52,
+        53,
+        53,
+        56,
+        98,
+        0
+      ],
+      "vendor_id": 0
+    },
+    "status": {
+      "time": {
+        "counter": 39017,
+        "first_update": "2026-11-12T19:46:46.139657024Z",
+        "frequency": 0.04181604087352753,
+        "last_update": "2026-11-23T14:57:49.368882837Z"
+      }
+    }
+  },
+  "CAMERA_INFORMATION": {
+    "message": {
+      "cam_definition_uri": [
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000"
+      ],
+      "cam_definition_version": 0,
+      "firmware_version": 0,
+      "flags": {
+        "bits": 2
+      },
+      "focal_length": null,
+      "lens_id": 0,
+      "model_name": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "resolution_h": 0,
+      "resolution_v": 0,
+      "sensor_size_h": null,
+      "sensor_size_v": null,
+      "time_boot_ms": 929631002,
+      "type": "CAMERA_INFORMATION",
+      "vendor_name": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "status": {
+      "time": {
+        "counter": 522,
+        "first_update": "2026-11-13T13:02:44.110516010Z",
+        "frequency": 0.0006006296025589108,
+        "last_update": "2026-11-23T14:27:32.833207066Z"
+      }
+    }
+  },
+  "COMMAND_ACK": {
+    "message": {
+      "command": {
+        "type": "MAV_CMD_REQUEST_MESSAGE"
+      },
+      "progress": 0,
+      "result": {
+        "type": "MAV_RESULT_ACCEPTED"
+      },
+      "result_param2": 0,
+      "target_component": 194,
+      "target_system": 1,
+      "type": "COMMAND_ACK"
+    },
+    "status": {
+      "time": {
+        "counter": 63224,
+        "first_update": "2026-11-12T19:46:46.139552195Z",
+        "frequency": 0.06775962561368942,
+        "last_update": "2026-11-23T14:57:49.368257143Z"
+      }
+    }
+  },
+  "EKF_STATUS_REPORT": {
+    "message": {
+      "airspeed_variance": 0.0,
+      "compass_variance": 0.011040640994906425,
+      "flags": {
+        "bits": 831
+      },
+      "pos_horiz_variance": 0.006109720561653376,
+      "pos_vert_variance": 0.01909111626446247,
+      "terrain_alt_variance": 0.0,
+      "type": "EKF_STATUS_REPORT",
+      "velocity_variance": 0.006299519445747137
+    },
+    "status": {
+      "time": {
+        "counter": 2754359,
+        "first_update": "2026-11-12T19:46:49.165579954Z",
+        "frequency": 2.951963424682617,
+        "last_update": "2026-11-23T14:57:49.253658292Z"
+      }
+    }
+  },
+  "GLOBAL_POSITION_INT": {
+    "message": {
+      "alt": -40,
+      "hdg": 9187,
+      "lat": -275716685,
+      "lon": -481723075,
+      "relative_alt": -63,
+      "time_boot_ms": 931444382,
+      "type": "GLOBAL_POSITION_INT",
+      "vx": -1,
+      "vy": -1,
+      "vz": 0
+    },
+    "status": {
+      "time": {
+        "counter": 2754360,
+        "first_update": "2026-11-12T19:46:48.170753997Z",
+        "frequency": 2.9519612789154053,
+        "last_update": "2026-11-23T14:57:49.252595874Z"
+      }
+    }
+  },
+  "GPS_GLOBAL_ORIGIN": {
+    "message": {
+      "altitude": 0,
+      "latitude": -275554593,
+      "longitude": -484604574,
+      "time_usec": 931055362160,
+      "type": "GPS_GLOBAL_ORIGIN"
+    },
+    "status": {
+      "time": {
+        "counter": 5523,
+        "first_update": "2026-11-12T19:47:05.059646267Z",
+        "frequency": 0.005921810399740934,
+        "last_update": "2026-11-23T14:51:19.562651482Z"
+      }
+    }
+  },
+  "GPS_RAW_INT": {
+    "message": {
+      "alt": 0,
+      "alt_ellipsoid": 0,
+      "cog": 6529,
+      "eph": 121,
+      "epv": 200,
+      "fix_type": {
+        "type": "GPS_FIX_TYPE_RTK_FIXED"
+      },
+      "h_acc": 300,
+      "hdg_acc": 0,
+      "lat": -275716683,
+      "lon": -481723073,
+      "satellites_visible": 10,
+      "time_usec": 931444425000,
+      "type": "GPS_RAW_INT",
+      "v_acc": 300,
+      "vel": 0,
+      "vel_acc": 0,
+      "yaw": 0
+    },
+    "status": {
+      "time": {
+        "counter": 1839374,
+        "first_update": "2026-11-12T19:46:48.199421782Z",
+        "frequency": 1.9713330268859863,
+        "last_update": "2026-11-23T14:57:49.395576491Z"
+      }
+    }
+  },
+  "HEARTBEAT": {
+    "message": {
+      "autopilot": {
+        "type": "MAV_AUTOPILOT_ARDUPILOTMEGA"
+      },
+      "base_mode": {
+        "bits": 1
+      },
+      "custom_mode": 4,
+      "mavlink_version": 3,
+      "mavtype": {
+        "type": "MAV_TYPE_SURFACE_BOAT"
+      },
+      "system_status": {
+        "type": "MAV_STATE_STANDBY"
+      },
+      "type": "HEARTBEAT"
+    },
+    "status": {
+      "time": {
+        "counter": 931945,
+        "first_update": "2026-11-12T19:46:46.114899603Z",
+        "frequency": 0.9988028407096863,
+        "last_update": "2026-11-23T14:57:48.906686009Z"
+      }
+    }
+  },
+  "HOME_POSITION": {
+    "message": {
+      "altitude": 20,
+      "approach_x": 0.0,
+      "approach_y": 0.0,
+      "approach_z": 0.0,
+      "latitude": -275716686,
+      "longitude": -481723082,
+      "q": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "time_usec": 931055362160,
+      "type": "HOME_POSITION",
+      "x": -1804.400634765625,
+      "y": 28435.69921875,
+      "z": -0.019999999552965164
+    },
+    "status": {
+      "time": {
+        "counter": 6329,
+        "first_update": "2026-11-12T19:46:47.601136960Z",
+        "frequency": 0.006785886827856302,
+        "last_update": "2026-11-23T14:51:19.563548289Z"
+      }
+    }
+  },
+  "LOCAL_POSITION_NED": {
+    "message": {
+      "time_boot_ms": 931444522,
+      "type": "LOCAL_POSITION_NED",
+      "vx": -0.018725650385022163,
+      "vy": -0.01956043392419815,
+      "vz": 0.0097760409116745,
+      "x": -1804.384033203125,
+      "y": 28435.76953125,
+      "z": 0.04961032792925835
+    },
+    "status": {
+      "time": {
+        "counter": 926944,
+        "first_update": "2026-11-12T19:47:28.273215984Z",
+        "frequency": 0.993486762046814,
+        "last_update": "2026-11-23T14:57:49.386391303Z"
+      }
+    }
+  },
+  "MEMINFO": {
+    "message": {
+      "brkval": 0,
+      "freemem": 65535,
+      "freemem32": 524288,
+      "type": "MEMINFO"
+    },
+    "status": {
+      "time": {
+        "counter": 1839374,
+        "first_update": "2026-11-12T19:46:48.170931786Z",
+        "frequency": 1.9713330268859863,
+        "last_update": "2026-11-23T14:57:49.390949673Z"
+      }
+    }
+  },
+  "MISSION_ACK": {
+    "message": {
+      "mavtype": {
+        "type": "MAV_MISSION_ACCEPTED"
+      },
+      "mission_type": {
+        "type": "MAV_MISSION_TYPE_FENCE"
+      },
+      "target_component": 190,
+      "target_system": 255,
+      "type": "MISSION_ACK"
+    },
+    "status": {
+      "time": {
+        "counter": 1483,
+        "first_update": "2026-11-12T23:54:35.140292140Z",
+        "frequency": 0.0016152889002114534,
+        "last_update": "2026-11-23T14:56:18.059093177Z"
+      }
+    }
+  },
+  "MISSION_COUNT": {
+    "message": {
+      "count": 0,
+      "mission_type": {
+        "type": "MAV_MISSION_TYPE_FENCE"
+      },
+      "target_component": 240,
+      "target_system": 255,
+      "type": "MISSION_COUNT"
+    },
+    "status": {
+      "time": {
+        "counter": 823,
+        "first_update": "2026-11-12T23:55:11.755203999Z",
+        "frequency": 0.0008980657439678907,
+        "last_update": "2026-11-23T14:28:45.799288516Z"
+      }
+    }
+  },
+  "MISSION_CURRENT": {
+    "message": {
+      "seq": 0,
+      "type": "MISSION_CURRENT"
+    },
+    "status": {
+      "time": {
+        "counter": 927218,
+        "first_update": "2026-11-12T19:46:48.170956211Z",
+        "frequency": 0.9937378168106079,
+        "last_update": "2026-11-23T14:57:49.384488811Z"
+      }
+    }
+  },
+  "MISSION_ITEM_INT": {
+    "message": {
+      "autocontinue": 1,
+      "command": {
+        "type": "MAV_CMD_NAV_WAYPOINT"
+      },
+      "current": 0,
+      "frame": {
+        "type": "MAV_FRAME_GLOBAL_RELATIVE_ALT"
+      },
+      "mission_type": {
+        "type": "MAV_MISSION_TYPE_MISSION"
+      },
+      "param1": 0.0,
+      "param2": 0.0,
+      "param3": 0.0,
+      "param4": 0.0,
+      "seq": 200,
+      "target_component": 240,
+      "target_system": 255,
+      "type": "MISSION_ITEM_INT",
+      "x": -275635857,
+      "y": -481875134,
+      "z": 0.0
+    },
+    "status": {
+      "time": {
+        "counter": 111279,
+        "first_update": "2026-11-17T19:47:47.781122726Z",
+        "frequency": 0.2229204624891281,
+        "last_update": "2026-11-23T14:27:35.065709318Z"
+      }
+    }
+  },
+  "MISSION_ITEM_REACHED": {
+    "message": {
+      "seq": 92,
+      "type": "MISSION_ITEM_REACHED"
+    },
+    "status": {
+      "time": {
+        "counter": 42,
+        "first_update": "2026-11-17T21:44:18.418358171Z",
+        "frequency": 0.00029551866464316845,
+        "last_update": "2026-11-19T13:13:02.380704833Z"
+      }
+    }
+  },
+  "MISSION_REQUEST": {
+    "message": {
+      "mission_type": {
+        "type": "MAV_MISSION_TYPE_MISSION"
+      },
+      "seq": 200,
+      "target_component": 190,
+      "target_system": 255,
+      "type": "MISSION_REQUEST"
+    },
+    "status": {
+      "time": {
+        "counter": 58586,
+        "first_update": "2026-11-17T19:41:21.897361421Z",
+        "frequency": 0.1172759085893631,
+        "last_update": "2026-11-23T14:27:19.559480730Z"
+      }
+    }
+  },
+  "NAV_CONTROLLER_OUTPUT": {
+    "message": {
+      "alt_error": 0.0,
+      "aspd_error": 0.0,
+      "nav_bearing": 0,
+      "nav_pitch": 0.0,
+      "nav_roll": 0.0,
+      "target_bearing": 90,
+      "type": "NAV_CONTROLLER_OUTPUT",
+      "wp_dist": 28,
+      "xtrack_error": 0.1246878132224083
+    },
+    "status": {
+      "time": {
+        "counter": 21321,
+        "first_update": "2026-11-17T19:48:04.671276206Z",
+        "frequency": 0.13876432180404663,
+        "last_update": "2026-11-19T14:28:54.670129643Z"
+      }
+    }
+  },
+  "PARAM_VALUE": {
+    "message": {
+      "param_count": 1261,
+      "param_id": [
+        "B",
+        "A",
+        "R",
+        "O",
+        "2",
+        "_",
+        "G",
+        "N",
+        "D",
+        "_",
+        "P",
+        "R",
+        "E",
+        "S",
+        "S",
+        "\u0000"
+      ],
+      "param_index": 65535,
+      "param_type": {
+        "type": "MAV_PARAM_TYPE_REAL32"
+      },
+      "param_value": 101327.1640625,
+      "type": "PARAM_VALUE"
+    },
+    "status": {
+      "time": {
+        "counter": 906930,
+        "first_update": "2026-11-12T19:46:46.296186213Z",
+        "frequency": 0.9719964265823364,
+        "last_update": "2026-11-23T14:57:46.208896492Z"
+      }
+    }
+  },
+  "POSITION_TARGET_GLOBAL_INT": {
+    "message": {
+      "afx": 0.0,
+      "afy": 0.0,
+      "afz": 0.0,
+      "alt": -0.05999999865889549,
+      "coordinate_frame": {
+        "type": "MAV_FRAME_GLOBAL"
+      },
+      "lat_int": -275720475,
+      "lon_int": -481732896,
+      "time_boot_ms": 584710962,
+      "type": "POSITION_TARGET_GLOBAL_INT",
+      "type_mask": {
+        "bits": 3576
+      },
+      "vx": 0.0,
+      "vy": 0.0,
+      "vz": 0.0,
+      "yaw": 0.0,
+      "yaw_rate": 0.0
+    },
+    "status": {
+      "time": {
+        "counter": 10661,
+        "first_update": "2026-11-17T19:48:04.670842533Z",
+        "frequency": 0.06938541680574417,
+        "last_update": "2026-11-19T14:28:54.167190761Z"
+      }
+    }
+  },
+  "POWER_STATUS": {
+    "message": {
+      "Vcc": 5000,
+      "Vservo": 0,
+      "flags": {
+        "bits": 0
+      },
+      "type": "POWER_STATUS"
+    },
+    "status": {
+      "time": {
+        "counter": 1839374,
+        "first_update": "2026-11-12T19:46:48.170903583Z",
+        "frequency": 1.9713330268859863,
+        "last_update": "2026-11-23T14:57:49.389042033Z"
+      }
+    }
+  },
+  "RAW_IMU": {
+    "message": {
+      "id": 0,
+      "temperature": 4500,
+      "time_usec": 931444522267,
+      "type": "RAW_IMU",
+      "xacc": 0,
+      "xgyro": 3,
+      "xmag": -58,
+      "yacc": 0,
+      "ygyro": 3,
+      "ymag": -159,
+      "zacc": -1000,
+      "zgyro": 3,
+      "zmag": -150
+    },
+    "status": {
+      "time": {
+        "counter": 1839374,
+        "first_update": "2026-11-12T19:46:48.171304029Z",
+        "frequency": 1.9713330268859863,
+        "last_update": "2026-11-23T14:57:49.393334780Z"
+      }
+    }
+  },
+  "RC_CHANNELS": {
+    "message": {
+      "chan10_raw": 0,
+      "chan11_raw": 0,
+      "chan12_raw": 0,
+      "chan13_raw": 0,
+      "chan14_raw": 0,
+      "chan15_raw": 0,
+      "chan16_raw": 0,
+      "chan17_raw": 0,
+      "chan18_raw": 0,
+      "chan1_raw": 1500,
+      "chan2_raw": 1500,
+      "chan3_raw": 1500,
+      "chan4_raw": 1500,
+      "chan5_raw": 1800,
+      "chan6_raw": 1000,
+      "chan7_raw": 1000,
+      "chan8_raw": 1800,
+      "chan9_raw": 0,
+      "chancount": 8,
+      "rssi": 255,
+      "time_boot_ms": 931444522,
+      "type": "RC_CHANNELS"
+    },
+    "status": {
+      "time": {
+        "counter": 1839374,
+        "first_update": "2026-11-12T19:46:48.171261530Z",
+        "frequency": 1.9713330268859863,
+        "last_update": "2026-11-23T14:57:49.392498187Z"
+      }
+    }
+  },
+  "SCALED_IMU2": {
+    "message": {
+      "temperature": 4500,
+      "time_boot_ms": 931444522,
+      "type": "SCALED_IMU2",
+      "xacc": 0,
+      "xgyro": 3,
+      "xmag": -58,
+      "yacc": 0,
+      "ygyro": 3,
+      "ymag": -159,
+      "zacc": -1000,
+      "zgyro": 3,
+      "zmag": -150
+    },
+    "status": {
+      "time": {
+        "counter": 1839374,
+        "first_update": "2026-11-12T19:46:48.171344786Z",
+        "frequency": 1.9713330268859863,
+        "last_update": "2026-11-23T14:57:49.393917528Z"
+      }
+    }
+  },
+  "SCALED_IMU3": {
+    "message": {
+      "temperature": 0,
+      "time_boot_ms": 931444622,
+      "type": "SCALED_IMU3",
+      "xacc": 0,
+      "xgyro": 0,
+      "xmag": -58,
+      "yacc": 0,
+      "ygyro": 0,
+      "ymag": -159,
+      "zacc": 0,
+      "zgyro": 0,
+      "zmag": -150
+    },
+    "status": {
+      "time": {
+        "counter": 9136715,
+        "first_update": "2026-11-12T19:46:48.171381692Z",
+        "frequency": 9.792194366455078,
+        "last_update": "2026-11-23T14:57:49.485690379Z"
+      }
+    }
+  },
+  "SCALED_PRESSURE": {
+    "message": {
+      "press_abs": 1013.2606811523438,
+      "press_diff": 0.0,
+      "temperature": 3500,
+      "time_boot_ms": 931444522,
+      "type": "SCALED_PRESSURE"
+    },
+    "status": {
+      "time": {
+        "counter": 1839374,
+        "first_update": "2026-11-12T19:46:48.199310138Z",
+        "frequency": 1.9713330268859863,
+        "last_update": "2026-11-23T14:57:49.394498702Z"
+      }
+    }
+  },
+  "SCALED_PRESSURE2": {
+    "message": {
+      "press_abs": 1013.251953125,
+      "press_diff": 0.0,
+      "temperature": 3500,
+      "time_boot_ms": 931444522,
+      "type": "SCALED_PRESSURE2"
+    },
+    "status": {
+      "time": {
+        "counter": 1839374,
+        "first_update": "2026-11-12T19:46:48.199383228Z",
+        "frequency": 1.9713330268859863,
+        "last_update": "2026-11-23T14:57:49.394963630Z"
+      }
+    }
+  },
+  "SERVO_OUTPUT_RAW": {
+    "message": {
+      "port": 0,
+      "servo10_raw": 1314,
+      "servo11_raw": 1500,
+      "servo12_raw": 1500,
+      "servo13_raw": 0,
+      "servo14_raw": 0,
+      "servo15_raw": 0,
+      "servo16_raw": 0,
+      "servo1_raw": 1500,
+      "servo2_raw": 0,
+      "servo3_raw": 1500,
+      "servo4_raw": 0,
+      "servo5_raw": 0,
+      "servo6_raw": 0,
+      "servo7_raw": 0,
+      "servo8_raw": 0,
+      "servo9_raw": 0,
+      "time_usec": 3731586331,
+      "type": "SERVO_OUTPUT_RAW"
+    },
+    "status": {
+      "time": {
+        "counter": 1839374,
+        "first_update": "2026-11-12T19:46:48.171174645Z",
+        "frequency": 1.9713330268859863,
+        "last_update": "2026-11-23T14:57:49.391839620Z"
+      }
+    }
+  },
+  "SIMSTATE": {
+    "message": {
+      "lat": -275716683,
+      "lng": -481723073,
+      "pitch": -0.0,
+      "roll": 0.0,
+      "type": "SIMSTATE",
+      "xacc": -1.7469901081312855e-8,
+      "xgyro": 0.0,
+      "yacc": -1.1102230246251565e-16,
+      "yaw": 1.579187273979187,
+      "ygyro": 0.0,
+      "zacc": -9.806650161743164,
+      "zgyro": 0.0
+    },
+    "status": {
+      "time": {
+        "counter": 926984,
+        "first_update": "2026-11-12T19:46:48.199460521Z",
+        "frequency": 0.9934870004653931,
+        "last_update": "2026-11-23T14:57:49.385157545Z"
+      }
+    }
+  },
+  "STATUSTEXT": {
+    "message": {
+      "chunk_seq": 0,
+      "id": 0,
+      "severity": {
+        "type": "MAV_SEVERITY_DEBUG"
+      },
+      "text": [
+        "F",
+        "e",
+        "n",
+        "c",
+        "e",
+        " ",
+        "I",
+        "n",
+        "d",
+        "e",
+        "x",
+        "e",
+        "d",
+        " ",
+        "O",
+        "K",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000",
+        "\u0000"
+      ],
+      "type": "STATUSTEXT"
+    },
+    "status": {
+      "time": {
+        "counter": 3252,
+        "first_update": "2026-11-12T19:46:46.168845100Z",
+        "frequency": 0.0034856388811022043,
+        "last_update": "2026-11-23T14:56:18.059747630Z"
+      }
+    }
+  },
+  "SYSTEM_TIME": {
+    "message": {
+      "time_boot_ms": 931444382,
+      "time_unix_usec": 1796049047357258,
+      "type": "SYSTEM_TIME"
+    },
+    "status": {
+      "time": {
+        "counter": 2754360,
+        "first_update": "2026-11-12T19:46:48.199439096Z",
+        "frequency": 2.9519612789154053,
+        "last_update": "2026-11-23T14:57:49.253052098Z"
+      }
+    }
+  },
+  "SYS_STATUS": {
+    "message": {
+      "battery_remaining": -1,
+      "current_battery": -1,
+      "drop_rate_comm": 0,
+      "errors_comm": 0,
+      "errors_count1": 0,
+      "errors_count2": 0,
+      "errors_count3": 0,
+      "errors_count4": 0,
+      "load": 0,
+      "onboard_control_sensors_enabled": {
+        "bits": 2195503
+      },
+      "onboard_control_sensors_health": {
+        "bits": 53575983
+      },
+      "onboard_control_sensors_present": {
+        "bits": 322034735
+      },
+      "type": "SYS_STATUS",
+      "voltage_battery": 0
+    },
+    "status": {
+      "time": {
+        "counter": 1869665,
+        "first_update": "2026-11-12T19:46:48.170841364Z",
+        "frequency": 2.0037972927093506,
+        "last_update": "2026-11-23T14:57:49.388421709Z"
+      }
+    }
+  },
+  "TIMESYNC": {
+    "message": {
+      "tc1": 0,
+      "ts1": 931435902383001,
+      "type": "TIMESYNC"
+    },
+    "status": {
+      "time": {
+        "counter": 168242,
+        "first_update": "2026-11-12T19:46:55.133017762Z",
+        "frequency": 0.18031498789787292,
+        "last_update": "2026-11-23T14:57:40.748985548Z"
+      }
+    }
+  },
+  "VFR_HUD": {
+    "message": {
+      "airspeed": 0.0,
+      "alt": -0.04999999701976776,
+      "climb": -0.01027214527130127,
+      "groundspeed": 0.027246743440628052,
+      "heading": 91,
+      "throttle": 0,
+      "type": "VFR_HUD"
+    },
+    "status": {
+      "time": {
+        "counter": 14728078,
+        "first_update": "2026-11-12T19:46:48.170787811Z",
+        "frequency": 15.784688949584961,
+        "last_update": "2026-11-23T14:57:49.485078852Z"
+      }
+    }
+  },
+  "VIBRATION": {
+    "message": {
+      "clipping_0": 0,
+      "clipping_1": 0,
+      "clipping_2": 0,
+      "time_usec": 931444382323,
+      "type": "VIBRATION",
+      "vibration_x": 0.00292946700938046,
+      "vibration_y": 0.002624282380566001,
+      "vibration_z": 0.0025182634126394987
+    },
+    "status": {
+      "time": {
+        "counter": 2754360,
+        "first_update": "2026-11-12T19:46:48.199479205Z",
+        "frequency": 2.9519612789154053,
+        "last_update": "2026-11-23T14:57:49.254217317Z"
+      }
+    }
+  }
+}

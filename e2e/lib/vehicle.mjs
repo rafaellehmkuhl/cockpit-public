@@ -147,6 +147,8 @@ export function vehicle(host, { system = 1, component = 1 } = {}) {
 
   // The simulator now and then stops asking for items mid-upload; one fresh attempt gets past it.
   const writeMission = async (points, options) => {
+    // The stand-in boat (remote/fake-boat.mjs) takes the whole mission at once; a real BlueOS answers 404.
+    if ((await http(`http://${host}/e2e/mission`, points).catch(() => ({})))?.status === 200) return
     try {
       await writeMissionOnce(points, options)
     } catch (e) {
@@ -221,6 +223,8 @@ export function vehicle(host, { system = 1, component = 1 } = {}) {
   // Disarm, park in HOLD (Rover's mode 4), clear the mission and the fence and disable the fence, so the
   // next case starts from the same place.
   const reset = async ({ holdMode = 4 } = {}) => {
+    // The stand-in boat also goes back to its home, so every run starts from the same place.
+    await http(`http://${host}/e2e/reset`, {}).catch(ignore)
     // 21196 forces the disarm even while moving; this is a simulator.
     await command('MAV_CMD_COMPONENT_ARM_DISARM', [0, 21196]).catch(ignore)
     // Independent of each other once disarmed, so they go out together.
