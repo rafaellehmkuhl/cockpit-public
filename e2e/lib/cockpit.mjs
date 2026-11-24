@@ -350,9 +350,13 @@ export async function openCockpit(page, { url, route = '/', needsVehicle = true,
   await page.goto(url.endsWith('.html') ? `${url}#${route}` : `${url.replace(/\/$/, '')}/#${route}`)
   if (hookMissed) await page.reload()
   const mounted = () => page.eval(`!!document.querySelector('#app')?.__vue_app__`)
+  const t0 = Date.now()
+  const step = (what) => process.env.E2E_STEPS && console.log(`   step: ${what} after ${((Date.now() - t0) / 1000).toFixed(1)} s`)
   await page.waitFor(mounted, { label: 'Cockpit to mount', timeout: 30000 })
+  step('mounted')
   if (needsVehicle) {
     await page.waitFor(() => vehicleOnline(page), { label: 'the vehicle to come online', timeout: 45000 })
+    step('vehicle online')
     // Its first settings sync can still replace what a case does before it lands, like a downloaded mission.
     if (waitForSync)
       await page.waitFor(() => page.eval('window.__e2eSynced === true'), {

@@ -28,14 +28,20 @@ const play = async (plan) => {
   const pending = new Map()
   ws.onmessage = ({ data }) => {
     const msg = JSON.parse(data)
-    pending.get(msg.id)?.(!msg.error)
+    pending.get(msg.id)?.(msg)
     pending.delete(msg.id)
   }
   const send = (method, params) =>
     new Promise((resolve) => {
       const id = nextId++
-      pending.set(id, resolve)
+      pending.set(id, (msg) => resolve(!msg.error))
       ws.send(JSON.stringify({ id, method, params }))
+    })
+  const evaluate = (expression) =>
+    new Promise((resolve) => {
+      const id = nextId++
+      pending.set(id, (msg) => resolve(msg.result?.result?.value === true))
+      ws.send(JSON.stringify({ id, method: 'Runtime.evaluate', params: { expression, returnByValue: true } }))
     })
   const dispatch = (step) =>
     step.mark === undefined
@@ -44,10 +50,20 @@ const play = async (plan) => {
 
   const log = []
   const sent = []
-  const start = performance.now()
+  // An `until` step holds the rest of the plan until a page expression is true, polled here every frame, and the
+  // steps after it keep their spacing from the moment it held.
+  let start = performance.now()
   for (const step of plan) {
     const wait = start + step.t - performance.now()
     if (wait > 0) await sleep(wait)
+    if (step.until !== undefined) {
+      const due = performance.now()
+      let held = false
+      while (!(held = await evaluate(step.until)) && performance.now() - due < (step.timeout ?? 5000)) await sleep(16)
+      log.push({ at: Date.now(), ok: held, waited: Math.round(performance.now() - due) })
+      start += performance.now() - due
+      continue
+    }
     const entry = { at: Date.now(), ok: false }
     log.push(entry)
     // Not awaited: a slow app gets the same input as a fast one, and has to queue it.

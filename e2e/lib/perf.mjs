@@ -309,14 +309,16 @@ export async function prepareMap(page, vehicle) {
  * The standard map workout, each part measured on its own: 15 s at rest, three wheel flicks in and
  * out, four drag pans. Checks that every gesture reached the app and the map answered it.
  * @param {object} page - Driver page
+ * @param {object} [opts] - Options
+ * @param {string} [opts.prefix] - Put in front of each window's label, to tell apart several workouts in one run
  * @returns {Promise<void>}
  */
-export async function mapWorkout(page) {
+export async function mapWorkout(page, { prefix = '' } = {}) {
   const map = mapExpr('widget')
   const at = await mapPoint(page, 'widget', 0.35, 0.6)
 
   await page.caption('Map at rest for 15 s')
-  const idle = await measure(page, 'idle', () => page.wait(15000), { map })
+  const idle = await measure(page, `${prefix}idle`, () => page.wait(15000), { map })
   await page.check('Frames were counted at rest', () => ({ ok: idle.frames > 0, detail: `${idle.frames} frames` }))
 
   await page.caption('Wheel: three flicks in and out, notches 40 ms apart')
@@ -325,7 +327,7 @@ export async function mapWorkout(page) {
   const before = await wheelSoFar()
   const zoom = await measureGestures(
     page,
-    'wheel zoom',
+    `${prefix}wheel zoom`,
     at,
     wheelPlan(at, [...ZOOM_FLICKS, ...ZOOM_FLICKS, ...ZOOM_FLICKS]),
     1500,
@@ -361,7 +363,7 @@ export async function mapWorkout(page) {
   await page.caption('Pan: four drags, 300 px each')
   const pan = await measureGestures(
     page,
-    'drag pan',
+    `${prefix}drag pan`,
     at,
     inSequence(
       PANS.map((by) => dragPlan(at, by)),
@@ -415,3 +417,75 @@ const drawnWaypoints = (page) =>
     if (typeof m.getStyle === 'function') return m.getSource('mission::waypoints')?.serialize?.().data?.features?.length ?? 0
     if (typeof m.eachLayer === 'function') { let n = 0; m.eachLayer((l) => { if (l.options?.className === 'cockpit-waypoint-dot') n++ }); return n }
     return m.vectors?.get('mission::waypoint-markers')?.features?.length ?? 0 })()`)
+
+/**
+ * Wait until the page has drawn `frames` frames in a row each within `budget` ms, so a measured window does not
+ * inherit work a previous one left queued (tiles still decoding, icons still rasterising).
+ * @param {object} page - Driver page
+ * @param {object} [opts] - Options
+ * @returns {Promise<number>} ms waited, or -1 if it never got quiet within `timeout`
+ */
+export const waitQuiet = (page, { frames = 30, budget = 20, timeout = 15000 } = {}) =>
+  page.eval(`new Promise((resolve) => { const t0 = performance.now(); let last = t0, run = 0
+    // A hidden or covered window gets no frames at all, so the deadline cannot live in the frame loop alone.
+    setTimeout(() => resolve(-1), ${timeout})
+    const tick = (now) => { run = now - last <= ${budget} ? run + 1 : 0; last = now
+      if (run >= ${frames}) return resolve(Math.round(now - t0))
+      if (now - t0 > ${timeout}) return resolve(-1)
+      requestAnimationFrame(tick) }
+    requestAnimationFrame(tick) })`)
+
+// The zoom levels the wheel window steps through, one notch per level: in to street level and out past the survey.
+const ZOOM_TRAJECTORY = [17, 18, 17, 16, 15, 14, 15, 16, 17, 18, 17, 16]
+
+/**
+ * A map workout whose work is the same on every run: each window starts from the same view on a quiet page, and the
+ * wheel window steps through fixed zoom levels one notch at a time, the next notch going out once the map has landed
+ * on the level the last one asked for. Checks every level was reached, so a run that zoomed elsewhere fails.
+ * @param {object} page - Driver page
+ * @param {object} [opts] - Options
+ * @param {string} [opts.prefix] - Put in front of each window's label
+ * @param {Function} [opts.aroundDrag] - Wraps the drag window, e.g. to trace only it
+ * @returns {Promise<object>} How long each quiet wait took
+ */
+export async function steadyMapWorkout(page, { prefix = '', aroundDrag = (fn) => fn() } = {}) {
+  const map = mapExpr('widget')
+  const home = await mapView(page, 'widget')
+  const at = await mapPoint(page, 'widget', 0.35, 0.6)
+  const reset = async () => {
+    await setMapView(page, 'widget', home, home.zoom)
+    return waitQuiet(page)
+  }
+  const quiet = {}
+
+  quiet.idle = await reset()
+  await page.caption('Map at rest for 10 s')
+  const idle = await measure(page, `${prefix}idle`, () => page.wait(10000), { map })
+  await page.check('Frames were counted at rest', () => ({ ok: idle.frames > 0, detail: `${idle.frames} frames` }))
+
+  quiet.zoom = await reset()
+  await page.caption('Wheel: one notch per zoom level, each once the map has landed')
+  const reached = `(() => { const m = ${map}; return { z: m.getZoom(), moving: !!m._animatingZoom } })()`
+  let from = home.zoom
+  const plan = ZOOM_TRAJECTORY.flatMap((z) => {
+    const notch = { t: 0, params: { type: 'mouseWheel', x: at.x, y: at.y, deltaX: 0, deltaY: z > from ? -100 : 100 } }
+    from = z
+    return [notch, { t: 0, until: `(() => { const m = ${map}; return m.getZoom() === ${z} && !m._animatingZoom })()`, timeout: 5000 }]
+  })
+  const zoom = await measureGestures(page, `${prefix}wheel zoom`, at, inSequence(plan.map((s) => [s])), 300, { map })
+  const end = await page.eval(reached)
+  await page.check('The wheel landed on every zoom level in turn', () => ({
+    ok: zoom.refused === 0 && end.z === ZOOM_TRAJECTORY.at(-1),
+    detail: zoom.refused ? `${zoom.refused} steps failed or timed out` : `ended at z${end.z}`,
+  }))
+
+  quiet.drag = await reset()
+  await page.caption('Pan: four drags, 300 px each')
+  const pan = await aroundDrag(() => measureGestures(page, `${prefix}drag pan`, at, inSequence(PANS.map((by) => dragPlan(at, by)), 400), 1000, { map }))
+  await page.check('The map panned with the drags', () => ({ ok: pan.map > 0, detail: `${pan.map} map moves` }))
+  await page.check('Every window started on a quiet page', () => ({
+    ok: Object.values(quiet).every((ms) => ms >= 0),
+    detail: Object.entries(quiet).map(([k, ms]) => `${k} ${ms < 0 ? 'never quiet' : `${ms} ms`}`).join(', '),
+  }))
+  return quiet
+}

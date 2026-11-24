@@ -17,7 +17,9 @@ if ($Action -eq 'start') {
     '\Memory\Available MBytes',
     '\Process(*)\% Processor Time',
     '\Process(*)\Working Set - Private',
-    '\Process(*)\ID Process'
+    '\Process(*)\ID Process',
+    '\Processor Information(_Total)\% Processor Performance',
+    '\GPU Engine(*engtype_3D)\Utilization Percentage'
   )
   $quoted = ($counters | ForEach-Object { '"' + $_ + '"' }) -join ' '
   # Created through WMI rather than Start-Process: anything started inside the ssh session dies when it closes.
