@@ -2,15 +2,13 @@
 // summed up per measured window: how busy the machine was, how much of it was Cockpit and which of its processes,
 // and which other processes were busy at the same time.
 
-import { spawnSync } from 'node:child_process'
+import { sshSync } from './ssh.mjs'
 import { writeFileSync } from 'node:fs'
 
 const ps = (remote, action) =>
-  spawnSync(
+  sshSync(
     'ssh',
     [
-      '-o',
-      'BatchMode=yes',
       remote,
       `powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\\e2e\\box-stats.ps1" ${action}`,
     ],

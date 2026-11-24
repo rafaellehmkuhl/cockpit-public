@@ -4,6 +4,7 @@
 // pipeline, only the arrow is paint. Adapted from the ui-demo-video recorder; no dependencies
 // beyond Chrome and ffmpeg.
 
+import { SSH_OPTS, sshSync } from './ssh.mjs'
 import { Buffer } from 'node:buffer'
 import { spawn, spawnSync } from 'node:child_process'
 import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
@@ -23,8 +24,7 @@ const DEFAULT_CHROME_APP = '/Applications/Google Chrome.app'
 // A Standalone on another machine (`--remote`): a Windows box reached over ssh, where the app is
 // started by the E2ELaunch scheduled task so it opens on the logged-in desktop (see README)
 // and its DevTools port is forwarded here.
-const remoteShell = (host, command) =>
-  spawnSync('ssh', ['-o', 'BatchMode=yes', host, command], { encoding: 'utf8', timeout: 60000 })
+const remoteShell = (host, command) => sshSync('ssh', [host, command])
 // Plays measured gestures on the remote machine itself (see `gestures` below).
 const GESTURES_SCRIPT = fileURLToPath(new URL('../remote/gestures.mjs', import.meta.url))
 // Samples the remote machine's load during a case (lib/box-stats.mjs).
@@ -34,10 +34,13 @@ const remoteProfile = (name) => `(Join-Path $env:USERPROFILE 'e2e\\profiles\\${n
 // Only the app under test may run on that machine: any Cockpit or Electron app, ours from an earlier
 // case or one opened by hand, is load on the very thing being measured. This kills them all and prints
 // how many are still alive after up to 10 s.
-const KILL_ALL_APPS = `$apps = { @(Get-CimInstance Win32_Process | Where-Object { $_.Name -match '^(Cockpit|electron)\\.exe$' }) }
+const KILL_ALL_APPS = `$apps = { @(Get-CimInstance Win32_Process | Where-Object { $_.Name -match '^(Cockpit|electron)\\.exe$' -or ($_.Name -eq 'chrome.exe' -and $_.CommandLine -match 'e2e\\\\profiles') }) }
   & $apps | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
   for ($i = 0; $i -lt 40 -and (& $apps).Count; $i++) { Start-Sleep -Milliseconds 250 }
   Write-Output "apps-left:$((& $apps).Count)"`
+// A test app left behind by a run that died would sit over the next one's window and starve it of frames.
+const killTestApps = () =>
+  spawnSync('powershell', ['-NoProfile', '-Command', `Get-CimInstance Win32_Process | Where-Object { $_.Name -match '^(Cockpit|electron|chrome)\\.exe$' -and $_.CommandLine -match 'cockpit-e2e-' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`])
 const appsLeft = (result) => Number(result.stdout.match(/apps-left:(\d+)/)?.[1] ?? NaN)
 
 /**
@@ -226,7 +229,7 @@ export async function launch(options = {}) {
   // starts up inside a measured window.
   let player
   const startPlayer = () => {
-    const child = spawn('ssh', ['-o', 'BatchMode=yes', remote, `node "$env:USERPROFILE\\e2e\\gestures.mjs" ${port}`])
+    const child = spawn('ssh', [...SSH_OPTS, remote, `node "$env:USERPROFILE\\e2e\\gestures.mjs" ${port}`])
     const waiting = []
     let err = ''
     child.stderr.on('data', (d) => (err += d))
@@ -251,14 +254,7 @@ export async function launch(options = {}) {
     if (remote) {
       const args = [`--remote-debugging-port=${port}`, ...(options.args ?? [])]
       // Copied on every start, so the machine always runs the launcher, gesture player and load sampler of this checkout.
-      const copied = spawnSync(
-        'scp',
-        ['-q', '-o', 'BatchMode=yes', GESTURES_SCRIPT, BOX_STATS_SCRIPT, LAUNCH_SCRIPT, `${remote}:e2e/`],
-        {
-          encoding: 'utf8',
-          timeout: 60000,
-        }
-      )
+      const copied = sshSync('scp', ['-q', GESTURES_SCRIPT, BOX_STATS_SCRIPT, LAUNCH_SCRIPT, `${remote}:e2e/`])
       if (copied.status !== 0)
         throw new Error(`could not copy the launcher, gesture player and load sampler to ${remote}: ${copied.stderr}`)
       const start = remoteShell(
@@ -275,8 +271,7 @@ export async function launch(options = {}) {
       if (appsLeft(start) !== 0)
         throw new Error(`${appsLeft(start)} other Cockpit or Electron app(s) on ${remote} would not close`)
       const tunnel = spawn('ssh', [
-        '-o',
-        'BatchMode=yes',
+        ...SSH_OPTS,
         '-o',
         'ExitOnForwardFailure=yes',
         '-N',
@@ -293,9 +288,14 @@ export async function launch(options = {}) {
       const args = [`--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, ...(options.args ?? [])]
       // Off macOS the app is electron-builder's unpacked folder; without the setuid sandbox helper a CI runner
       // lacks, Electron only starts unsandboxed.
+      // On Windows the app is the executable itself (Cockpit.exe or chrome.exe), run where the harness runs, so the
+      // measured machine needs no network to the driver. spawn quotes each argument, so quotes a remote launch needs
+      // around a value with spaces would arrive as part of it.
       const child =
         process.platform === 'darwin'
           ? spawn('open', ['-n', '-g', '-W', '-a', options.app, '--args', ...args])
+          : process.platform === 'win32'
+          ? (killTestApps(), spawn(options.app, args.map((a) => a.replace(/"/g, ''))))
           : spawn(join(options.app, 'cockpit'), [...args, '--no-sandbox'])
       child.stderr.on('data', ignore)
       return child
@@ -377,6 +377,14 @@ export async function launch(options = {}) {
   const quit = async () => {
     if (remote && browser) return quitRemote()
     if (!browser) return session?.close()
+    // The profile is thrown away, so on the measured machine itself there is nothing to wait for: the whole process tree
+    // goes, which took close to 14 s per case when left to exit on its own.
+    if (process.platform === 'win32') {
+      await Promise.race([send('Browser.close').catch(ignore), sleep(1500)])
+      session.close()
+      spawnSync('taskkill', ['/T', '/F', '/PID', String(browser.pid)])
+      return
+    }
     // `open -W` exits when Chrome does; killing `open` itself would leave Chrome running.
     const exited = new Promise((resolve) => (browser.exitCode !== null ? resolve() : browser.once('exit', resolve)))
     // With request interception on, Chrome can drop the socket without answering Browser.close.
@@ -703,12 +711,20 @@ export async function launch(options = {}) {
         throw new Error(`gesture player on ${remote}: ${e.message}`)
       }
     } else {
-      const start = Date.now()
+      let start = Date.now()
       const sent = []
       log = []
       for (const step of plan) {
         const wait = start + step.t - Date.now()
         if (wait > 0) await sleep(wait)
+        if (step.until !== undefined) {
+          const due = Date.now()
+          let held = false
+          while (!(held = (await evaluate(step.until)) === true) && Date.now() - due < (step.timeout ?? 5000)) await sleep(16)
+          log.push({ at: Date.now(), ok: held, waited: Date.now() - due })
+          start += Date.now() - due
+          continue
+        }
         const entry = { at: Date.now(), ok: false }
         log.push(entry)
         const done =
