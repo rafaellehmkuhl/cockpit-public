@@ -258,6 +258,7 @@ jobs:
           path: sitl
 
   deploy-page:
+    if: false
     needs: [lint, test, build-ardusub-wasm]
     runs-on: ubuntu-latest
     steps:
@@ -598,6 +599,7 @@ jobs:
           prerelease: true
 
   deploy-flatpak:
+    if: false
     needs: [lint, test]
     runs-on: ${{ matrix.os }}
     strategy:
@@ -696,6 +698,7 @@ jobs:
           aws s3 cp dist/Cockpit-${{ matrix.suffix }}-${{ matrix.arch }}-${{ env.VERSION }}.${{ matrix.extension }} s3://bcloud-public/cockpit/releases/stable/Cockpit-${{ matrix.suffix }}-${{ matrix.arch }}.${{ matrix.extension }}
 
   deploy-blueos-extension:
+    if: false
     needs: [lint, test]
     runs-on: ubuntu-latest
     env:

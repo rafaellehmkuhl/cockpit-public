@@ -201,7 +201,7 @@
     },
     "publish": {
       "provider": "github",
-      "owner": "bluerobotics"
+      "owner": "rafaellehmkuhl"
     },
     "artifactName": "${productName}-${os}-${arch}-${version}.${ext}",
     "mac": {
