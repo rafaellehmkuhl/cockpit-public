@@ -499,6 +499,17 @@ jobs:
           overwrite: true
           prerelease: true
 
+      # The Linux update feed names the bare AppImage, not the tar.gz that keeps its executable bit for downloads.
+      - name: Upload AppImage for the updater (linux-only)
+        uses: svenstaro/upload-release-action@v2
+        if: startsWith(github.ref, 'refs/tags/') && success() && matrix.suffix == 'linux'
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: dist/Cockpit-${{ matrix.suffix }}-${{ matrix.arch }}-${{ env.VERSION }}.${{ matrix.buildExtension }}
+          tag: ${{ github.ref }}
+          overwrite: true
+          prerelease: true
+
       - name: Upload latest metadata release
         uses: svenstaro/upload-release-action@v2
         if: startsWith(github.ref, 'refs/tags/') && success()
