@@ -1,1 +1,0 @@
-Get in touch for more information: software@bluerobotics.com
