@@ -31,7 +31,7 @@ const PLATFORM_CONFIG = {
   },
   darwin: {
     x64: {
-      url: 'https://www.osxexperts.net/ffmpeg71intel.zip',
+      url: 'https://github.com/rafaellehmkuhl/cockpit-public/releases/download/v1.20.0-beta.912/ffmpeg71intel-e2e.zip',
       archivePath: 'ffmpeg',
       targetFile: 'ffmpeg',
     },
