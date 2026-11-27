@@ -69,7 +69,7 @@ getSystemInfoForTelemetry().then((systemInfo) => {
 // not running in development mode, nor built for automated tests (which fail on purpose).
 // @ts-ignore: import.meta.env does not exist in the types
 if (!import.meta.env.DEV && import.meta.env.VITE_DISABLE_TELEMETRY !== 'true') {
-  console.log('Initializing Sentry telemetry (updater e2e build)...')
+  console.log('Initializing Sentry telemetry (updater e2e build 2)...')
   Sentry.init({
     app,
     dsn: 'https://d7329dcf760fa1cc9fa6c7a5f16f60a1@o4507696465707008.ingest.us.sentry.io/4507762984222720',
