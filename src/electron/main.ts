@@ -197,7 +197,7 @@ setupTTSService()
 setupMcpService()
 
 app.whenReady().then(async () => {
-  console.log('Electron app is ready.')
+  console.log('Electron app is ready (updater e2e build).')
   console.log(`Cockpit version: ${app.getVersion()}`)
 
   // Inject a Referer header for OSM tile requests before the first tile is fetched, so the
